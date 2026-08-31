@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import PlayerCard from "@/components/PlayerCard";
 import { PickSlipBar, PickSlipDrawer } from "@/components/PickSlip";
+import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal, { SubmitInfo } from "@/components/SubmitModal";
 import {
   EventSettings,
@@ -128,6 +129,9 @@ export default function PicksExperience({
           <p className="mt-8 inline-block rounded-lg border border-line bg-panel px-4 py-2 font-mono text-sm tracking-wide text-bone/70">
             #{confirmation}
           </p>
+          <p className="mt-6 font-mono text-[10px] tracking-[0.15em] text-bone/35">
+            FREE TO PLAY &middot; NO ENTRY FEES &middot; NO WAGERING
+          </p>
           <div>
             <Link
               href="/"
@@ -142,15 +146,15 @@ export default function PicksExperience({
   }
 
   return (
-    <main className="min-h-[100dvh] bg-ink pb-28">
+    <main className="min-h-[100dvh] bg-ink pb-28 lg:pb-10">
       <div className="sticky top-0 z-20 border-b border-line bg-ink/90 backdrop-blur-md">
-        <div className="flex items-center justify-between px-5 pt-5">
+        <div className="flex items-center justify-between px-5 pt-5 lg:mx-auto lg:max-w-6xl">
           <span className="font-head text-sm font-bold tracking-[0.2em] text-bone">
             SCE PICKS
           </span>
           <button
             onClick={() => setSlipOpen(true)}
-            className="font-mono text-[10px] font-semibold tracking-[0.15em] text-bone/40"
+            className="font-mono text-[10px] font-semibold tracking-[0.15em] text-bone/40 lg:hidden"
           >
             MY PICKS {pickList.length > 0 && `(${pickList.length})`}
           </button>
@@ -168,7 +172,7 @@ export default function PicksExperience({
           </span>
         </div>
 
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-3">
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-3 lg:mx-auto lg:max-w-6xl">
           <TeamPill
             active={teamFilter === "all"}
             onClick={() => setTeamFilter("all")}
@@ -186,7 +190,7 @@ export default function PicksExperience({
         </div>
 
         {availableStats.length > 1 && (
-          <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-3">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-3 lg:mx-auto lg:max-w-6xl">
             <StatPill
               active={statFilter === "all"}
               onClick={() => setStatFilter("all")}
@@ -204,37 +208,49 @@ export default function PicksExperience({
         )}
       </div>
 
-      <div className="space-y-3 px-4 py-5">
-        {filteredProps.length === 0 ? (
-          <EmptyState hasAnyProps={props.length > 0} />
-        ) : (
-          filteredProps.map((prop) => (
-            <PlayerCard
-              key={prop.id}
-              prop={prop}
-              selection={picks[prop.id]?.selection ?? null}
-              onSelect={(sel) => handleSelect(prop, sel)}
-            />
-          ))
-        )}
+      <div className="px-4 py-5 lg:mx-auto lg:flex lg:max-w-6xl lg:items-start lg:gap-6 lg:px-5">
+        <div className="space-y-3 lg:flex-1">
+          {filteredProps.length === 0 ? (
+            <EmptyState hasAnyProps={props.length > 0} />
+          ) : (
+            filteredProps.map((prop) => (
+              <PlayerCard
+                key={prop.id}
+                prop={prop}
+                selection={picks[prop.id]?.selection ?? null}
+                onSelect={(sel) => handleSelect(prop, sel)}
+              />
+            ))
+          )}
+        </div>
+
+        <PickSidePanel
+          items={pickList}
+          onRemove={removePick}
+          onSubmit={() => setSubmitModalOpen(true)}
+          submitting={submitting}
+          locked={picksLocked}
+        />
       </div>
 
-      <PickSlipBar count={pickList.length} onOpen={() => setSlipOpen(true)} />
-      <PickSlipDrawer
-        items={pickList}
-        open={slipOpen}
-        onClose={() => setSlipOpen(false)}
-        onRemove={removePick}
-        onSubmit={() => setSubmitModalOpen(true)}
-        submitting={submitting}
-        locked={picksLocked}
-      />
+      <div className="lg:hidden">
+        <PickSlipBar count={pickList.length} onOpen={() => setSlipOpen(true)} />
+        <PickSlipDrawer
+          items={pickList}
+          open={slipOpen}
+          onClose={() => setSlipOpen(false)}
+          onRemove={removePick}
+          onSubmit={() => setSubmitModalOpen(true)}
+          submitting={submitting}
+          locked={picksLocked}
+        />
+      </div>
       <SubmitModal
         open={submitModalOpen}
         onClose={() => setSubmitModalOpen(false)}
         onConfirm={handleConfirmSubmit}
         submitting={submitting}
-        emailRequired={settings?.email_required ?? false}
+        emailRequired={settings?.email_required ?? true}
         instagramRequired={settings?.instagram_required ?? true}
       />
       {error && (
