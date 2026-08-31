@@ -30,8 +30,8 @@ export default function AdminLayout({
     <div className="min-h-[100dvh] bg-ink">
       <header className="border-b border-line px-4 py-4 sm:px-8">
         <div className="flex items-center justify-between">
-          <span className="font-display text-lg font-semibold tracking-wide text-bone">
-            SCE PICKS ADMIN
+          <span className="font-head text-lg font-bold tracking-[0.1em] text-bone">
+            SCE PICKS <span className="text-bone/40">ADMIN</span>
           </span>
           <button
             onClick={handleLogout}

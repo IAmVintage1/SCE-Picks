@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Oswald, Inter } from "next/font/google";
+import { Anton, Oswald, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const anton = Anton({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-anton",
+  display: "swap",
+});
 
 const oswald = Oswald({
   subsets: ["latin"],
@@ -13,6 +20,13 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-jetbrains",
   display: "swap",
 });
 
@@ -39,7 +53,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0A0A0C",
+  themeColor: "#050506",
 };
 
 export default function RootLayout({
@@ -48,8 +62,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${oswald.variable} ${inter.variable}`}>
-      <body className="font-body antialiased">{children}</body>
+    <html
+      lang="en"
+      className={`${anton.variable} ${oswald.variable} ${inter.variable} ${jetbrains.variable}`}
+    >
+      <body className="font-body antialiased bg-ink text-bone">
+        {children}
+      </body>
     </html>
   );
 }
