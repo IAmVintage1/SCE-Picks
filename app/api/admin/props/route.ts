@@ -9,7 +9,6 @@ export async function GET() {
 
     const supabase = createAdminSupabase();
 
-    // Fetch props, players, and teams concurrently
     const [propsRes, playersRes, teamsRes] = await Promise.all([
       supabase.from("props").select("*").order("created_at", { ascending: false }),
       supabase.from("players").select("*"),
