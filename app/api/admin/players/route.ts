@@ -24,7 +24,7 @@ export async function GET() {
       team: teamMap.get(player.team_id) || null,
     }));
 
-    return NextResponse.json({ players: formattedPlayers });
+    return NextResponse.json({ players: formattedPlayers || [] });
   } catch (err: any) {
     console.error("[API/PLAYERS] Error:", err);
     return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
