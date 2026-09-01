@@ -11,7 +11,7 @@ export async function GET() {
 
     const supabase = createAdminSupabase();
 
-    // Direct selects avoid PostgREST path errors
+    // Fetch players and teams independently to prevent PostgREST path errors
     const [{ data: players, error: playersErr }, { data: teams, error: teamsErr }] =
       await Promise.all([
         supabase.from("players").select("*").order("name"),
