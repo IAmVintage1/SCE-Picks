@@ -27,12 +27,12 @@ export async function GET() {
       console.warn("[API/PLAYERS] Auth failed with status:", auth.status);
       return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
     }
-
+    
     // 3. Query Supabase
     const supabase = createAdminSupabase();
     const { data, error } = await supabase
       .from("players")
-      .select("*, team:teams(*)")
+      .select("*, teams(*)")
       .order("name");
 
     if (error) {
