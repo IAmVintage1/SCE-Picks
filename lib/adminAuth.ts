@@ -53,6 +53,7 @@ async function isValidToken(token: string | undefined): Promise<boolean> {
   if (!payload || !signature) return false;
   const expected = await sign(payload);
   if (signature.length !== expected.length) return false;
+
   // constant-time-ish comparison
   let diff = 0;
   for (let i = 0; i < expected.length; i++) {
@@ -71,11 +72,18 @@ export function getAdminCookieName() {
 export async function requireAdmin(): Promise<
   { ok: true } | { ok: false; status: number }
 > {
-  const token = cookies().get(COOKIE_NAME)?.value;
-  if (!(await isValidToken(token))) {
-    return { ok: false, status: 401 };
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(COOKIE_NAME)?.value;
+
+    if (!(await isValidToken(token))) {
+      return { ok: false, status: 401 };
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("Error in requireAdmin:", error);
+    return { ok: false, status: 500 };
   }
-  return { ok: true };
 }
 
 export async function isAdminSessionValid(token: string | undefined) {
