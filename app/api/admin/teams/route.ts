@@ -5,9 +5,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 export async function GET() {
   try {
     const auth = await requireAdmin();
-    if (!auth.ok) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
-    }
+    if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
     const supabase = createAdminSupabase();
     const { data, error } = await supabase
@@ -15,27 +13,18 @@ export async function GET() {
       .select("*")
       .order("name");
 
-    if (error) {
-      console.error("[API/TEAMS] Supabase Query Error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    if (error) throw error;
     return NextResponse.json({ teams: data });
   } catch (err: any) {
-    console.error("[API/TEAMS] Unhandled Exception:", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 }
-    );
+    console.error("[API/TEAMS] Error:", err);
+    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAdmin();
-    if (!auth.ok) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
-    }
+    if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
     const { name, logo_url } = await req.json();
     if (!name) {
@@ -49,17 +38,10 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    if (error) {
-      console.error("[API/TEAMS] Supabase Insert Error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    if (error) throw error;
     return NextResponse.json({ team: data });
   } catch (err: any) {
-    console.error("[API/TEAMS] POST Unhandled Exception:", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 }
-    );
+    console.error("[API/TEAMS] POST Error:", err);
+    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
   }
 }
