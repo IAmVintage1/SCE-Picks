@@ -11,18 +11,23 @@ export async function GET() {
 
     const supabase = createAdminSupabase();
     const { data, error } = await supabase
-      .from("teams")
-      .select("*")
+      .from("players")
+      .select("*, teams(*)")
       .order("name");
 
     if (error) {
-      console.error("[API/TEAMS] Supabase Query Error:", error);
+      console.error("[API/PLAYERS] Supabase Query Error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ teams: data });
+    const formattedPlayers = data?.map((player) => ({
+      ...player,
+      team: player.teams,
+    }));
+
+    return NextResponse.json({ players: formattedPlayers });
   } catch (err: any) {
-    console.error("[API/TEAMS] Unhandled Exception:", err);
+    console.error("[API/PLAYERS] Unhandled Exception:", err);
     return NextResponse.json(
       { error: err?.message || "Internal server error" },
       { status: 500 }
@@ -37,26 +42,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
     }
 
-    const { name, logo_url } = await req.json();
-    if (!name) {
-      return NextResponse.json({ error: "Team name is required." }, { status: 400 });
+    const { name, team_id } = await req.json();
+    if (!name || !team_id) {
+      return NextResponse.json(
+        { error: "Name and team are required." },
+        { status: 400 }
+      );
     }
 
     const supabase = createAdminSupabase();
     const { data, error } = await supabase
-      .from("teams")
-      .insert({ name, logo_url })
+      .from("players")
+      .insert({ name, team_id })
       .select()
       .single();
 
     if (error) {
-      console.error("[API/TEAMS] Supabase Insert Error:", error);
+      console.error("[API/PLAYERS] Supabase Insert Error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ team: data });
+    return NextResponse.json({ player: data });
   } catch (err: any) {
-    console.error("[API/TEAMS] POST Unhandled Exception:", err);
+    console.error("[API/PLAYERS] POST Unhandled Exception:", err);
     return NextResponse.json(
       { error: err?.message || "Internal server error" },
       { status: 500 }
