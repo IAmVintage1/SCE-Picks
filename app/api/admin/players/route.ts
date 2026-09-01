@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
     }
 
-    // 2. Query Supabase using standard relational join
+    // 2. Query Supabase using standard relational syntax
     const supabase = createAdminSupabase();
     const { data, error } = await supabase
       .from("players")
@@ -23,7 +23,7 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Map 'teams' array/object to 'team' key if needed by UI components
+    // Map 'teams' object to 'team' key to match UI expectations
     const formattedPlayers = data?.map((player) => ({
       ...player,
       team: player.teams,
