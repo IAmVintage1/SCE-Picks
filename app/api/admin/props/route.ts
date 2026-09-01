@@ -20,7 +20,6 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Map nested PostgREST relationships ('players' and 'teams') to match expected UI object keys
     const formattedProps = data?.map((prop) => ({
       ...prop,
       player: prop.players
