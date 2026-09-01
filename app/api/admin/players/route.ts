@@ -5,10 +5,13 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 export async function GET() {
   try {
     const auth = await requireAdmin();
-    if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
+    if (!auth.ok) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
+    }
 
     const supabase = createAdminSupabase();
 
+    // Direct selects avoid PostgREST path errors
     const [{ data: players, error: playersErr }, { data: teams, error: teamsErr }] =
       await Promise.all([
         supabase.from("players").select("*").order("name"),
@@ -27,14 +30,19 @@ export async function GET() {
     return NextResponse.json({ players: formattedPlayers });
   } catch (err: any) {
     console.error("[API/PLAYERS] Error:", err);
-    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAdmin();
-    if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
+    if (!auth.ok) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
+    }
 
     const { name, team_id } = await req.json();
     if (!name || !team_id) {
@@ -52,6 +60,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ player: data });
   } catch (err: any) {
     console.error("[API/PLAYERS] POST Error:", err);
-    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "Internal server error" },
+      { status: 500 }
+    );
   }
 }
