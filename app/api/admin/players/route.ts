@@ -4,43 +4,32 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 
 export async function GET() {
   try {
-    // 1. Verify environment variables exist at runtime
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const sessionSecret = process.env.ADMIN_SESSION_SECRET;
-
-    if (!url || !serviceKey || !sessionSecret) {
-      console.error("[API/PLAYERS] Missing Env Variables:", {
-        hasUrl: !!url,
-        hasServiceKey: !!serviceKey,
-        hasSessionSecret: !!sessionSecret,
-      });
-      return NextResponse.json(
-        { error: "Server Configuration Error: Missing required environment variables." },
-        { status: 500 }
-      );
-    }
-
-    // 2. Check admin session authentication
+    // 1. Check admin authentication
     const auth = await requireAdmin();
     if (!auth.ok) {
-      console.warn("[API/PLAYERS] Auth failed with status:", auth.status);
       return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
     }
-    
-    // 3. Query Supabase
+
+    // 2. Query Supabase using standard relational join
     const supabase = createAdminSupabase();
     const { data, error } = await supabase
       .from("players")
       .select("*, teams(*)")
       .order("name");
 
+    // 3. Handle database errors and map response key to 'team'
     if (error) {
       console.error("[API/PLAYERS] Supabase Query Error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ players: data });
+    // Map 'teams' array/object to 'team' key if needed by UI components
+    const formattedPlayers = data?.map((player) => ({
+      ...player,
+      team: player.teams,
+    }));
+
+    return NextResponse.json({ players: formattedPlayers });
   } catch (err: any) {
     console.error("[API/PLAYERS] Unhandled Exception:", err);
     return NextResponse.json(
