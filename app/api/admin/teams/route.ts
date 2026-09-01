@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
@@ -8,40 +8,12 @@ export async function GET() {
     if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
     const supabase = createAdminSupabase();
-    const { data, error } = await supabase
-      .from("teams")
-      .select("*")
-      .order("name");
+    const { data, error } = await supabase.from("teams").select("*").order("name");
 
     if (error) throw error;
-    return NextResponse.json({ teams: data });
+    return NextResponse.json({ teams: data || [] });
   } catch (err: any) {
     console.error("[API/TEAMS] Error:", err);
-    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
-  }
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const auth = await requireAdmin();
-    if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
-
-    const { name, logo_url } = await req.json();
-    if (!name) {
-      return NextResponse.json({ error: "Team name is required." }, { status: 400 });
-    }
-
-    const supabase = createAdminSupabase();
-    const { data, error } = await supabase
-      .from("teams")
-      .insert({ name, logo_url })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return NextResponse.json({ team: data });
-  } catch (err: any) {
-    console.error("[API/TEAMS] POST Error:", err);
     return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
   }
 }
