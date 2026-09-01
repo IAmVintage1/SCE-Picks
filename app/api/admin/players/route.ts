@@ -10,24 +10,27 @@ export async function GET() {
     }
 
     const supabase = createAdminSupabase();
-    const { data, error } = await supabase
-      .from("players")
-      .select("*, teams(*)")
-      .order("name");
 
-    if (error) {
-      console.error("[API/PLAYERS] Supabase Query Error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    // Fetch players and teams separately to prevent PGRST102 join path errors
+    const [{ data: players, error: playersErr }, { data: teams, error: teamsErr }] =
+      await Promise.all([
+        supabase.from("players").select("*").order("name"),
+        supabase.from("teams").select("*"),
+      ]);
 
-    const formattedPlayers = data?.map((player) => ({
-      ...player,
-      team: player.teams,
+    if (playersErr) throw playersErr;
+    if (teamsErr) throw teamsErr;
+
+    // Map team records onto players array
+    const teamMap = new Map(teams?.map((t) => [t.id, t]));
+    const formattedPlayers = players?.map((p) => ({
+      ...p,
+      team: teamMap.get(p.team_id) || null,
     }));
 
     return NextResponse.json({ players: formattedPlayers });
   } catch (err: any) {
-    console.error("[API/PLAYERS] Unhandled Exception:", err);
+    console.error("[API/PLAYERS] Error:", err);
     return NextResponse.json(
       { error: err?.message || "Internal server error" },
       { status: 500 }
@@ -57,14 +60,10 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    if (error) {
-      console.error("[API/PLAYERS] Supabase Insert Error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    if (error) throw error;
     return NextResponse.json({ player: data });
   } catch (err: any) {
-    console.error("[API/PLAYERS] POST Unhandled Exception:", err);
+    console.error("[API/PLAYERS] POST Error:", err);
     return NextResponse.json(
       { error: err?.message || "Internal server error" },
       { status: 500 }
