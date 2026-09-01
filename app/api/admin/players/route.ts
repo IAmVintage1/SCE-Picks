@@ -9,19 +9,19 @@ export async function GET() {
 
     const supabase = createAdminSupabase();
 
-    const [{ data: players, error: playersErr }, { data: teams, error: teamsErr }] =
-      await Promise.all([
-        supabase.from("players").select("*").order("name"),
-        supabase.from("teams").select("*"),
-      ]);
+    const [playersRes, teamsRes] = await Promise.all([
+      supabase.from("players").select("*").order("name"),
+      supabase.from("teams").select("*"),
+    ]);
 
-    if (playersErr) throw playersErr;
-    if (teamsErr) throw teamsErr;
+    if (playersRes.error) throw playersRes.error;
+    if (teamsRes.error) throw teamsRes.error;
 
-    const teamMap = new Map(teams?.map((t) => [t.id, t]));
-    const formattedPlayers = players?.map((p) => ({
-      ...p,
-      team: teamMap.get(p.team_id) || null,
+    const teamMap = new Map(teamsRes.data?.map((t) => [t.id, t]));
+
+    const formattedPlayers = playersRes.data?.map((player) => ({
+      ...player,
+      team: teamMap.get(player.team_id) || null,
     }));
 
     return NextResponse.json({ players: formattedPlayers });
@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
     const auth = await requireAdmin();
     if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
-    const { name, team_id } = await req.json();
+    const body = await req.json();
+    const { name, team_id, position, number } = body;
+
     if (!name || !team_id) {
       return NextResponse.json({ error: "Name and team are required." }, { status: 400 });
     }
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
     const supabase = createAdminSupabase();
     const { data, error } = await supabase
       .from("players")
-      .insert({ name, team_id })
+      .insert({ name, team_id, position, number })
       .select()
       .single();
 
