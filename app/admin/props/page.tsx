@@ -6,8 +6,9 @@ import { STAT_LABELS, StatType } from "@/lib/types";
 interface Player {
   id: string;
   name: string;
-  team: { id: string; name: string };
+  team?: { id: string; name: string } | null;
 }
+
 interface Prop {
   id: string;
   player_id: string;
@@ -15,7 +16,7 @@ interface Prop {
   line: number;
   active: boolean;
   locked: boolean;
-  player: Player;
+  player?: Player | null;
 }
 
 const STAT_OPTIONS: StatType[] = [
@@ -44,18 +45,30 @@ export default function AdminPropsPage() {
 
   async function load() {
     setLoading(true);
-    const [propsRes, playersRes] = await Promise.all([
-      fetch("/api/admin/props"),
-      fetch("/api/admin/players"),
-    ]);
-    const propsData = await propsRes.json();
-    const playersData = await playersRes.json();
-    setProps(propsData.props ?? []);
-    setPlayers(playersData.players ?? []);
-    if ((playersData.players ?? []).length > 0 && !playerId) {
-      setPlayerId(playersData.players[0].id);
+    try {
+      const [propsRes, playersRes] = await Promise.all([
+        fetch("/api/admin/props"),
+        fetch("/api/admin/players"),
+      ]);
+
+      const propsData = await propsRes.json();
+      const playersData = await playersRes.json();
+
+      const fetchedProps = propsData.props ?? [];
+      const fetchedPlayers = playersData.players ?? [];
+
+      setProps(fetchedProps);
+      setPlayers(fetchedPlayers);
+
+      if (fetchedPlayers.length > 0 && !playerId) {
+        setPlayerId(fetchedPlayers[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to load admin props:", err);
+      setError("Failed to fetch data from API.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -70,16 +83,19 @@ export default function AdminPropsPage() {
       setError("Choose a player and enter a line.");
       return;
     }
+
     const res = await fetch("/api/admin/props", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ player_id: playerId, stat_type: statType, line: Number(line) }),
     });
+
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error);
+      setError(data.error || "Failed to create prop");
       return;
     }
+
     setLine("");
     load();
   }
@@ -113,7 +129,7 @@ export default function AdminPropsPage() {
           >
             {players.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} ({p.team.name})
+                {p.name} {p.team?.name ? `(${p.team.name})` : ""}
               </option>
             ))}
           </select>
@@ -127,7 +143,7 @@ export default function AdminPropsPage() {
           >
             {STAT_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {STAT_LABELS[s]}
+                {STAT_LABELS[s] || s}
               </option>
             ))}
           </select>
@@ -142,7 +158,7 @@ export default function AdminPropsPage() {
             className="mt-1 block w-24 rounded-lg border border-line bg-panelLight px-3 py-2 text-sm text-bone"
           />
         </div>
-        <button className="rounded-lg bg-bone px-4 py-2 text-sm font-semibold text-ink">
+        <button type="submit" className="rounded-lg bg-bone px-4 py-2 text-sm font-semibold text-ink">
           Create prop
         </button>
         {error && <p className="text-xs text-young-light">{error}</p>}
@@ -166,13 +182,15 @@ export default function AdminPropsPage() {
               {props.map((prop) => (
                 <tr key={prop.id} className="border-t border-line">
                   <td className="px-4 py-3 text-bone">
-                    {prop.player.name}
-                    <span className="ml-1 text-xs text-bone/40">
-                      ({prop.player.team.name})
-                    </span>
+                    {prop.player?.name || "Unknown Player"}
+                    {prop.player?.team?.name && (
+                      <span className="ml-1 text-xs text-bone/40">
+                        ({prop.player.team.name})
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-bone/70">
-                    {STAT_LABELS[prop.stat_type]}
+                    {STAT_LABELS[prop.stat_type] || prop.stat_type}
                   </td>
                   <td className="px-4 py-3">
                     <input
