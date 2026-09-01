@@ -5,9 +5,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 export async function GET() {
   try {
     const auth = await requireAdmin();
-    if (!auth.ok) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
-    }
+    if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
     const supabase = createAdminSupabase();
 
@@ -37,19 +35,14 @@ export async function GET() {
     return NextResponse.json({ props: formattedProps });
   } catch (err: any) {
     console.error("[API/PROPS] Error:", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireAdmin();
-    if (!auth.ok) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
-    }
+    if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
     const body = await req.json();
     const { player_id, stat_type, line, over_payout, under_payout } = body;
@@ -72,9 +65,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ prop: data });
   } catch (err: any) {
     console.error("[API/PROPS] POST Error:", err);
-    return NextResponse.json(
-      { error: err?.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
   }
 }
