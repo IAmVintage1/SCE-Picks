@@ -502,71 +502,79 @@ export default function PicksExperience({
    * Submit card.
    */
   const handleConfirmSubmit = async (
-    info: SubmitInfo,
-  ) => {
-    if (submitting) return;
+  info: SubmitInfo,
+) => {
+  if (submitting) return;
 
-    setSubmitting(true);
+  setSubmitting(true);
 
-    try {
-      const formattedPicks =
-        pickList.map((leg) => {
-          if (leg.kind === "player") {
-            return {
-              key: `player:${leg.propId}`,
-              type: "player",
-              side: leg.side,
-              propId: leg.propId,
-              playerId: leg.playerId,
-              selection:
-                leg.selection,
-            };
-          }
+  try {
+    const playerPicks = pickList
+      .filter(
+        (leg): leg is LegWithSide & {
+          kind: "player";
+        } => leg.kind === "player",
+      )
+      .map((leg) => ({
+        propId: leg.propId,
+        selection: leg.selection,
+      }));
 
-          return {
-            key: `team:${leg.teamPropId}`,
-            type: "team",
-            side: leg.side,
-            teamPropId:
-              leg.teamPropId,
-            selection:
-              leg.selection,
-          };
-        });
+    const teamPicks = pickList
+      .filter(
+        (leg): leg is LegWithSide & {
+          kind: "team";
+        } => leg.kind === "team",
+      )
+      .map((leg) => ({
+        teamPropId: leg.teamPropId,
+        selection: leg.selection,
+      }));
 
-      const response = await fetch(
-        "/api/picks/submit",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            picks: formattedPicks,
-            info,
-          }),
+    const response = await fetch(
+      "/api/picks/submit",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          name: info.name,
+          instagram_username:
+            info.instagram_username,
+          email: info.email,
+          playerPicks,
+          teamPicks,
+        }),
+      },
+    );
 
-      if (!response.ok) {
-        throw new Error(
-          "Unable to submit picks",
-        );
-      }
+    const result = await response.json();
 
-      setSubmitOpen(false);
-      setSubmitted(true);
-    } catch (error) {
-      console.error(
-        "Pick submission failed:",
-        error,
+    if (!response.ok) {
+      throw new Error(
+        result?.error ||
+          "Unable to submit picks.",
       );
-    } finally {
-      setSubmitting(false);
     }
-  };
 
+    setSubmitOpen(false);
+    setSubmitted(true);
+  } catch (error) {
+    console.error(
+      "Pick submission failed:",
+      error,
+    );
+
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Something went wrong submitting your card.",
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
   /*
    * Submission confirmation.
    */
