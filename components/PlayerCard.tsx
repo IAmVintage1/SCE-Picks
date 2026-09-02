@@ -13,7 +13,10 @@ export default function PlayerCard({
   props: PropWithPlayer[];
   primaryPropId?: string;
   getSelection: (propId: string) => "over" | "under" | null;
-  onSelect: (prop: PropWithPlayer, selection: "over" | "under") => void;
+  onSelect: (
+    prop: PropWithPlayer,
+    selection: "over" | "under"
+  ) => void;
   onOpenProfile?: () => void;
 }) {
   const primary =
@@ -33,29 +36,71 @@ export default function PlayerCard({
     ? "border-young/35"
     : "border-alum/35";
 
+  const selectedBorder = isYoung
+    ? "border-young/80"
+    : "border-alum/80";
+
   const accentBg = isYoung
     ? "bg-young"
     : "bg-alum";
 
+  const glowClass = isYoung
+    ? "shadow-[0_0_30px_-10px_rgba(220,38,38,0.65)]"
+    : "shadow-[0_0_30px_-10px_rgba(37,99,235,0.65)]";
+
   const selected = getSelection(primary.id);
+
+  const isPicked = selected !== null;
 
   const otherProps = props.filter(
     (p) => p.id !== primary.id
   );
 
-  const tags = player.bio_tags?.slice(0, 2) ?? [];
-
   return (
     <article
       className={`
         group relative overflow-hidden
-        border ${accentBorder}
-        bg-panel shadow-card
-        transition duration-200
+        border
+        bg-panel
+        shadow-card
+        transition-all
+        duration-200
         hover:-translate-y-0.5
-        ${isYoung ? "hover:shadow-glowRed" : "hover:shadow-glowBlue"}
+        ${
+          isPicked
+            ? `${selectedBorder} ${glowClass} scale-[1.005]`
+            : `${accentBorder} ${
+                isYoung
+                  ? "hover:shadow-glowRed"
+                  : "hover:shadow-glowBlue"
+              }`
+        }
       `}
     >
+      {/* PICKED INDICATOR */}
+      {isPicked && (
+        <div
+          className={`
+            absolute right-3 top-3 z-30
+            flex items-center gap-1.5
+            border border-white/15
+            bg-ink/85
+            px-2.5 py-1.5
+            backdrop-blur-md
+            ${accentText}
+            shadow-lg
+          `}
+        >
+          <span className="text-[10px] font-bold">
+            ✓
+          </span>
+
+          <span className="font-mono text-[8px] font-bold tracking-[0.14em]">
+            PICKED
+          </span>
+        </div>
+      )}
+
       {/* PLAYER IMAGE */}
       <div className="relative aspect-[4/5] overflow-hidden bg-panelLight">
         {player.image_url ? (
@@ -110,11 +155,12 @@ export default function PlayerCard({
             </span>
           )}
 
-          {props.some((p) => p.featured) && !primary.featured && (
-            <span className="border border-bone/20 bg-ink/65 px-2 py-1 font-mono text-[8px] font-bold tracking-[0.16em] text-bone/80 backdrop-blur">
-              HOT
-            </span>
-          )}
+          {props.some((p) => p.featured) &&
+            !primary.featured && (
+              <span className="border border-bone/20 bg-ink/65 px-2 py-1 font-mono text-[8px] font-bold tracking-[0.16em] text-bone/80 backdrop-blur">
+                HOT
+              </span>
+            )}
         </div>
 
         {/* PLAYER NAME */}
@@ -144,6 +190,7 @@ export default function PlayerCard({
 
       {/* CARD CONTENT */}
       <div className="p-3 sm:p-4">
+
         {/* PRIMARY PROP */}
         <div>
           {/* LINE */}
@@ -166,7 +213,9 @@ export default function PlayerCard({
                       ${accentText}
                     `}
                   >
-                    {selected === "over" ? "MORE" : "LESS"}
+                    {selected === "over"
+                      ? "MORE"
+                      : "LESS"}
                   </span>
                 )}
               </div>
@@ -199,6 +248,40 @@ export default function PlayerCard({
               }
             />
           </div>
+
+          {/* SELECTED MESSAGE */}
+          {selected && (
+            <div
+              className={`
+                mt-2
+                flex items-center justify-between
+                border
+                px-3 py-2
+                ${
+                  isYoung
+                    ? "border-young/20 bg-young/5"
+                    : "border-alum/20 bg-alum/5"
+                }
+              `}
+            >
+              <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/40">
+                YOUR PICK
+              </span>
+
+              <span
+                className={`
+                  font-mono text-[9px]
+                  font-bold tracking-[0.12em]
+                  ${accentText}
+                `}
+              >
+                {selected === "over"
+                  ? "MORE"
+                  : "LESS"}{" "}
+                ✓
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ADDITIONAL PROPS */}
@@ -221,36 +304,39 @@ export default function PlayerCard({
             </div>
 
             <div className="mt-2 flex flex-wrap gap-1">
-              {otherProps.slice(0, 3).map((prop) => {
-                const selection = getSelection(prop.id);
+              {otherProps
+                .slice(0, 3)
+                .map((prop) => {
+                  const selection =
+                    getSelection(prop.id);
 
-                return (
-                  <button
-                    key={prop.id}
-                    type="button"
-                    disabled={prop.locked}
-                    onClick={onOpenProfile}
-                    className={`
-                      border px-2 py-1.5
-                      text-left transition
-                      ${
-                        selection
-                          ? `${accentBorder} bg-panelLight`
-                          : "border-line bg-ink2"
-                      }
-                    `}
-                    title={`${STAT_LABELS[prop.stat_type]} ${prop.line}`}
-                  >
-                    <span className="block font-mono text-[8px] font-bold text-bone/45">
-                      {STAT_LABELS[prop.stat_type]}
-                    </span>
+                  return (
+                    <button
+                      key={prop.id}
+                      type="button"
+                      disabled={prop.locked}
+                      onClick={onOpenProfile}
+                      className={`
+                        border px-2 py-1.5
+                        text-left transition
+                        ${
+                          selection
+                            ? `${accentBorder} bg-panelLight`
+                            : "border-line bg-ink2"
+                        }
+                      `}
+                      title={`${STAT_LABELS[prop.stat_type]} ${prop.line}`}
+                    >
+                      <span className="block font-mono text-[8px] font-bold text-bone/45">
+                        {STAT_LABELS[prop.stat_type]}
+                      </span>
 
-                    <span className="tabular block font-display text-sm leading-none text-bone">
-                      {prop.line}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span className="tabular block font-display text-sm leading-none text-bone">
+                        {prop.line}
+                      </span>
+                    </button>
+                  );
+                })}
             </div>
 
             {otherProps.length > 3 && (
@@ -304,7 +390,7 @@ function SelectButton({
         text-sm
         font-bold
         tracking-[0.08em]
-        transition
+        transition-all
         duration-150
         disabled:cursor-not-allowed
         disabled:opacity-25
