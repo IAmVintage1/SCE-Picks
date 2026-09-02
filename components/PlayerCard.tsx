@@ -1,7 +1,21 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { PropWithPlayer, STAT_LABELS } from "@/lib/types";
+
+type Selection = "over" | "under" | null;
+
+interface PlayerCardProps {
+  props: PropWithPlayer[];
+  primaryPropId?: string;
+  getSelection: (propId: string) => Selection;
+  onSelect: (
+    prop: PropWithPlayer,
+    selection: "over" | "under"
+  ) => void;
+  onOpenProfile?: () => void;
+}
 
 export default function PlayerCard({
   props,
@@ -9,23 +23,13 @@ export default function PlayerCard({
   getSelection,
   onSelect,
   onOpenProfile,
-}: {
-  props: PropWithPlayer[];
-  primaryPropId?: string;
-  getSelection: (propId: string) => "over" | "under" | null;
-  onSelect: (
-    prop: PropWithPlayer,
-    selection: "over" | "under"
-  ) => void;
-  onOpenProfile?: () => void;
-}) {
+}: PlayerCardProps) {
   const primary =
     props.find((p) => p.id === primaryPropId) ?? props[0];
 
   if (!primary) return null;
 
   const player = primary.player;
-
   const isYoung = player.team.slug === "youngknights";
 
   const accentText = isYoung
@@ -49,49 +53,109 @@ export default function PlayerCard({
     : "shadow-[0_0_30px_-10px_rgba(37,99,235,0.65)]";
 
   const selected = getSelection(primary.id);
-
   const isPicked = selected !== null;
 
   const otherProps = props.filter(
     (p) => p.id !== primary.id
   );
 
+  // Controls the short visual feedback animation.
+  const [feedback, setFeedback] = useState<
+    "over" | "under" | "remove" | null
+  >(null);
+
+  const [previousSelection, setPreviousSelection] =
+    useState<Selection>(selected);
+
+  useEffect(() => {
+    if (selected === previousSelection) return;
+
+    if (selected) {
+      setFeedback(selected);
+
+      const timer = window.setTimeout(() => {
+        setFeedback(null);
+      }, 420);
+
+      setPreviousSelection(selected);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    if (!selected && previousSelection) {
+      setFeedback("remove");
+
+      const timer = window.setTimeout(() => {
+        setFeedback(null);
+      }, 320);
+
+      setPreviousSelection(selected);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    setPreviousSelection(selected);
+  }, [selected, previousSelection]);
+
+  const handleSelect = (
+    prop: PropWithPlayer,
+    selection: "over" | "under"
+  ) => {
+    onSelect(prop, selection);
+  };
+
   return (
     <article
       className={`
-        group relative overflow-hidden
-        border
-        bg-panel
-        shadow-card
-        transition-all
-        duration-200
-        hover:-translate-y-0.5
+        group relative overflow-hidden border bg-ink
+        transition-all duration-300 ease-out
         ${
           isPicked
             ? `${selectedBorder} ${glowClass} scale-[1.005]`
-            : `${accentBorder} ${
-                isYoung
-                  ? "hover:shadow-glowRed"
-                  : "hover:shadow-glowBlue"
-              }`
+            : `${accentBorder} hover:border-bone/20`
+        }
+        ${
+          feedback === "over" || feedback === "under"
+            ? "animate-[pickPulse_420ms_ease-out]"
+            : ""
+        }
+        ${
+          feedback === "remove"
+            ? "animate-[pickRemove_320ms_ease-out]"
+            : ""
         }
       `}
     >
-      {/* PICKED INDICATOR */}
+      {/* Selection flash */}
+      {feedback === "over" || feedback === "under" ? (
+        <div
+          className={`
+            pointer-events-none absolute inset-0 z-40
+            ${
+              isYoung
+                ? "bg-young/10"
+                : "bg-alum/10"
+            }
+            animate-[selectionFlash_420ms_ease-out]
+          `}
+        />
+      ) : null}
+
+      {/* Picked badge */}
       {isPicked && (
         <div
           className={`
             absolute right-3 top-3 z-30
             flex items-center gap-1.5
             border border-white/15
-            bg-ink/85
-            px-2.5 py-1.5
+            bg-ink/90 px-2.5 py-1.5
             backdrop-blur-md
-            ${accentText}
             shadow-lg
+            ${accentText}
+            animate-[badgeIn_260ms_ease-out]
           `}
         >
-          <span className="text-[10px] font-bold">
+          <span className="text-[10px] font-black">
             ✓
           </span>
 
@@ -101,280 +165,296 @@ export default function PlayerCard({
         </div>
       )}
 
-      {/* PLAYER IMAGE */}
-      <div className="relative aspect-[4/5] overflow-hidden bg-panelLight">
+      {/* Player image */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-black/20">
         {player.image_url ? (
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            className="absolute inset-0 z-10 block w-full cursor-pointer text-left"
-            aria-label={`View ${player.name} profile`}
-          >
-            <Image
-              src={player.image_url}
-              alt={player.name}
-              fill
-              sizes="(max-width: 640px) 48vw, (max-width: 1200px) 30vw, 280px"
-              className="object-cover object-top transition duration-500 group-hover:scale-[1.03]"
-            />
-          </button>
+          <Image
+            src={player.image_url}
+            alt={player.name}
+            fill
+            className={`
+              object-cover
+              transition-transform duration-500
+              ${
+                isPicked
+                  ? "scale-[1.035]"
+                  : "group-hover:scale-[1.02]"
+              }
+            `}
+            sizes="(max-width: 768px) 50vw, 25vw"
+          />
         ) : (
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            className="absolute inset-0 z-10 flex items-center justify-center"
-            aria-label={`View ${player.name} profile`}
-          >
-            <span className="font-display text-7xl text-bone/10">
+          <div className="flex h-full items-center justify-center">
+            <span
+              className={`font-display text-5xl font-black ${accentText}`}
+            >
               {player.name.charAt(0)}
             </span>
-          </button>
+          </div>
         )}
 
-        {/* IMAGE GRADIENT */}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-transparent" />
+
+        {/* Team indicator */}
         <div
           className={`
-            pointer-events-none absolute inset-0
-            bg-gradient-to-t
-            ${
-              isYoung
-                ? "from-young-dark/95 via-black/20"
-                : "from-alum-dark/95 via-black/20"
-            }
-            to-transparent
+            absolute bottom-3 left-3
+            font-mono text-[8px] font-bold
+            tracking-[0.14em]
+            ${accentText}
           `}
-        />
-
-        <div className="grain-overlay opacity-25" />
-
-        {/* FEATURED / HOT */}
-        <div className="absolute left-3 top-3 z-20 flex items-center gap-2">
-          {primary.featured && (
-            <span className="border border-bone/25 bg-ink/75 px-2 py-1 font-mono text-[8px] font-bold tracking-[0.16em] text-bone backdrop-blur">
-              FEATURED
-            </span>
-          )}
-
-          {props.some((p) => p.featured) &&
-            !primary.featured && (
-              <span className="border border-bone/20 bg-ink/65 px-2 py-1 font-mono text-[8px] font-bold tracking-[0.16em] text-bone/80 backdrop-blur">
-                HOT
-              </span>
-            )}
-        </div>
-
-        {/* PLAYER NAME */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 p-3 sm:p-4">
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            className="block max-w-full text-left"
-          >
-            <p className="truncate font-display text-[25px] leading-[0.92] tracking-tight text-white sm:text-3xl">
-              {player.name}
-            </p>
-
-            <p
-              className={`
-                mt-1
-                font-mono text-[9px]
-                font-bold tracking-[0.18em]
-                ${accentText}
-              `}
-            >
-              {player.team.name.toUpperCase()}
-            </p>
-          </button>
+        >
+          {isYoung ? "YOUNGKNIGHTS" : "ALUMKNIGHTS"}
         </div>
       </div>
 
-      {/* CARD CONTENT */}
-      <div className="p-3 sm:p-4">
+      {/* Main card content */}
+      <div className="p-4">
+        {/* Player name */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate font-display text-xl font-black uppercase tracking-tight text-bone">
+              {player.name}
+            </h3>
 
-        {/* PRIMARY PROP */}
-        <div>
-          {/* LINE */}
-          <div className="flex items-end justify-between gap-2">
-            <div className="min-w-0">
-              <p className="font-mono text-[8px] font-bold tracking-[0.15em] text-bone/35">
-                {STAT_LABELS[primary.stat_type]}
-              </p>
-
-              <div className="mt-0.5 flex items-baseline gap-2">
-                <span className="font-display text-[38px] leading-none tracking-tight text-bone sm:text-[44px]">
-                  {primary.line}
-                </span>
-
-                {selected && (
-                  <span
-                    className={`
-                      font-mono text-[8px]
-                      font-bold tracking-[0.1em]
-                      ${accentText}
-                    `}
-                  >
-                    {selected === "over"
-                      ? "MORE"
-                      : "LESS"}
-                  </span>
-                )}
-              </div>
+            <div className="mt-1 font-mono text-[8px] font-bold tracking-[0.14em] text-bone/35">
+              {props.length}{" "}
+              {props.length === 1 ? "PROP" : "PROPS"}
             </div>
-
-            <span className="mb-1 shrink-0 text-[9px] font-semibold text-bone/25">
-              {props.length} PROPS
-            </span>
           </div>
 
-          {/* MORE / LESS BUTTONS */}
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
-            <SelectButton
-              label="MORE"
-              active={selected === "over"}
-              disabled={primary.locked}
-              activeBg={accentBg}
-              onClick={() =>
-                onSelect(primary, "over")
-              }
-            />
-
-            <SelectButton
-              label="LESS"
-              active={selected === "under"}
-              disabled={primary.locked}
-              activeBg={accentBg}
-              onClick={() =>
-                onSelect(primary, "under")
-              }
-            />
-          </div>
-
-          {/* SELECTED MESSAGE */}
-          {selected && (
-            <div
-              className={`
-                mt-2
-                flex items-center justify-between
-                border
-                px-3 py-2
-                ${
-                  isYoung
-                    ? "border-young/20 bg-young/5"
-                    : "border-alum/20 bg-alum/5"
-                }
-              `}
+          {onOpenProfile && (
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              className="
+                shrink-0
+                font-mono text-[8px] font-bold
+                tracking-[0.12em]
+                text-bone/35
+                transition-colors
+                hover:text-bone
+              "
             >
-              <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/40">
-                YOUR PICK
-              </span>
-
-              <span
-                className={`
-                  font-mono text-[9px]
-                  font-bold tracking-[0.12em]
-                  ${accentText}
-                `}
-              >
-                {selected === "over"
-                  ? "MORE"
-                  : "LESS"}{" "}
-                ✓
-              </span>
-            </div>
+              VIEW
+            </button>
           )}
         </div>
 
-        {/* ADDITIONAL PROPS */}
+        {/* Primary stat */}
+        <div className="mt-5 text-center">
+          <div
+            className={`
+              font-mono text-[9px] font-bold
+              tracking-[0.16em]
+              ${accentText}
+            `}
+          >
+            {STAT_LABELS[primary.stat_type] ??
+              primary.stat_type}
+          </div>
+
+          <div
+            className={`
+              mt-1
+              font-display text-4xl font-black
+              leading-none text-bone
+              transition-transform duration-200
+              ${
+                feedback === "over" ||
+                feedback === "under"
+                  ? "scale-110"
+                  : ""
+              }
+            `}
+          >
+            {primary.line}
+          </div>
+        </div>
+
+        {/* More / Less */}
+        <div className="mt-4 grid grid-cols-2 gap-1.5">
+          <SelectButton
+            label="MORE"
+            active={selected === "over"}
+            disabled={primary.locked}
+            activeBg={accentBg}
+            accentText={accentText}
+            pulse={feedback === "over"}
+            onClick={() =>
+              handleSelect(primary, "over")
+            }
+          />
+
+          <SelectButton
+            label="LESS"
+            active={selected === "under"}
+            disabled={primary.locked}
+            activeBg={accentBg}
+            accentText={accentText}
+            pulse={feedback === "under"}
+            onClick={() =>
+              handleSelect(primary, "under")
+            }
+          />
+        </div>
+
+        {/* Your Pick */}
+        {selected && (
+          <div
+            className={`
+              mt-2
+              flex items-center justify-between
+              border px-3 py-2
+              ${
+                isYoung
+                  ? "border-young/20 bg-young/5"
+                  : "border-alum/20 bg-alum/5"
+              }
+              animate-[yourPickIn_240ms_ease-out]
+            `}
+          >
+            <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/40">
+              YOUR PICK
+            </span>
+
+            <span
+              className={`
+                font-mono text-[9px] font-bold
+                tracking-[0.12em]
+                ${accentText}
+              `}
+            >
+              {selected === "over"
+                ? "MORE"
+                : "LESS"}{" "}
+              ✓
+            </span>
+          </div>
+        )}
+
+        {/* Additional props */}
         {otherProps.length > 0 && (
-          <div className="mt-3 border-t border-line pt-2.5">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[9px] font-bold tracking-[0.14em] text-bone/35">
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/25">
                 MORE PROPS
               </span>
 
-              <span
-                className={`
-                  font-mono text-[9px]
-                  font-bold
-                  ${accentText}
-                `}
-              >
-                +{otherProps.length}
-              </span>
+              {otherProps.length > 3 && (
+                <span
+                  className={`font-mono text-[8px] font-bold ${accentText}`}
+                >
+                  +{otherProps.length}
+                </span>
+              )}
             </div>
 
-            <div className="mt-2 flex flex-wrap gap-1">
-              {otherProps
-                .slice(0, 3)
-                .map((prop) => {
-                  const selection =
-                    getSelection(prop.id);
+            <div className="space-y-1">
+              {otherProps.slice(0, 3).map((prop) => {
+                const propSelection =
+                  getSelection(prop.id);
 
-                  return (
-                    <button
-                      key={prop.id}
-                      type="button"
-                      disabled={prop.locked}
-                      onClick={onOpenProfile}
+                return (
+                  <button
+                    key={prop.id}
+                    type="button"
+                    onClick={() => {
+                      if (!prop.locked) {
+                        onSelect(
+                          prop,
+                          propSelection === "over"
+                            ? "under"
+                            : "over"
+                        );
+                      }
+                    }}
+                    className={`
+                      flex w-full items-center
+                      justify-between
+                      border px-3 py-2
+                      text-left
+                      transition-all duration-200
+                      ${
+                        propSelection
+                          ? isYoung
+                            ? "border-young/50 bg-young/10"
+                            : "border-alum/50 bg-alum/10"
+                          : "border-white/5 bg-white/[0.02] hover:border-white/10"
+                      }
+                    `}
+                  >
+                    <span className="font-mono text-[8px] font-bold tracking-[0.08em] text-bone/45">
+                      {STAT_LABELS[prop.stat_type] ??
+                        prop.stat_type}
+                    </span>
+
+                    <span
                       className={`
-                        border px-2 py-1.5
-                        text-left transition
+                        font-mono text-[10px] font-bold
                         ${
-                          selection
-                            ? `${accentBorder} bg-panelLight`
-                            : "border-line bg-ink2"
+                          propSelection
+                            ? accentText
+                            : "text-bone/70"
                         }
                       `}
-                      title={`${STAT_LABELS[prop.stat_type]} ${prop.line}`}
                     >
-                      <span className="block font-mono text-[8px] font-bold text-bone/45">
-                        {STAT_LABELS[prop.stat_type]}
-                      </span>
-
-                      <span className="tabular block font-display text-sm leading-none text-bone">
-                        {prop.line}
-                      </span>
-                    </button>
-                  );
-                })}
+                      {prop.line}
+                      {propSelection
+                        ? ` · ${
+                            propSelection === "over"
+                              ? "MORE"
+                              : "LESS"
+                          }`
+                        : ""}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-
-            {otherProps.length > 3 && (
-              <button
-                type="button"
-                onClick={onOpenProfile}
-                className={`
-                  mt-2
-                  font-mono text-[9px]
-                  font-bold tracking-[0.12em]
-                  ${accentText}
-                `}
-              >
-                VIEW ALL {otherProps.length} MORE PROPS →
-              </button>
-            )}
           </div>
+        )}
+
+        {/* View all */}
+        {otherProps.length > 3 && onOpenProfile && (
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            className={`
+              mt-3 w-full
+              border-t border-white/5
+              pt-3
+              text-center
+              font-mono text-[8px] font-bold
+              tracking-[0.14em]
+              transition-colors
+              ${accentText}
+              hover:text-bone
+            `}
+          >
+            VIEW ALL {otherProps.length} MORE PROPS →
+          </button>
         )}
       </div>
     </article>
   );
 }
 
-/* =========================================================
-   MORE / LESS BUTTON
-   ========================================================= */
-
 function SelectButton({
   label,
   active,
   disabled,
   activeBg,
+  accentText,
+  pulse,
   onClick,
 }: {
-  label: string;
+  label: "MORE" | "LESS";
   active: boolean;
-  disabled: boolean;
+  disabled?: boolean;
   activeBg: string;
+  accentText: string;
+  pulse?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -384,30 +464,48 @@ function SelectButton({
       onClick={onClick}
       className={`
         relative
-        min-h-11
-        w-full
-        font-head
-        text-sm
-        font-bold
-        tracking-[0.08em]
-        transition-all
-        duration-150
-        disabled:cursor-not-allowed
-        disabled:opacity-25
+        flex h-11 items-center justify-center
+        overflow-hidden
+        border
+        font-mono text-[10px] font-black
+        tracking-[0.14em]
+        transition-all duration-200
+        active:scale-[0.96]
         ${
-          active
-            ? `${activeBg} text-white shadow-lg`
-            : "bg-panelLight text-bone/60 hover:bg-line active:scale-[0.98]"
+          disabled
+            ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-bone/15"
+            : active
+              ? `${activeBg} border-transparent text-white shadow-lg`
+              : "border-white/10 bg-white/[0.03] text-bone/50 hover:border-white/20 hover:bg-white/[0.06] hover:text-bone"
+        }
+        ${
+          pulse
+            ? "scale-[1.035] shadow-[0_0_22px_rgba(255,255,255,0.18)]"
+            : ""
         }
       `}
     >
-      {active && (
-        <span className="mr-1 animate-pop text-xs">
-          ✓
-        </span>
+      {/* Selection sweep */}
+      {pulse && (
+        <span
+          className={`
+            pointer-events-none
+            absolute inset-0
+            ${accentText}
+            animate-[buttonSweep_420ms_ease-out]
+          `}
+        />
       )}
 
-      {label}
+      <span className="relative z-10 flex items-center gap-1.5">
+        {active && (
+          <span className="text-[11px] leading-none animate-[checkIn_220ms_ease-out]">
+            ✓
+          </span>
+        )}
+
+        <span>{label}</span>
+      </span>
     </button>
   );
 }
