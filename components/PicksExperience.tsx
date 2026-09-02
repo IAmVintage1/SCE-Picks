@@ -341,7 +341,7 @@ export default function PicksExperience({
         const existing = next[existingKey];
 
         if (
-          existing.type === "player" &&
+          existing.kind === "player" &&
           existing.prop?.player?.id ===
             prop.player?.id &&
           existingKey !== key
