@@ -288,7 +288,7 @@ export default function PicksExperience({
     }
 
     return teamProps.filter(
-      (prop) => prop.is_active !== false,
+      (prop) => prop.active !== false,
     );
   }, [filter, teamProps]);
 
