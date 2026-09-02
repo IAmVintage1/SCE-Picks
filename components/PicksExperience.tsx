@@ -299,7 +299,7 @@ export default function PicksExperience({
     playerProps: PropWithPlayer[],
   ) => {
     for (const prop of playerProps) {
-      const key = `player:${prop.id}`;
+      const key = `player:${props.id}`;
 
       if (picks[key]) {
         return picks[key];
