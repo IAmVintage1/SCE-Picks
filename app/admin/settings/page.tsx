@@ -84,6 +84,39 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
+      <div className="rounded-2xl border border-line bg-panel p-5">
+        <h2 className="font-display text-sm font-semibold tracking-wide text-bone/70">
+          CARD & PRIZES
+        </h2>
+        <p className="mt-1 text-xs text-bone/40">
+          Every pick on a card has to hit -- these tiers only pay out on a
+          perfect card.
+        </p>
+        <div className="mt-4 space-y-3">
+          <Field
+            label="Minimum picks required to submit"
+            type="number"
+            value={String(settings.min_picks)}
+            onSave={(v) => save({ min_picks: Number(v) || 3 })}
+          />
+          <Field
+            label="3-pick tier prize"
+            value={settings.prize_3}
+            onSave={(v) => save({ prize_3: v })}
+          />
+          <Field
+            label="5-pick tier prize"
+            value={settings.prize_5}
+            onSave={(v) => save({ prize_5: v })}
+          />
+          <Field
+            label="10-pick tier prize"
+            value={settings.prize_10}
+            onSave={(v) => save({ prize_10: v })}
+          />
+        </div>
+      </div>
+
       <p className="text-xs text-bone/40">
         {saving ? "Saving..." : saved ? "Saved." : ""}
       </p>

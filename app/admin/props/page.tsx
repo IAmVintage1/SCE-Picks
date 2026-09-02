@@ -9,6 +9,14 @@ interface Player {
   team?: { id: string; name: string } | null;
 }
 
+interface TeamProp {
+  id: string;
+  prop_type: "winning_team" | "combined_points";
+  line: number | null;
+  active: boolean;
+  locked: boolean;
+}
+
 interface Prop {
   id: string;
   player_id: string;
@@ -16,6 +24,7 @@ interface Prop {
   line: number;
   active: boolean;
   locked: boolean;
+  featured: boolean;
   player?: Player | null;
 }
 
@@ -30,12 +39,14 @@ const STAT_OPTIONS: StatType[] = [
   "points_rebounds",
   "points_assists",
   "rebounds_assists",
+  "rebounds_blocks",
   "pra",
 ];
 
 export default function AdminPropsPage() {
   const [props, setProps] = useState<Prop[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [teamProps, setTeamProps] = useState<TeamProp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,19 +57,22 @@ export default function AdminPropsPage() {
   async function load() {
     setLoading(true);
     try {
-      const [propsRes, playersRes] = await Promise.all([
+      const [propsRes, playersRes, teamPropsRes] = await Promise.all([
         fetch("/api/admin/props"),
         fetch("/api/admin/players"),
+        fetch("/api/admin/team-props"),
       ]);
 
       const propsData = await propsRes.json();
       const playersData = await playersRes.json();
+      const teamPropsData = await teamPropsRes.json();
 
       const fetchedProps = propsData.props ?? [];
       const fetchedPlayers = playersData.players ?? [];
 
       setProps(fetchedProps);
       setPlayers(fetchedPlayers);
+      setTeamProps(teamPropsData.teamProps ?? []);
 
       if (fetchedPlayers.length > 0 && !playerId) {
         setPlayerId(fetchedPlayers[0].id);
@@ -75,6 +89,15 @@ export default function AdminPropsPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function updateTeamProp(id: string, updates: Partial<TeamProp>) {
+    await fetch(`/api/admin/team-props/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    load();
+  }
 
   async function createProp(e: React.FormEvent) {
     e.preventDefault();
@@ -174,6 +197,7 @@ export default function AdminPropsPage() {
                 <th className="px-4 py-3">Player</th>
                 <th className="px-4 py-3">Stat</th>
                 <th className="px-4 py-3">Line</th>
+                <th className="px-4 py-3">Featured</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
@@ -200,6 +224,16 @@ export default function AdminPropsPage() {
                         updateProp(prop.id, { line: Number(e.target.value) })
                       }
                       className="w-16 rounded border border-line bg-panelLight px-2 py-1 text-bone"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={prop.featured}
+                      onChange={() =>
+                        updateProp(prop.id, { featured: !prop.featured })
+                      }
+                      className="h-4 w-4 accent-bone"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -231,6 +265,51 @@ export default function AdminPropsPage() {
           </table>
         </div>
       )}
+
+      <div>
+        <h2 className="mb-3 font-display text-sm font-semibold tracking-wide text-bone/70">
+          GAME PROPS
+        </h2>
+        <div className="space-y-3">
+          {teamProps.map((tp) => (
+            <div
+              key={tp.id}
+              className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-panel p-4"
+            >
+              <span className="w-40 text-sm font-semibold text-bone">
+                {tp.prop_type === "winning_team"
+                  ? "Winning Team"
+                  : "Combined Points"}
+              </span>
+              {tp.prop_type === "combined_points" && (
+                <input
+                  defaultValue={tp.line ?? ""}
+                  onBlur={(e) =>
+                    Number(e.target.value) !== tp.line &&
+                    updateTeamProp(tp.id, { line: Number(e.target.value) })
+                  }
+                  className="w-20 rounded border border-line bg-panelLight px-2 py-1 text-sm text-bone"
+                />
+              )}
+              <span className="text-xs">
+                {!tp.active ? (
+                  <span className="text-bone/40">Inactive</span>
+                ) : tp.locked ? (
+                  <span className="text-young-light">Locked</span>
+                ) : (
+                  <span className="text-alum-light">Live</span>
+                )}
+              </span>
+              <button
+                onClick={() => updateTeamProp(tp.id, { locked: !tp.locked })}
+                className="text-xs font-medium text-bone/60 underline underline-offset-2"
+              >
+                {tp.locked ? "Unlock" : "Lock"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

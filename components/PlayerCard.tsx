@@ -24,12 +24,21 @@ export default function PlayerCard({
   const selectedBg = isYoung ? "bg-young" : "bg-alum";
   const selectedShadow = isYoung ? "shadow-glowRed" : "shadow-glowBlue";
 
+  const tags = prop.player.bio_tags?.slice(0, 2) ?? [];
+
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border ${teamRing} bg-panel ${teamGlow}`}
+      className={`relative overflow-hidden rounded-2xl border ${
+        prop.featured ? "border-bone/40" : teamRing
+      } bg-panel ${teamGlow}`}
     >
+      {prop.featured && (
+        <div className="absolute left-3 top-3 z-10 rounded-full bg-bone px-2 py-0.5 font-mono text-[9px] font-bold tracking-[0.1em] text-ink">
+          FEATURED
+        </div>
+      )}
+
       <div className="flex">
-        {/* Large portrait photo block */}
         <div className="relative h-36 w-28 shrink-0 overflow-hidden bg-panelLight sm:h-40 sm:w-32">
           {prop.player.image_url ? (
             <Image
@@ -52,7 +61,6 @@ export default function PlayerCard({
           <div className="grain-overlay opacity-30" />
         </div>
 
-        {/* Info + stat */}
         <div className="flex flex-1 flex-col justify-between p-3 sm:p-4">
           <div>
             <p className="truncate font-head text-lg font-bold leading-tight text-bone sm:text-xl">
@@ -63,6 +71,11 @@ export default function PlayerCard({
             >
               {team.name.toUpperCase()}
             </p>
+            {tags.length > 0 && (
+              <p className="mt-1 truncate font-mono text-[10px] text-bone/35">
+                {tags.join(" · ")}
+              </p>
+            )}
           </div>
 
           <div className="mt-2 flex items-end justify-between">
@@ -76,10 +89,9 @@ export default function PlayerCard({
         </div>
       </div>
 
-      {/* Over / Under selector */}
       <div className="grid grid-cols-2 gap-px border-t border-line bg-line">
         <SelectButton
-          label="OVER"
+          label="MORE"
           active={selection === "over"}
           disabled={prop.locked}
           activeBg={selectedBg}
@@ -87,7 +99,7 @@ export default function PlayerCard({
           onClick={() => onSelect("over")}
         />
         <SelectButton
-          label="UNDER"
+          label="LESS"
           active={selection === "under"}
           disabled={prop.locked}
           activeBg={selectedBg}

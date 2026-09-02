@@ -7,7 +7,9 @@ interface Submission {
   id: string;
   submission_code: string;
   submitted_at: string;
-  status: string;
+  pick_count: number;
+  prize_tier: number | null;
+  card_status: "pending" | "perfect" | "busted";
   user: { name: string; instagram_username: string | null; email: string | null } | null;
   picks: {
     id: string;
@@ -19,7 +21,19 @@ interface Submission {
       player: { name: string; team: { name: string } };
     };
   }[];
+  team_picks: {
+    id: string;
+    selection: string;
+    result: string;
+    team_prop: { prop_type: "winning_team" | "combined_points"; line: number | null };
+  }[];
 }
+
+const STATUS_STYLE: Record<string, string> = {
+  perfect: "border-alum bg-alum/15 text-alum-light",
+  busted: "border-young bg-young/15 text-young-light",
+  pending: "border-line text-bone/50",
+};
 
 export default function AdminSubmissionsPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -74,18 +88,47 @@ export default function AdminSubmissionsPage() {
                     {s.user?.instagram_username ? `@${s.user.instagram_username}` : "No Instagram"}
                     {" · "}
                     {new Date(s.submitted_at).toLocaleString()}
+                    {" · "}
+                    {s.pick_count} picks
+                    {s.prize_tier ? ` · ${s.prize_tier}-pick tier` : ""}
                   </p>
                 </div>
-                <span className="rounded-full border border-line px-2 py-1 text-[11px] uppercase text-bone/50">
-                  {s.status}
+                <span
+                  className={`rounded-full border px-2 py-1 text-[11px] uppercase ${
+                    STATUS_STYLE[s.card_status] ?? STATUS_STYLE.pending
+                  }`}
+                >
+                  {s.card_status === "perfect"
+                    ? "Perfect Card"
+                    : s.card_status === "busted"
+                    ? "Card Busted"
+                    : "Pending"}
                 </span>
               </div>
               <div className="mt-3 space-y-1">
                 {s.picks.map((p) => (
                   <p key={p.id} className="text-sm text-bone/70">
                     {p.prop.player.name} ({p.prop.player.team.name}) &mdash;{" "}
-                    {p.selection.toUpperCase()} {p.prop.line}{" "}
+                    {p.selection === "over" ? "MORE" : "LESS"} {p.prop.line}{" "}
                     {STAT_SHORT[p.prop.stat_type]}
+                    {p.result !== "pending" && (
+                      <span
+                        className={
+                          p.result === "hit" ? "text-alum-light" : "text-young-light"
+                        }
+                      >
+                        {" "}
+                        &middot; {p.result.toUpperCase()}
+                      </span>
+                    )}
+                  </p>
+                ))}
+                {s.team_picks.map((p) => (
+                  <p key={p.id} className="text-sm text-bone/70">
+                    {p.team_prop.prop_type === "winning_team"
+                      ? "Winning Team"
+                      : "Combined Points"}{" "}
+                    &mdash; {p.selection.toUpperCase()}
                     {p.result !== "pending" && (
                       <span
                         className={

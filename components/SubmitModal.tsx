@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TierInfo } from "@/lib/cardTiers";
 
 export interface SubmitInfo {
   name: string;
@@ -15,6 +16,8 @@ export default function SubmitModal({
   submitting,
   emailRequired,
   instagramRequired,
+  pickCount,
+  tierInfo,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +25,8 @@ export default function SubmitModal({
   submitting: boolean;
   emailRequired: boolean;
   instagramRequired: boolean;
+  pickCount: number;
+  tierInfo: TierInfo;
 }) {
   const [name, setName] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -40,11 +45,30 @@ export default function SubmitModal({
         <div className="grain-overlay opacity-20" />
         <div className="relative">
           <p className="font-mono text-[10px] font-semibold tracking-[0.25em] text-bone/35">
-            ONE LAST STEP
+            LOCK YOUR CARD?
           </p>
           <h2 className="mt-1 font-display text-2xl leading-none tracking-tight text-bone">
             WHO'S CALLING IT?
           </h2>
+          <p className="mt-2 text-xs text-bone/45">
+            Once submitted, your picks cannot be changed.
+          </p>
+
+          <div className="mt-4 rounded-xl border border-line bg-panelLight px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="font-head text-sm font-bold text-bone">
+                {pickCount} PICKS
+              </span>
+              <span className="font-mono text-[10px] font-semibold tracking-[0.1em] text-bone/40">
+                PERFECT CARD REQUIRED
+              </span>
+            </div>
+            {tierInfo.prize && (
+              <p className="mt-1 font-mono text-[11px] font-bold tracking-[0.1em] text-young-light">
+                PRIZE: {tierInfo.prize.toUpperCase()}
+              </p>
+            )}
+          </div>
 
           <div className="mt-5 space-y-3">
             <Field
@@ -82,7 +106,7 @@ export default function SubmitModal({
               }
               className="flex-1 rounded-xl bg-bone py-3 font-head text-sm font-bold tracking-[0.06em] text-ink shadow-[0_0_30px_-10px_rgba(245,244,241,0.5)] disabled:opacity-30"
             >
-              {submitting ? "SUBMITTING..." : "SUBMIT"}
+              {submitting ? "LOCKING..." : "LOCK IN CARD"}
             </button>
           </div>
         </div>

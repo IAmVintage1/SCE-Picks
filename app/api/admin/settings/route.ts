@@ -34,6 +34,10 @@ export async function PATCH(req: NextRequest) {
     "leaderboard_visible",
     "email_required",
     "instagram_required",
+    "min_picks",
+    "prize_3",
+    "prize_5",
+    "prize_10",
   ];
   const payload: Record<string, unknown> = {};
   for (const key of allowed) {

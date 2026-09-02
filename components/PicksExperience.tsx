@@ -3,16 +3,19 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import PlayerCard from "@/components/PlayerCard";
+import TeamPropCard from "@/components/TeamPropCard";
 import { PickSlipBar, PickSlipDrawer } from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal, { SubmitInfo } from "@/components/SubmitModal";
+import { getTierInfo } from "@/lib/cardTiers";
 import {
+  CardLeg,
   EventSettings,
-  PickSlipItem,
   PropWithPlayer,
   STAT_LABELS,
   StatType,
   Team,
+  TeamProp,
 } from "@/lib/types";
 
 type TeamFilter = "all" | string;
@@ -20,22 +23,39 @@ type TeamFilter = "all" | string;
 export default function PicksExperience({
   teams,
   props,
+  teamProps,
   settings,
 }: {
   teams: Team[];
   props: PropWithPlayer[];
+  teamProps: TeamProp[];
   settings: EventSettings | null;
 }) {
   const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
   const [statFilter, setStatFilter] = useState<StatType | "all">("all");
-  const [picks, setPicks] = useState<Record<string, PickSlipItem>>({});
+  const [picks, setPicks] = useState<Record<string, CardLeg>>({});
   const [slipOpen, setSlipOpen] = useState(false);
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    code: string;
+    count: number;
+    tier: number | null;
+    prize: string | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorShake, setErrorShake] = useState(0);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [reachedTiers, setReachedTiers] = useState<Set<number>>(new Set());
 
+  const minPicks = settings?.min_picks ?? 3;
   const picksLocked = settings?.picks_locked ?? false;
+
+  const pickList = Object.values(picks);
+  const tierInfo = getTierInfo(pickList.length, settings);
+
+  const featuredProps = props.filter((p) => p.featured);
+  const featuredTeamProps = teamProps.filter((t) => t.featured);
 
   const availableStats = useMemo(() => {
     const set = new Set<StatType>();
@@ -49,17 +69,28 @@ export default function PicksExperience({
     return true;
   });
 
+  function maybeTriggerTierCelebration(newCount: number) {
+    [3, 5, 10].forEach((t) => {
+      if (newCount >= t && !reachedTiers.has(t)) {
+        setReachedTiers((prev) => new Set(prev).add(t));
+        setConfettiTrigger((c) => c + 1);
+      }
+    });
+  }
+
   function handleSelect(prop: PropWithPlayer, selection: "over" | "under") {
+    const key = `player:${prop.id}`;
     setPicks((prev) => {
-      const existing = prev[prop.id];
-      if (existing && existing.selection === selection) {
+      const existing = prev[key];
+      if (existing && existing.kind === "player" && existing.selection === selection) {
         const next = { ...prev };
-        delete next[prop.id];
+        delete next[key];
         return next;
       }
-      return {
+      const next = {
         ...prev,
-        [prop.id]: {
+        [key]: {
+          kind: "player" as const,
           propId: prop.id,
           playerId: prop.player.id,
           playerName: prop.player.name,
@@ -69,20 +100,65 @@ export default function PicksExperience({
           selection,
         },
       };
-    });
-  }
-
-  function removePick(propId: string) {
-    setPicks((prev) => {
-      const next = { ...prev };
-      delete next[propId];
+      maybeTriggerTierCelebration(Object.keys(next).length);
       return next;
     });
   }
 
-  const pickList = Object.values(picks);
+  function handleSelectTeam(prop: TeamProp, selection: string) {
+    const key = `team:${prop.id}`;
+    setPicks((prev) => {
+      const existing = prev[key];
+      if (existing && existing.kind === "team" && existing.selection === selection) {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      const next = {
+        ...prev,
+        [key]: {
+          kind: "team" as const,
+          teamPropId: prop.id,
+          propType: prop.prop_type,
+          label: prop.prop_type === "winning_team" ? "WINNING TEAM" : "COMBINED POINTS",
+          selection,
+          line: prop.line,
+        },
+      };
+      maybeTriggerTierCelebration(Object.keys(next).length);
+      return next;
+    });
+  }
+
+  function removeLeg(key: string) {
+    setPicks((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function getPlayerSelection(propId: string): "over" | "under" | null {
+    const leg = picks[`player:${propId}`];
+    return leg && leg.kind === "player" ? leg.selection : null;
+  }
+
+  function getTeamSelection(teamPropId: string): string | null {
+    const leg = picks[`team:${teamPropId}`];
+    return leg && leg.kind === "team" ? leg.selection : null;
+  }
+
+  function flashError(message: string) {
+    setError(message);
+    setErrorShake((s) => s + 1);
+    setTimeout(() => setError(null), 3500);
+  }
 
   async function handleConfirmSubmit(info: SubmitInfo) {
+    if (pickList.length < minPicks) {
+      flashError(`You need at least ${minPicks} picks.`);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -91,20 +167,27 @@ export default function PicksExperience({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...info,
-          picks: pickList.map((p) => ({
-            propId: p.propId,
-            selection: p.selection,
-          })),
+          playerPicks: pickList
+            .filter((l): l is Extract<CardLeg, { kind: "player" }> => l.kind === "player")
+            .map((l) => ({ propId: l.propId, selection: l.selection })),
+          teamPicks: pickList
+            .filter((l): l is Extract<CardLeg, { kind: "team" }> => l.kind === "team")
+            .map((l) => ({ teamPropId: l.teamPropId, selection: l.selection })),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      setConfirmation(data.submissionCode);
+      setConfirmation({
+        code: data.submissionCode,
+        count: pickList.length,
+        tier: tierInfo.tier,
+        prize: tierInfo.prize,
+      });
       setSubmitModalOpen(false);
       setSlipOpen(false);
       setPicks({});
     } catch (e: any) {
-      setError(e.message);
+      flashError(e.message);
     } finally {
       setSubmitting(false);
     }
@@ -117,17 +200,22 @@ export default function PicksExperience({
         <div className="grain-overlay" />
         <div className="relative">
           <p className="font-display text-5xl leading-none tracking-tight text-bone">
-            PICKS
+            CARD
             <br />
             LOCKED
           </p>
           <p className="mt-2 text-2xl">&#128274;</p>
           <p className="mt-6 text-bone/60">
-            Your predictions have been submitted.
+            {confirmation.count} PICKS &middot; PERFECT CARD REQUIRED
           </p>
-          <p className="text-bone/60">Good luck. &#128064;</p>
+          {confirmation.prize && (
+            <p className="mt-1 font-head text-sm font-bold tracking-wide text-young-light">
+              PRIZE ON THE LINE: {confirmation.prize.toUpperCase()}
+            </p>
+          )}
+          <p className="mt-4 text-bone/60">Good luck. &#128064;</p>
           <p className="mt-8 inline-block rounded-lg border border-line bg-panel px-4 py-2 font-mono text-sm tracking-wide text-bone/70">
-            #{confirmation}
+            #{confirmation.code}
           </p>
           <p className="mt-6 font-mono text-[10px] tracking-[0.15em] text-bone/35">
             FREE TO PLAY &middot; NO ENTRY FEES &middot; NO WAGERING
@@ -156,11 +244,11 @@ export default function PicksExperience({
             onClick={() => setSlipOpen(true)}
             className="font-mono text-[10px] font-semibold tracking-[0.15em] text-bone/40 lg:hidden"
           >
-            MY PICKS {pickList.length > 0 && `(${pickList.length})`}
+            MY CARD {pickList.length > 0 && `(${pickList.length})`}
           </button>
         </div>
 
-        <div className="flex items-center justify-center gap-3 px-5 pb-4 pt-3">
+        <div className="flex items-center justify-center gap-3 px-5 pb-3 pt-3">
           <span className="font-display text-xl leading-none text-young-light sm:text-2xl">
             YOUNGKNIGHTS
           </span>
@@ -171,6 +259,9 @@ export default function PicksExperience({
             ALUMKNIGHTS
           </span>
         </div>
+        <p className="pb-3 text-center font-mono text-[9px] tracking-[0.15em] text-bone/30">
+          FREE TO PLAY &middot; NO WAGERING &middot; EVERY PICK HAS TO HIT
+        </p>
 
         <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-3 lg:mx-auto lg:max-w-6xl">
           <TeamPill
@@ -209,27 +300,82 @@ export default function PicksExperience({
       </div>
 
       <div className="px-4 py-5 lg:mx-auto lg:flex lg:max-w-6xl lg:items-start lg:gap-6 lg:px-5">
-        <div className="space-y-3 lg:flex-1">
-          {filteredProps.length === 0 ? (
-            <EmptyState hasAnyProps={props.length > 0} />
-          ) : (
-            filteredProps.map((prop) => (
-              <PlayerCard
-                key={prop.id}
-                prop={prop}
-                selection={picks[prop.id]?.selection ?? null}
-                onSelect={(sel) => handleSelect(prop, sel)}
-              />
-            ))
+        <div className="space-y-8 lg:flex-1">
+          {/* FEATURED */}
+          {(featuredProps.length > 0 || featuredTeamProps.length > 0) && (
+            <section>
+              <SectionHeader eyebrow="DON'T MISS" title="FEATURED PROPS" />
+              <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+                {featuredTeamProps.map((tp) => (
+                  <div key={tp.id} className="w-64 shrink-0">
+                    <TeamPropCard
+                      prop={tp}
+                      teams={teams}
+                      selection={getTeamSelection(tp.id)}
+                      onSelect={(sel) => handleSelectTeam(tp, sel)}
+                    />
+                  </div>
+                ))}
+                {featuredProps.map((prop) => (
+                  <div key={prop.id} className="w-64 shrink-0">
+                    <PlayerCard
+                      prop={prop}
+                      selection={getPlayerSelection(prop.id)}
+                      onSelect={(sel) => handleSelect(prop, sel)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
+
+          {/* GAME PROPS */}
+          {teamProps.length > 0 && (
+            <section>
+              <SectionHeader eyebrow="THE GAME" title="GAME PROPS" />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {teamProps.map((tp) => (
+                  <TeamPropCard
+                    key={tp.id}
+                    prop={tp}
+                    teams={teams}
+                    selection={getTeamSelection(tp.id)}
+                    onSelect={(sel) => handleSelectTeam(tp, sel)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* BROWSE PLAYERS */}
+          <section>
+            <SectionHeader eyebrow="ALL PLAYERS" title="BROWSE PLAYERS" />
+            <div className="space-y-3 transition-opacity duration-200">
+              {filteredProps.length === 0 ? (
+                <EmptyState hasAnyProps={props.length > 0} />
+              ) : (
+                filteredProps.map((prop) => (
+                  <PlayerCard
+                    key={prop.id}
+                    prop={prop}
+                    selection={getPlayerSelection(prop.id)}
+                    onSelect={(sel) => handleSelect(prop, sel)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
         </div>
 
         <PickSidePanel
           items={pickList}
-          onRemove={removePick}
+          onRemove={removeLeg}
           onSubmit={() => setSubmitModalOpen(true)}
           submitting={submitting}
           locked={picksLocked}
+          minPicks={minPicks}
+          settings={settings}
+          confettiTrigger={confettiTrigger}
         />
       </div>
 
@@ -239,12 +385,16 @@ export default function PicksExperience({
           items={pickList}
           open={slipOpen}
           onClose={() => setSlipOpen(false)}
-          onRemove={removePick}
+          onRemove={removeLeg}
           onSubmit={() => setSubmitModalOpen(true)}
           submitting={submitting}
           locked={picksLocked}
+          minPicks={minPicks}
+          settings={settings}
+          confettiTrigger={confettiTrigger}
         />
       </div>
+
       <SubmitModal
         open={submitModalOpen}
         onClose={() => setSubmitModalOpen(false)}
@@ -252,13 +402,32 @@ export default function PicksExperience({
         submitting={submitting}
         emailRequired={settings?.email_required ?? true}
         instagramRequired={settings?.instagram_required ?? true}
+        pickCount={pickList.length}
+        tierInfo={tierInfo}
       />
+
       {error && (
-        <div className="fixed inset-x-4 bottom-24 z-50 rounded-lg bg-young px-4 py-3 text-center text-sm font-semibold text-white shadow-glowRed">
+        <div
+          key={errorShake}
+          className="fixed inset-x-4 bottom-24 z-50 animate-shake rounded-lg bg-young px-4 py-3 text-center text-sm font-semibold text-white shadow-glowRed lg:bottom-6"
+        >
           {error}
         </div>
       )}
     </main>
+  );
+}
+
+function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="mb-3">
+      <p className="font-mono text-[10px] font-semibold tracking-[0.3em] text-bone/35">
+        {eyebrow}
+      </p>
+      <h2 className="font-head text-xl font-bold tracking-wide text-bone">
+        {title}
+      </h2>
+    </div>
   );
 }
 
