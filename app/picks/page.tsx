@@ -11,7 +11,7 @@ export default async function PicksPage() {
     supabase.from("teams").select("*").order("name"),
     supabase
       .from("props")
-      .select("*, player:players(*, team:teams(*))")
+      .select("*, player:players(*, team:teams!players_team_id_fkey(*))")
       .eq("active", true)
       .order("created_at", { ascending: false }),
     supabase.from("event_settings").select("*").eq("id", 1).single(),
