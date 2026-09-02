@@ -22,7 +22,7 @@ export async function PATCH(
     .from("props")
     .update(payload)
     .eq("id", params.id)
-    .select("*, player:players(*, team:teams(*))")
+    .select("*, player:players(*, team:teams!players_team_id_fkey(*))")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
