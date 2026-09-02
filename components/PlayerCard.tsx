@@ -21,7 +21,6 @@ export default function PlayerCard({
 
   const player = primary.player;
   const isYoung = player.team.slug === "youngknights";
-  const accent = isYoung ? "young" : "alum";
   const accentText = isYoung ? "text-young-light" : "text-alum-light";
   const accentBorder = isYoung ? "border-young/35" : "border-alum/35";
   const accentBg = isYoung ? "bg-young" : "bg-alum";
