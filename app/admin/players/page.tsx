@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface Team {
   id: string;
@@ -78,11 +79,59 @@ export default function AdminPlayersPage() {
   }
 
   async function handleUpload(playerId: string, file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("playerId", playerId);
-    await fetch("/api/admin/players/upload", { method: "POST", body: formData });
-    load();
+    setError(null);
+
+    try {
+      // Ask the authenticated admin API for a signed upload URL. The image
+      // itself is NOT sent through Vercel, avoiding the 413 request-size limit.
+      const signRes = await fetch("/api/admin/players/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sign",
+          playerId,
+          fileName: file.name,
+        }),
+      });
+
+      const signData = await signRes.json();
+
+      if (!signRes.ok) {
+        throw new Error(signData.error || "Could not prepare photo upload.");
+      }
+
+      const supabase = createSupabaseBrowserClient();
+
+      // Upload the actual image directly from the browser to Supabase Storage.
+      const { error: uploadError } = await supabase.storage
+        .from("player-photos")
+        .uploadToSignedUrl(signData.path, signData.token, file);
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      // Tell the server to attach the newly uploaded photo to this player.
+      const completeRes = await fetch("/api/admin/players/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "complete",
+          playerId,
+          path: signData.path,
+        }),
+      });
+
+      const completeData = await completeRes.json();
+
+      if (!completeRes.ok) {
+        throw new Error(completeData.error || "Could not save player photo.");
+      }
+
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Photo upload failed.");
+    }
   }
 
   async function handleDeletePhoto(playerId: string) {
