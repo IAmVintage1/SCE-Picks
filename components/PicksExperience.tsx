@@ -252,14 +252,12 @@ export default function PicksExperience({
           teams,
         ).toUpperCase();
 
-        const isYoung =
-          teamName.includes("YOUNG") ||
-          teamName.includes("KNIGHT");
+const isYoung =
+  player.team.slug === "youngknights";
 
-        const isAlum =
-          teamName.includes("ALUM") ||
-          teamName.includes("ALUMN");
-
+const isAlum =
+  player.team.slug === "alumknights";
+        
         const hasFeatured = playerProps.some(
           (prop) => Boolean(prop.featured),
         );
@@ -928,32 +926,27 @@ export default function PicksExperience({
 
       {/* MOBILE PICK SLIP */}
       <div className="lg:hidden">
-        <PickSlipBar
-          picks={pickList}
-          minPicks={minPicks}
-          settings={settings}
-          locked={locked}
-          onOpen={() =>
-            setMobileSlipOpen(true)
-          }
-          onSubmit={handleSubmit}
-        />
+<PickSlipBar
+  count={pickCount}
+  onOpen={() =>
+    setMobileSlipOpen(true)
+  }
+/>
 
-        <PickSlipDrawer
-          open={mobileSlipOpen}
-          picks={pickList}
-          minPicks={minPicks}
-          settings={settings}
-          locked={locked}
-          onClose={() =>
-            setMobileSlipOpen(false)
-          }
-          onRemove={removeLeg}
-          onSubmit={handleSubmit}
-          confettiTrigger={
-            confettiTrigger
-          }
-        />
+<PickSlipDrawer
+  items={pickList}
+  open={mobileSlipOpen}
+  onClose={() =>
+    setMobileSlipOpen(false)
+  }
+  onRemove={removeLeg}
+  onSubmit={handleSubmit}
+  submitting={submitting}
+  locked={locked}
+  minPicks={minPicks}
+  settings={settings}
+  confettiTrigger={confettiTrigger}
+/>
       </div>
 
       {/* PLAYER PROFILE */}
