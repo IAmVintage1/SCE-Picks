@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
-import TeamPropCard from "@/components/TeamPropCard";
+import TeamPropCard, {
+  SquareTeamPropCard,
+} from "@/components/TeamPropCard";
 import { PickSlipBar, PickSlipDrawer } from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal, { SubmitInfo } from "@/components/SubmitModal";
@@ -250,6 +252,24 @@ export default function PicksExperience({
     }
   }, [picks]);
 
+  // Whenever the category or stat tab changes, bring the results
+  // back into view. Without this, switching tabs while scrolled
+  // down can look like nothing happened.
+  const resultsAnchorRef = useRef<HTMLDivElement>(null);
+  const didMountRef = useRef(false);
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+
+    resultsAnchorRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [filter, statFilter]);
+
   const [selectedPlayer, setSelectedPlayer] = useState<
     PropWithPlayer[] | null
   >(null);
@@ -414,6 +434,25 @@ const isAlum =
       (prop) => prop.active !== false,
     );
   }, [filter, teamProps]);
+
+  /*
+   * Featured game bets, shown as square tiles pinned to the
+   * front of the HOT/ALL grid so they don't get missed outside
+   * the dedicated GAME tab.
+   */
+  const featuredTeamProps = useMemo(() => {
+    if (filter !== "HOT" && filter !== "ALL") {
+      return [];
+    }
+
+    if (searchTerm.trim()) {
+      return [];
+    }
+
+    return teamProps.filter(
+      (prop) => prop.active !== false && prop.featured,
+    );
+  }, [filter, teamProps, searchTerm]);
 
   /*
    * Get selection for a player prop.
@@ -997,9 +1036,13 @@ const isAlum =
       </section>
 
       {/* CATEGORY FILTER */}
-      <div className="border-b border-line">
+      <div
+        ref={resultsAnchorRef}
+        style={{ scrollMarginTop: "64px" }}
+        className="border-b border-line"
+      >
         <div className="mx-auto max-w-[1600px] overflow-x-auto px-4 sm:px-6 lg:px-8">
-          <div className="no-scrollbar flex min-w-max gap-3 py-5">
+          <div className="no-scrollbar flex min-w-max gap-2 py-3.5">
             {CATEGORY_FILTERS.map(
               (item) => {
                 const active =
@@ -1013,9 +1056,9 @@ const isAlum =
                       setFilter(item.value)
                     }
                     className={[
-                      "flex items-center gap-2 rounded-2xl border-2 px-8 py-4 font-head text-base font-black uppercase tracking-[0.06em] transition active:scale-[0.96] sm:text-lg",
+                      "flex items-center gap-1.5 rounded-full border px-5 py-2.5 font-head text-sm font-bold uppercase tracking-[0.06em] transition active:scale-[0.96]",
                       active
-                        ? "border-bone bg-bone text-ink shadow-xl"
+                        ? "border-bone bg-bone text-ink shadow-md"
                         : "border-line text-bone/45 hover:border-bone/30 hover:bg-panel hover:text-bone",
                     ].join(" ")}
                   >
@@ -1023,8 +1066,8 @@ const isAlum =
                       <span
                         className={
                           active
-                            ? "hot-badge-flame text-xl leading-none"
-                            : "text-xl leading-none"
+                            ? "hot-badge-flame text-sm leading-none"
+                            : "text-sm leading-none"
                         }
                       >
                         {item.icon}
@@ -1043,7 +1086,7 @@ const isAlum =
       {filter !== "GAME" && (
         <div className="border-b border-line/70">
           <div className="mx-auto max-w-[1600px] overflow-x-auto px-4 sm:px-6 lg:px-8">
-            <div className="no-scrollbar flex min-w-max gap-4 py-3">
+            <div className="no-scrollbar flex min-w-max gap-2 py-3">
               {STAT_FILTERS.map(
                 (item) => {
                   const active =
@@ -1060,10 +1103,10 @@ const isAlum =
                         )
                       }
                       className={[
-                        "font-mono text-[9px] font-bold uppercase tracking-[0.12em] transition",
+                        "rounded-full border px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] transition active:scale-[0.95]",
                         active
-                          ? "text-bone"
-                          : "text-bone/30 hover:text-bone/70",
+                          ? "border-bone/70 bg-bone/10 text-bone"
+                          : "border-line/70 text-bone/40 hover:border-bone/25 hover:text-bone/70",
                       ].join(" ")}
                     >
                       {item.label}
@@ -1097,23 +1140,33 @@ const isAlum =
                 </p>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                key={`game-${filter}`}
+                className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                 {visibleTeamProps.map(
-                  (teamProp) => (
-                    <TeamPropCard
+                  (teamProp, index) => (
+                    <div
                       key={teamProp.id}
-                      prop={teamProp}
-                      teams={teams}
-                      selection={getTeamSelection(
-                        teamProp,
-                      )}
-                      onSelect={(selection) =>
-                        handleSelectTeam(
+                      className="category-card-in"
+                      style={{
+                        animationDelay: `${Math.min(index, 10) * 40}ms`,
+                      }}
+                    >
+                      <TeamPropCard
+                        prop={teamProp}
+                        teams={teams}
+                        selection={getTeamSelection(
                           teamProp,
-                          selection,
-                        )
-                      }
-                    />
+                        )}
+                        onSelect={(selection) =>
+                          handleSelectTeam(
+                            teamProp,
+                            selection,
+                          )
+                        }
+                      />
+                    </div>
                   ),
                 )}
               </div>
@@ -1121,7 +1174,8 @@ const isAlum =
           </div>
         ) : (
           <>
-            {visiblePlayers.length === 0 ? (
+            {visiblePlayers.length === 0 &&
+            featuredTeamProps.length === 0 ? (
               <div className="rounded-2xl border border-line bg-panel p-10 text-center">
                 <p className="font-head text-xl font-black uppercase text-bone/60">
                   NOTHING HERE YET
@@ -1132,13 +1186,42 @@ const isAlum =
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              <div
+                key={`players-${filter}-${statFilter}-${searchTerm}`}
+                className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4"
+              >
+                {featuredTeamProps.map(
+                  (teamProp, index) => (
+                    <div
+                      key={`featured-${teamProp.id}`}
+                      className="category-card-in"
+                      style={{
+                        animationDelay: `${Math.min(index, 10) * 40}ms`,
+                      }}
+                    >
+                      <SquareTeamPropCard
+                        prop={teamProp}
+                        teams={teams}
+                        selection={getTeamSelection(
+                          teamProp,
+                        )}
+                        onSelect={(selection) =>
+                          handleSelectTeam(
+                            teamProp,
+                            selection,
+                          )
+                        }
+                      />
+                    </div>
+                  ),
+                )}
+
                 {visiblePlayers.map(
                   ({
                     playerId,
                     player,
                     props: playerProps,
-                  }) => {
+                  }, index) => {
                     const primaryProp =
                       playerProps.find(
                         (prop) =>
@@ -1156,33 +1239,45 @@ const isAlum =
                       playerProps[0];
 
                     return (
-                      <PlayerCard
+                      <div
                         key={playerId}
-                        props={playerProps}
-                        primaryPropId={
-                          primaryProp?.id
-                        }
-                        getSelection={
-                          getPlayerSelection
-                        }
-                        onSelect={(
-                          prop,
-                          selection,
-                        ) =>
-                          handleSelect(
+                        className="category-card-in"
+                        style={{
+                          animationDelay: `${
+                            Math.min(
+                              index + featuredTeamProps.length,
+                              10,
+                            ) * 40
+                          }ms`,
+                        }}
+                      >
+                        <PlayerCard
+                          props={playerProps}
+                          primaryPropId={
+                            primaryProp?.id
+                          }
+                          getSelection={
+                            getPlayerSelection
+                          }
+                          onSelect={(
                             prop,
-                            selection ===
-                              "over"
-                              ? "more"
-                              : "less",
-                          )
-                        }
-                        onOpenProfile={() =>
-                          openPlayerProfile(
-                            playerProps,
-                          )
-                        }
-                      />
+                            selection,
+                          ) =>
+                            handleSelect(
+                              prop,
+                              selection ===
+                                "over"
+                                ? "more"
+                                : "less",
+                            )
+                          }
+                          onOpenProfile={() =>
+                            openPlayerProfile(
+                              playerProps,
+                            )
+                          }
+                        />
+                      </div>
                     );
                   },
                 )}

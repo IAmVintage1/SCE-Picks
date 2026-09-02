@@ -344,3 +344,23 @@ body {
 .flex-card-in {
   animation: flexCardIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* ---------------------------------
+   CATEGORY / STAT TAB SWITCH
+---------------------------------- */
+
+@keyframes categoryCardIn {
+  0% {
+    transform: translateY(8px) scale(0.97);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.category-card-in {
+  animation: categoryCardIn 320ms cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
