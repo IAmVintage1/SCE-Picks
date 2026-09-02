@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("submissions")
     .select(
-      "*, user:app_users(*), picks(*, prop:props(*, player:players(*, team:teams(*))))"
+      "*, user:app_users(*), picks(*, prop:props(*, player:players(*, team:teams!players_team_id_fkey(*))))"
     )
     .order("submitted_at", { ascending: false });
 
