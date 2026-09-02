@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
 import TeamPropCard from "@/components/TeamPropCard";
-import { PickSlip } from "@/components/PickSlip";
+import  PickSlip  from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal from "@/components/SubmitModal";
 
