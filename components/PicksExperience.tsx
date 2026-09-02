@@ -357,7 +357,8 @@ export default function PicksExperience({
        * removes the selection.
        */
       if (
-        currentPick?.propId === prop.id &&
+        currentPick?.kind === "player" &&
+        currentPick.propId === prop.id &&
         currentPick.side === side
       ) {
         delete next[key];
