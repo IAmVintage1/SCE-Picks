@@ -166,7 +166,7 @@ export default function PlayerCard({
 
       {/* =====================================================
           PLAYER IMAGE
-          ===================================================== */}
+      ===================================================== */}
       <div className="relative aspect-[4/3] overflow-hidden bg-black">
         {player.image_url ? (
           <Image
@@ -202,26 +202,26 @@ export default function PlayerCard({
           </div>
         )}
 
-        {/* DARK IMAGE GRADIENT */}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/25 to-transparent" />
+        {/* Subtle image gradient */}
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-ink/85 via-ink/25 to-transparent" />
 
-        {/* Additional subtle team gradient */}
+        {/* Subtle team gradient */}
         <div
           className={`
-            absolute inset-x-0 bottom-0 h-1/2
+            absolute inset-x-0 bottom-0 h-1/4
             bg-gradient-to-t
             ${
               isYoung
-                ? "from-young/30"
-                : "from-alum/30"
+                ? "from-young/20"
+                : "from-alum/20"
             }
             to-transparent
-            opacity-70
+            opacity-60
           `}
         />
 
         {/* Team label */}
-        <div className="absolute bottom-3 left-3">
+        <div className="absolute bottom-3 left-0 right-0 flex justify-center">
           <span
             className={`
               font-mono text-[8px]
@@ -238,11 +238,11 @@ export default function PlayerCard({
 
       {/* =====================================================
           CARD CONTENT
-          ===================================================== */}
-      <div className="p-4">
+      ===================================================== */}
+      <div className="p-3">
 
         {/* Player name */}
-        <div className="min-w-0">
+        <div className="min-w-0 text-center">
           <h3
             className="
               font-display
@@ -261,7 +261,7 @@ export default function PlayerCard({
         </div>
 
         {/* Primary prop */}
-        <div className="mt-4 text-center">
+        <div className="mt-3 text-center">
 
           <div
             className={`
@@ -301,10 +301,9 @@ export default function PlayerCard({
 
         {/* =====================================================
             MORE / LESS
-            stopPropagation keeps the card from opening profile
         ===================================================== */}
         <div
-          className="mt-4 grid grid-cols-2 gap-1.5"
+          className="mt-3 grid grid-cols-2 gap-1.5"
           onClick={(e) => e.stopPropagation()}
         >
           <SelectButton
@@ -340,7 +339,7 @@ export default function PlayerCard({
             className={`
               mt-2
               flex items-center justify-between
-              border px-3 py-2
+              border px-3 py-1.5
               ${
                 isYoung
                   ? "border-young/20 bg-young/5"
@@ -384,13 +383,13 @@ export default function PlayerCard({
         {props.length > 1 && (
           <div
             className="
-              mt-3
+              mt-2.5
               flex
               items-center
               justify-between
               border-t
               border-white/5
-              pt-3
+              pt-2.5
             "
           >
             <span
@@ -453,7 +452,7 @@ function SelectButton({
       onClick={onClick}
       className={`
         relative
-        flex h-11
+        flex h-10
         items-center
         justify-center
         overflow-hidden
