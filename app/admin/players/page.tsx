@@ -15,6 +15,8 @@ interface Player {
   team_id: string;
   image_url: string | null;
   active: boolean;
+  bio: string | null;
+  bio_tags: string[] | null;
   team: Team;
 }
 
@@ -143,6 +145,18 @@ export default function AdminPlayersPage() {
     load();
   }
 
+  async function savePlayerField(
+    playerId: string,
+    patch: Partial<Pick<Player, "bio" | "bio_tags">>,
+  ) {
+    await fetch(`/api/admin/players/${playerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    load();
+  }
+
   return (
     <div className="space-y-6">
       <form
@@ -184,7 +198,7 @@ export default function AdminPlayersPage() {
           {players.map((player) => (
             <div
               key={player.id}
-              className="flex items-center gap-3 rounded-2xl border border-line bg-panel p-3"
+              className="flex items-start gap-3 rounded-2xl border border-line bg-panel p-3"
             >
               <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-panelLight">
                 {player.image_url ? (
@@ -240,10 +254,90 @@ export default function AdminPlayersPage() {
                     {player.active ? "Deactivate" : "Activate"}
                   </button>
                 </div>
+
+                <div className="mt-3 space-y-2 border-t border-line pt-3">
+                  <PlayerBioField
+                    label="Bio"
+                    value={player.bio ?? ""}
+                    placeholder="Write a hype bio for this player -- shows on their profile screen."
+                    multiline
+                    onSave={(v) =>
+                      savePlayerField(player.id, { bio: v })
+                    }
+                  />
+                  <PlayerBioField
+                    label="Storyline tags (comma separated)"
+                    value={(player.bio_tags ?? []).join(", ")}
+                    placeholder="e.g. Sharpshooter, Team captain, Comeback szn"
+                    onSave={(v) =>
+                      savePlayerField(player.id, {
+                        bio_tags: v
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                </div>
               </div>
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function PlayerBioField({
+  label,
+  value,
+  placeholder,
+  multiline,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  multiline?: boolean;
+  onSave: (v: string) => void;
+}) {
+  const [local, setLocal] = useState(value);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => setLocal(value), [value]);
+
+  function handleBlur() {
+    if (local === value) return;
+    onSave(local);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1500);
+  }
+
+  return (
+    <div>
+      <label className="flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-bone/40">
+        {label}
+        {saved && (
+          <span className="text-young-light">Saved</span>
+        )}
+      </label>
+      {multiline ? (
+        <textarea
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          rows={3}
+          className="mt-1 block w-full resize-none rounded-lg border border-line bg-panelLight px-3 py-2 text-xs leading-relaxed text-bone placeholder:text-bone/25"
+        />
+      ) : (
+        <input
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          className="mt-1 block w-full rounded-lg border border-line bg-panelLight px-3 py-2 text-xs text-bone placeholder:text-bone/25"
+        />
       )}
     </div>
   );

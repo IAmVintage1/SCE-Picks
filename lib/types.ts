@@ -56,6 +56,7 @@ export interface Player {
   image_url: string | null;
   active: boolean;
   bio_tags: string[] | null;
+  bio: string | null;
 }
 
 export interface Prop {

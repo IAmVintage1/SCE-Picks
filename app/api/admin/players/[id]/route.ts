@@ -10,7 +10,7 @@ export async function PATCH(
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
   const updates = await req.json();
-  const allowed = ["name", "team_id", "active", "image_url"];
+  const allowed = ["name", "team_id", "active", "image_url", "bio", "bio_tags"];
   const payload: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in updates) payload[key] = updates[key];

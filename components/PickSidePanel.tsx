@@ -8,6 +8,7 @@ import ConfettiBurst from "@/components/ConfettiBurst";
 export default function PickSidePanel({
   items,
   onRemove,
+  onClearAll,
   onSubmit,
   submitting,
   locked,
@@ -17,6 +18,7 @@ export default function PickSidePanel({
 }: {
   items: CardLeg[];
   onRemove: (key: string) => void;
+  onClearAll?: () => void;
   onSubmit: () => void;
   submitting: boolean;
   locked: boolean;
@@ -115,6 +117,15 @@ export default function PickSidePanel({
 
         {items.length > 0 && (
           <div className="text-right">
+            {onClearAll && !locked && (
+              <button
+                type="button"
+                onClick={onClearAll}
+                className="mb-1 font-mono text-[8px] font-bold uppercase tracking-[0.1em] text-bone/30 underline-offset-2 hover:text-bone/60 hover:underline"
+              >
+                CLEAR ALL
+              </button>
+            )}
             <p className="font-mono text-[8px] font-bold tracking-[0.1em] text-bone/25">
               STATUS
             </p>

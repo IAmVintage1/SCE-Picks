@@ -99,6 +99,7 @@ export function PickSlipDrawer({
   open,
   onClose,
   onRemove,
+  onClearAll,
   onSubmit,
   submitting,
   locked,
@@ -110,6 +111,7 @@ export function PickSlipDrawer({
   open: boolean;
   onClose: () => void;
   onRemove: (key: string) => void;
+  onClearAll?: () => void;
   onSubmit: () => void;
   submitting: boolean;
   locked: boolean;
@@ -245,6 +247,18 @@ export function PickSlipDrawer({
             Close
           </button>
         </div>
+
+        {items.length > 0 && onClearAll && !locked && (
+          <div className="relative flex justify-end border-b border-line px-5 py-2">
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-bone/30 underline-offset-2 hover:text-bone/60 hover:underline"
+            >
+              CLEAR ALL
+            </button>
+          </div>
+        )}
 
         {/* =================================================
             TIER PROGRESS

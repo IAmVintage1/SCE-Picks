@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
@@ -15,6 +15,7 @@ import {
   EventSettings,
   Player,
   PropWithPlayer,
+  STAT_LABELS,
   Team,
   TeamProp,
 } from "@/lib/types";
@@ -59,6 +60,8 @@ const CATEGORY_FILTERS: {
   { label: "ALUM", value: "ALUM" },
   { label: "GAME", value: "GAME" },
 ];
+
+const PICKS_DRAFT_KEY = "sce_picks_draft_v1";
 
 function normalizeStat(value?: string | null): string {
   if (!value) return "";
@@ -151,20 +154,29 @@ function getPlayerName(player: Player | undefined): string {
 function getStatLabel(statType?: string | null): string {
   if (!statType) return "PROP";
 
-  const labels: Record<string, string> = {
-    PTS: "POINTS",
-    REB: "REB",
-    AST: "ASSISTS",
-    "3PT": "3-POINTERS",
-    STL: "STEALS",
-    BLK: "BLOCKS",
-    PRA: "PRA",
-    "PTS+REB": "PTS + REB",
-    "PTS+AST": "PTS + AST",
-    "REB+BLK": "REB + BLK",
-  };
+  return (
+    STAT_LABELS[statType as keyof typeof STAT_LABELS] ??
+    statType.toUpperCase()
+  );
+}
 
-  return labels[statType.toUpperCase()] ?? statType.toUpperCase();
+function getAutoBio(
+  playerName: string,
+  teamName: string,
+  playerProps: PropWithPlayer[],
+): string {
+  const headline =
+    playerProps.find((p) => p.featured) ?? playerProps[0];
+
+  if (!headline) {
+    return `${playerName} takes the floor for ${teamName || "their squad"} on Oct 9. No line on the board yet -- check back soon.`;
+  }
+
+  const statLabel = getStatLabel(
+    headline.stat_type,
+  ).toLowerCase();
+
+  return `Every card needs a number to beat. For ${playerName}, it's ${headline.line} ${statLabel}. ${teamName || "Their squad"} is counting on it.`;
 }
 
 function legIsYoung(leg: LegWithSide): boolean {
@@ -203,10 +215,40 @@ export default function PicksExperience({
   const [filter, setFilter] = useState<Filter>("HOT");
   const [statFilter, setStatFilter] =
     useState<StatFilter>("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [picks, setPicks] = useState<
     Record<string, LegWithSide>
   >({});
+
+  // Restore an in-progress card from this device so a refresh
+  // or a dropped connection at the event doesn't wipe it out.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PICKS_DRAFT_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+
+      if (parsed && typeof parsed === "object") {
+        setPicks(parsed);
+      }
+    } catch {
+      // Ignore -- worst case they just start with an empty card.
+    }
+  }, []);
+
+  // Keep the draft saved as picks change.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        PICKS_DRAFT_KEY,
+        JSON.stringify(picks),
+      );
+    } catch {
+      // Ignore -- storage may be unavailable (private mode, etc).
+    }
+  }, [picks]);
 
   const [selectedPlayer, setSelectedPlayer] = useState<
     PropWithPlayer[] | null
@@ -233,6 +275,25 @@ export default function PicksExperience({
   );
 
   /*
+   * Every player's props are shown in the same order,
+   * no matter which player: points, assists, and
+   * rebounds always lead, everything else follows in
+   * whatever order it came in.
+   */
+  const STAT_PRIORITY: Record<string, number> = {
+    points: 0,
+    assists: 1,
+    rebounds: 2,
+  };
+
+  const sortByStatPriority = (
+    a: PropWithPlayer,
+    b: PropWithPlayer,
+  ) =>
+    (STAT_PRIORITY[a.stat_type] ?? 99) -
+    (STAT_PRIORITY[b.stat_type] ?? 99);
+
+  /*
    * Group all props by player.
    */
   const groupedPlayers = useMemo(() => {
@@ -254,7 +315,9 @@ export default function PicksExperience({
       ([playerId, playerProps]) => ({
         playerId,
         player: playerProps[0].player,
-        props: playerProps,
+        props: [...playerProps].sort(
+          sortByStatPriority,
+        ),
       }),
     );
   }, [props]);
@@ -263,7 +326,7 @@ export default function PicksExperience({
    * Filter players.
    */
   const visiblePlayers = useMemo(() => {
-    return groupedPlayers.filter(
+    const filtered = groupedPlayers.filter(
       ({ player, props: playerProps }) => {
         const teamName = getTeamName(
           player,
@@ -291,6 +354,15 @@ const isAlum =
           return false;
         }
 
+        if (
+          searchTerm.trim() &&
+          !player.name
+            .toLowerCase()
+            .includes(searchTerm.trim().toLowerCase())
+        ) {
+          return false;
+        }
+
         switch (filter) {
           case "HOT":
             return hasFeatured;
@@ -307,10 +379,26 @@ const isAlum =
         }
       },
     );
+
+    /*
+     * HOT picks float to the top no matter which
+     * category tab is active.
+     */
+    return [...filtered].sort((a, b) => {
+      const aHot = a.props.some((p) => Boolean(p.featured))
+        ? 0
+        : 1;
+      const bHot = b.props.some((p) => Boolean(p.featured))
+        ? 0
+        : 1;
+
+      return aHot - bHot;
+    });
   }, [
     groupedPlayers,
     filter,
     statFilter,
+    searchTerm,
     teams,
   ]);
 
@@ -498,6 +586,21 @@ const isAlum =
   };
 
   /*
+   * Clear the whole card.
+   */
+  const clearAllPicks = () => {
+    if (pickCount === 0) return;
+
+    const confirmed = window.confirm(
+      "Clear all picks from your card?",
+    );
+
+    if (confirmed) {
+      setPicks({});
+    }
+  };
+
+  /*
    * Player profile.
    */
   const openPlayerProfile = (
@@ -582,6 +685,12 @@ const isAlum =
 
     setSubmitOpen(false);
     setSubmitted(true);
+
+    try {
+      window.localStorage.removeItem(PICKS_DRAFT_KEY);
+    } catch {
+      // Ignore.
+    }
   } catch (error) {
     console.error(
       "Pick submission failed:",
@@ -600,6 +709,53 @@ const isAlum =
   /*
    * Submission confirmation.
    */
+  /*
+   * Share the locked card (native share sheet on mobile,
+   * clipboard copy as a fallback everywhere else).
+   */
+  const handleShareCard = async () => {
+    const lines = pickList.map((leg) => {
+      const { title, subtitle } = legLabel(leg);
+      return `${title} — ${subtitle}`;
+    });
+
+    const shareText = [
+      "My SCE Picks card 🔥",
+      "YoungKnights vs AlumKnights",
+      "",
+      ...lines,
+      "",
+      "Make your own free card:",
+      typeof window !== "undefined"
+        ? `${window.location.origin}/picks`
+        : "",
+    ].join("\n");
+
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.share
+    ) {
+      try {
+        await navigator.share({
+          title: "SCE Picks",
+          text: shareText,
+        });
+        return;
+      } catch {
+        // Fall through to clipboard copy below.
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareText);
+      alert(
+        "Copied! Paste your card anywhere to share it.",
+      );
+    } catch {
+      // Nothing more we can do -- the screenshot still works.
+    }
+  };
+
   if (submitted) {
     return (
       <main className="min-h-screen bg-ink px-4 py-10 text-bone sm:px-6">
@@ -704,6 +860,14 @@ const isAlum =
           <div className="mt-6 flex flex-col gap-3">
             <button
               type="button"
+              onClick={handleShareCard}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-young-light/40 bg-young/10 px-6 font-head text-sm font-black uppercase tracking-wider text-young-light transition hover:bg-young/15 active:scale-[0.98]"
+            >
+              📤 SHARE MY CARD
+            </button>
+
+            <button
+              type="button"
               onClick={() => setSubmitted(false)}
               className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-bone px-6 font-head text-sm font-black uppercase tracking-wider text-ink transition hover:scale-[1.02] active:scale-[0.98]"
             >
@@ -788,6 +952,32 @@ const isAlum =
                 Pick more or less on player props.
                 Every pick has to hit.
               </p>
+
+              {/* SEARCH */}
+              <div className="relative mt-4 max-w-xs">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-bone/25">
+                  🔍
+                </span>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) =>
+                    setSearchTerm(e.target.value)
+                  }
+                  placeholder="Search players..."
+                  className="w-full rounded-full border border-line bg-panel py-2.5 pl-9 pr-4 font-head text-sm text-bone placeholder:text-bone/30 focus:border-bone/30 focus:outline-none"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-bone/30 hover:text-bone/70"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="hidden text-right md:block">
@@ -809,7 +999,7 @@ const isAlum =
       {/* CATEGORY FILTER */}
       <div className="border-b border-line">
         <div className="mx-auto max-w-[1600px] overflow-x-auto px-4 sm:px-6 lg:px-8">
-          <div className="no-scrollbar flex min-w-max gap-2.5 py-4">
+          <div className="no-scrollbar flex min-w-max gap-3 py-5">
             {CATEGORY_FILTERS.map(
               (item) => {
                 const active =
@@ -823,18 +1013,18 @@ const isAlum =
                       setFilter(item.value)
                     }
                     className={[
-                      "flex items-center gap-1.5 rounded-full border px-6 py-3 font-head text-sm font-black uppercase tracking-[0.08em] transition active:scale-[0.96]",
+                      "flex items-center gap-2 rounded-2xl border-2 px-8 py-4 font-head text-base font-black uppercase tracking-[0.06em] transition active:scale-[0.96] sm:text-lg",
                       active
-                        ? "border-bone bg-bone text-ink shadow-lg"
-                        : "border-line text-bone/45 hover:border-bone/25 hover:bg-panel hover:text-bone",
+                        ? "border-bone bg-bone text-ink shadow-xl"
+                        : "border-line text-bone/45 hover:border-bone/30 hover:bg-panel hover:text-bone",
                     ].join(" ")}
                   >
                     {item.icon && (
                       <span
                         className={
                           active
-                            ? "hot-badge-flame text-base leading-none"
-                            : "text-base leading-none"
+                            ? "hot-badge-flame text-xl leading-none"
+                            : "text-xl leading-none"
                         }
                       >
                         {item.icon}
@@ -1007,6 +1197,7 @@ const isAlum =
         <PickSidePanel
           items={pickList}
           onRemove={removeLeg}
+          onClearAll={clearAllPicks}
           onSubmit={handleSubmit}
           submitting={submitting}
           locked={locked}
@@ -1034,6 +1225,7 @@ const isAlum =
     setMobileSlipOpen(false)
   }
   onRemove={removeLeg}
+  onClearAll={clearAllPicks}
   onSubmit={handleSubmit}
   submitting={submitting}
   locked={locked}
@@ -1212,6 +1404,27 @@ function PlayerProfile({
           </div>
         </div>
 
+        {/* SCOUTING REPORT (bio) */}
+        <div className="border-b border-line px-5 py-5 sm:px-8">
+          <p className="mb-2 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-bone/25">
+            SCOUTING REPORT
+          </p>
+
+          {player.bio ? (
+            <p className="max-w-2xl text-sm leading-relaxed text-bone/75">
+              {player.bio}
+            </p>
+          ) : (
+            <p className="max-w-2xl text-sm italic leading-relaxed text-bone/40">
+              {getAutoBio(
+                playerName,
+                teamName,
+                playerProps,
+              )}
+            </p>
+          )}
+        </div>
+
         {/* PLAYER NOTES */}
         {player.bio_tags &&
           player.bio_tags.length > 0 && (
@@ -1266,6 +1479,7 @@ function PlayerProfile({
                   <ProfileProp
                     key={prop.id}
                     prop={prop}
+                    isYoung={isYoung}
                     selectedSide={
                       selected?.side
                     }
@@ -1301,11 +1515,13 @@ function PlayerProfile({
 
 function ProfileProp({
   prop,
+  isYoung,
   selectedSide,
   locked,
   onSelect,
 }: {
   prop: PropWithPlayer;
+  isYoung: boolean;
   selectedSide?: "more" | "less";
   locked: boolean;
   onSelect: (
@@ -1318,18 +1534,34 @@ function ProfileProp({
       prop.stat_type,
     );
 
+  const accentText = isYoung
+    ? "text-young-light"
+    : "text-alum-light";
+
+  const accentBorder = isYoung
+    ? "border-young/50"
+    : "border-alum/50";
+
+  const accentBg = isYoung
+    ? "bg-young/10"
+    : "bg-alum/10";
+
   return (
     <div
       className={[
-        "rounded-2xl border bg-panel p-4 transition sm:p-5",
+        "overflow-hidden rounded-2xl border-2 bg-panel transition sm:p-0",
         selectedSide
-          ? "border-bone/40 shadow-[0_0_30px_rgba(255,255,255,0.06)]"
+          ? `${accentBorder} shadow-[0_0_30px_rgba(255,255,255,0.06)]`
           : "border-line",
       ].join(" ")}
     >
-      <div className="flex items-center justify-between gap-4">
+      <div
+        className={`flex items-center justify-between gap-4 px-4 pt-4 sm:px-5 sm:pt-5 ${accentBg}`}
+      >
         <div>
-          <p className="flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-bone/30">
+          <p
+            className={`flex items-center gap-1.5 font-head text-sm font-black uppercase tracking-[0.06em] ${accentText}`}
+          >
             {statLabel}
             {prop.featured && (
               <span className="hot-badge-flame">🔥</span>
@@ -1337,58 +1569,63 @@ function ProfileProp({
           </p>
 
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-head text-3xl font-black">
+            <span className="font-display text-4xl leading-none text-bone">
               {prop.line}
+            </span>
+            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-bone/35">
+              THE LINE
             </span>
           </div>
         </div>
 
         {selectedSide && (
           <div className="rounded-full bg-bone px-3 py-1 font-mono text-[9px] font-black uppercase tracking-wider text-ink">
-            {selectedSide}
+            {selectedSide === "more" ? "MORE ✓" : "LESS ✓"}
           </div>
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <ProfileSelectButton
-          label="MORE"
-          active={
-            selectedSide === "more"
-          }
-          disabled={
-            locked || prop.locked
-          }
-          onClick={() =>
-            onSelect(
-              prop,
-              "more",
-            )
-          }
-        />
+      <div className="px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
+        <div className="grid grid-cols-2 gap-2">
+          <ProfileSelectButton
+            label="MORE"
+            active={
+              selectedSide === "more"
+            }
+            disabled={
+              locked || prop.locked
+            }
+            onClick={() =>
+              onSelect(
+                prop,
+                "more",
+              )
+            }
+          />
 
-        <ProfileSelectButton
-          label="LESS"
-          active={
-            selectedSide === "less"
-          }
-          disabled={
-            locked || prop.locked
-          }
-          onClick={() =>
-            onSelect(
-              prop,
-              "less",
-            )
-          }
-        />
+          <ProfileSelectButton
+            label="LESS"
+            active={
+              selectedSide === "less"
+            }
+            disabled={
+              locked || prop.locked
+            }
+            onClick={() =>
+              onSelect(
+                prop,
+                "less",
+              )
+            }
+          />
+        </div>
+
+        {(locked || prop.locked) && (
+          <p className="mt-3 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-bone/25">
+            PICKS ARE LOCKED
+          </p>
+        )}
       </div>
-
-      {(locked || prop.locked) && (
-        <p className="mt-3 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-bone/25">
-          PICKS ARE LOCKED
-        </p>
-      )}
     </div>
   );
 }

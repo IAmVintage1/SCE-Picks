@@ -195,7 +195,7 @@ export default function PlayerCard({
       {/* =====================================================
           PLAYER IMAGE
       ===================================================== */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-black">
+      <div className="relative aspect-[3/4] overflow-hidden bg-black">
         {/* Team color gradient backdrop -- sits behind the player
             photo so it shows through transparent/cutout edges and
             as a colorful placeholder while the image loads. */}
@@ -238,41 +238,7 @@ export default function PlayerCard({
         )}
 
         {/* Subtle image gradient */}
-        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-ink/85 via-ink/25 to-transparent" />
-
-        {/* Subtle team gradient */}
-        <div
-          className={`
-            absolute inset-x-0 bottom-0 h-1/4
-            bg-gradient-to-t
-            ${
-              isYoung
-                ? "from-young/20"
-                : "from-alum/20"
-            }
-            to-transparent
-            opacity-60
-          `}
-        />
-
-        {/* Team label */}
-        <div className="absolute bottom-3 left-0 right-0 flex justify-center">
-          <span
-            className={`
-              font-mono text-[8px]
-              font-bold tracking-[0.14em]
-              ${accentText}
-            `}
-            style={{
-              textShadow:
-                "0 1px 3px rgba(0,0,0,0.95), 0 2px 8px rgba(0,0,0,0.7)",
-            }}
-          >
-            {isYoung
-              ? "YOUNGKNIGHTS"
-              : "ALUMKNIGHTS"}
-          </span>
-        </div>
+        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-ink/85 via-ink/15 to-transparent" />
       </div>
 
       {/* =====================================================
@@ -280,8 +246,23 @@ export default function PlayerCard({
       ===================================================== */}
       <div className="p-3">
 
+        {/* Team name -- sits in the black box under the image */}
+        <div className="text-center">
+          <span
+            className={`
+              font-mono text-[9px]
+              font-black tracking-[0.16em]
+              ${accentText}
+            `}
+          >
+            {isYoung
+              ? "YOUNGKNIGHTS"
+              : "ALUMKNIGHTS"}
+          </span>
+        </div>
+
         {/* Player name */}
-        <div className="min-w-0 text-center">
+        <div className="mt-0.5 min-w-0 text-center">
           <h3
             className="
               font-display
