@@ -179,8 +179,8 @@ export default function PlayerCard({
               transition-transform duration-500
               ${
                 isPicked
-                  ? "scale-[1.01]]"
-                  : "group-hover:scale-[1.015]]"
+                  ? "scale-[1.01]"
+                  : "group-hover:scale-[1.015]"
               }
             `}
             sizes="
