@@ -175,7 +175,7 @@ export default function PlayerCard({
             fill
             priority={false}
             className={`
-              object-cover
+              object-top
               transition-transform duration-500
               ${
                 isPicked
