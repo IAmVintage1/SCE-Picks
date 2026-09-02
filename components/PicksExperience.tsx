@@ -312,11 +312,17 @@ export default function PicksExperience({
   /*
    * Find current team selection.
    */
-  const getTeamSelection = (
-    teamProp: TeamProp,
-  ) => {
-    return picks[`team:${teamProp.id}`];
-  };
+    const getTeamSelection = (
+      teamProp: TeamProp,
+    ): string | null => {
+      const pick = picks[`team:${teamProp.id}`];
+    
+      if (!pick || pick.kind !== "team") {
+        return null;
+      }
+    
+      return pick.selection;
+    };
 
   /*
    * Select MORE / LESS for player props.
