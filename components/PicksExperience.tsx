@@ -765,12 +765,17 @@ export default function PicksExperience({
                 {visibleTeamProps.map(
                   (teamProp) => (
                     <TeamPropCard
-                      key={teamProp.id}
-                      prop={teamProp}
-                      teams={teams}
-                      selection={getTeamSelection(teamProp)}
-                      onSelect={(selection) => handleSelectTeam(teamProp, selection)}
-                    />
+                              key={teamProp.id}
+                              prop={teamProp}
+                              teams={teams}
+                              selection={getTeamSelection(teamProp)}
+                              onSelect={(selection) =>
+                                handleSelectTeam(
+                                  teamProp,
+                                  selection as "more" | "less",
+                                )
+                              }
+                            />
                   ),
                 )}
               </div>
