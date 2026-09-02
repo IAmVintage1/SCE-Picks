@@ -342,7 +342,7 @@ export default function PicksExperience({
 
         if (
           existing.kind === "player" &&
-          existing.prop?.player?.id ===
+          existing.player.id ===
             prop.player?.id &&
           existingKey !== key
         ) {
