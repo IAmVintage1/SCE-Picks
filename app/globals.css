@@ -16,7 +16,6 @@ body {
   color: #fff;
 }
 
-/* visible keyboard focus everywhere */
 :focus-visible {
   outline: 2px solid #F4F3F0;
   outline-offset: 2px;
@@ -33,6 +32,7 @@ body {
   }
 }
 
+/* Hide scrollbars while keeping horizontal scrolling */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -42,142 +42,138 @@ body {
   scrollbar-width: none;
 }
 
+/* ---------------------------------
+   SCE PICKS MICRO-INTERACTIONS
+---------------------------------- */
 
-/* =========================================================
-   SCE PICKS — PHASE 2C.4
-   INTERACTION ANIMATIONS
-   ========================================================= */
+@keyframes pop {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pop {
+  animation: pop 220ms ease-out;
+}
 
 @keyframes pickPulse {
   0% {
     transform: scale(1);
   }
 
-  35% {
-    transform: scale(1.012);
+  50% {
+    transform: scale(1.015);
   }
 
   100% {
-    transform: scale(1.005);
+    transform: scale(1);
   }
 }
 
-@keyframes selectionFlash {
-  0% {
-    opacity: 0;
-  }
+.animate-pick-pulse {
+  animation: pickPulse 260ms ease-out;
+}
 
-  25% {
-    opacity: 1;
+@keyframes tierShine {
+  0% {
+    background-position: -200% 0;
   }
 
   100% {
-    opacity: 0;
+    background-position: 200% 0;
   }
 }
 
-@keyframes badgeIn {
+.tier-shine {
+  background-image: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.22) 45%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: tierShine 1.8s ease-in-out;
+}
+
+/* ---------------------------------
+   PICKED CARD
+---------------------------------- */
+
+@keyframes selectedGlow {
   0% {
-    opacity: 0;
-    transform: translateY(-5px) scale(0.92);
+    box-shadow: 0 0 0 rgba(226, 52, 40, 0);
   }
 
-  70% {
-    opacity: 1;
-    transform: translateY(0) scale(1.04);
+  50% {
+    box-shadow: 0 0 28px rgba(226, 52, 40, 0.16);
   }
 
   100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    box-shadow: 0 0 18px rgba(226, 52, 40, 0.08);
   }
 }
 
-@keyframes yourPickIn {
-  0% {
+.pick-selected {
+  animation: selectedGlow 320ms ease-out;
+}
+
+/* ---------------------------------
+   MODAL
+---------------------------------- */
+
+@keyframes modalIn {
+  from {
     opacity: 0;
-    transform: translateY(-5px);
+    transform: translateY(12px);
   }
 
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-@keyframes checkIn {
+.animate-modal-in {
+  animation: modalIn 220ms ease-out;
+}
+
+/* ---------------------------------
+   TIER CELEBRATION
+---------------------------------- */
+
+@keyframes tierCelebrate {
   0% {
+    transform: scale(0.96);
     opacity: 0;
-    transform: scale(0.5);
+  }
+
+  20% {
+    transform: scale(1.03);
+    opacity: 1;
   }
 
   70% {
-    opacity: 1;
-    transform: scale(1.2);
-  }
-
-  100% {
-    opacity: 1;
     transform: scale(1);
-  }
-}
-
-@keyframes buttonSweep {
-  0% {
-    opacity: 0;
-    transform: translateX(-100%);
-  }
-
-  35% {
-    opacity: 0.15;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-}
-
-@keyframes pickRemove {
-  0% {
-    transform: scale(1.005);
-  }
-
-  45% {
-    transform: scale(0.995);
+    opacity: 1;
   }
 
   100% {
     transform: scale(1);
+    opacity: 1;
   }
 }
 
-
-/* =========================================================
-   SCE PICKS — PHASE 2C.5
-   TIER PROGRESSION ANIMATION
-   ========================================================= */
-
-@keyframes tierShine {
-  0% {
-    transform: translateX(-80px);
-    opacity: 0;
-  }
-
-  25% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.8;
-  }
-
-  75% {
-    opacity: 0;
-  }
-
-  100% {
-    transform: translateX(400px);
-    opacity: 0;
-  }
+.tier-celebrate {
+  animation: tierCelebrate 450ms ease-out;
 }
