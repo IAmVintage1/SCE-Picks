@@ -104,12 +104,7 @@ function getTeamName(
     );
 
     if (team) {
-      const possibleTeam = team as Team & {
-        name?: string;
-        team_name?: string;
-      };
-
-      return possibleTeam.name ?? possibleTeam.team_name ?? "";
+      return team.name;
     }
   }
 
@@ -186,6 +181,7 @@ export default function PicksExperience({
 
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [mobileSlipOpen, setMobileSlipOpen] = useState(false);
 
@@ -198,8 +194,13 @@ export default function PicksExperience({
   const minPicks = settings?.min_picks ?? 3;
   const locked = Boolean(settings?.picks_locked);
 
+  const tierInfo = useMemo(
+    () => getTierInfo(pickCount, settings),
+    [pickCount, settings],
+  );
+
   /*
-   * Group all props belonging to the same player.
+   * Group all props by player.
    */
   const groupedPlayers = useMemo(() => {
     const map = new Map<string, PropWithPlayer[]>();
@@ -249,7 +250,10 @@ export default function PicksExperience({
         );
 
         const hasStat = playerProps.some((prop) =>
-          statMatches(prop.stat_type, statFilter),
+          statMatches(
+            prop.stat_type,
+            statFilter,
+          ),
         );
 
         if (!hasStat) {
@@ -293,36 +297,40 @@ export default function PicksExperience({
   }, [filter, teamProps]);
 
   /*
-   * Find current player selection.
+   * Get selection for a player prop.
    */
   const getPlayerSelection = (
-    playerProps: PropWithPlayer[],
-  ) => {
-    for (const prop of playerProps) {
-      const key = `player:${prop.id}`;
+    propId: string,
+  ): "over" | "under" | null => {
+    const pick = picks[`player:${propId}`];
 
-      if (picks[key]) {
-        return picks[key];
-      }
+    if (!pick || pick.kind !== "player") {
+      return null;
     }
 
-    return undefined;
+    return pick.selection;
   };
 
   /*
-   * Find current team selection.
+   * Get selection for a team prop.
+   *
+   * Winning team:
+   *   "youngknights" | "alumknights"
+   *
+   * Combined points:
+   *   "more" | "less"
    */
-    const getTeamSelection = (
-      teamProp: TeamProp,
-    ): string | null => {
-      const pick = picks[`team:${teamProp.id}`];
-    
-      if (!pick || pick.kind !== "team") {
-        return null;
-      }
-    
-      return pick.selection;
-    };
+  const getTeamSelection = (
+    teamProp: TeamProp,
+  ): string | null => {
+    const pick = picks[`team:${teamProp.id}`];
+
+    if (!pick || pick.kind !== "team") {
+      return null;
+    }
+
+    return pick.selection;
+  };
 
   /*
    * Select MORE / LESS for player props.
@@ -331,7 +339,7 @@ export default function PicksExperience({
     prop: PropWithPlayer,
     side: "more" | "less",
   ) => {
-    if (locked || settings?.picks_locked) {
+    if (locked || prop.locked) {
       return;
     }
 
@@ -341,7 +349,8 @@ export default function PicksExperience({
       const next = { ...current };
 
       /*
-       * Only one prop can be selected per player.
+       * Only one player prop can be selected
+       * for each player.
        */
       for (const existingKey of Object.keys(next)) {
         const existing = next[existingKey];
@@ -359,8 +368,7 @@ export default function PicksExperience({
       const currentPick = next[key];
 
       /*
-       * Clicking the currently selected prop/side
-       * removes the selection.
+       * Clicking the same side again removes it.
        */
       if (
         currentPick?.kind === "player" &&
@@ -372,15 +380,19 @@ export default function PicksExperience({
       }
 
       next[key] = {
-        kind: "player",
-        propId: prop.id,
-        playerId: prop.player?.id ?? "",
-        playerName: prop.player?.name ?? "",
-        teamName: prop.player?.team?.name ?? "",
-        statType: prop.stat_type,
-        line: prop.line,
-        selection: side === "more" ? "over" : "under",
-        side,
+        kind: "player",
+        propId: prop.id,
+        playerId: prop.player?.id ?? "",
+        playerName: prop.player?.name ?? "",
+        teamName:
+          prop.player?.team?.name ?? "",
+        statType: prop.stat_type,
+        line: prop.line,
+        selection:
+          side === "more"
+            ? "over"
+            : "under",
+        side,
       };
 
       return next;
@@ -392,13 +404,16 @@ export default function PicksExperience({
   };
 
   /*
-   * Select MORE / LESS for game props.
+   * Select a game prop.
    */
   const handleSelectTeam = (
     teamProp: TeamProp,
-    side: "more" | "less",
+    selection: string,
   ) => {
-    if (locked || settings?.picks_locked) {
+    if (
+      locked ||
+      teamProp.locked
+    ) {
       return;
     }
 
@@ -408,28 +423,35 @@ export default function PicksExperience({
       const next = { ...current };
       const currentPick = next[key];
 
+      /*
+       * Clicking the same selection removes it.
+       */
       if (
-        currentPick &&
-        currentPick.side === side
+        currentPick?.kind === "team" &&
+        currentPick.selection === selection
       ) {
         delete next[key];
         return next;
       }
 
       next[key] = {
-        kind: "team",
-        teamPropId: teamProp.id,
-        propType: teamProp.prop_type,
-        label:
-          teamProp.prop_type === "winning_team"
-            ? "WINNING TEAM"
-            : "COMBINED POINTS",
-        selection:
-          teamProp.prop_type === "combined_points"
-            ? side
-            : side,
-        line: teamProp.line,
-        side,
+        kind: "team",
+        teamPropId: teamProp.id,
+        propType: teamProp.prop_type,
+        label:
+          teamProp.prop_type ===
+          "winning_team"
+            ? "WINNING TEAM"
+            : "COMBINED POINTS",
+        selection,
+        line: teamProp.line,
+        side:
+          teamProp.prop_type ===
+          "combined_points"
+            ? selection === "more"
+              ? "more"
+              : "less"
+            : undefined,
       };
 
       return next;
@@ -441,7 +463,7 @@ export default function PicksExperience({
   };
 
   /*
-   * Remove a pick from the slip.
+   * Remove a pick.
    */
   const removeLeg = (key: string) => {
     setPicks((current) => {
@@ -480,29 +502,37 @@ export default function PicksExperience({
    * Submit card.
    */
   const handleConfirmSubmit = async (
-    info?: SubmitInfo,
+    info: SubmitInfo,
   ) => {
+    if (submitting) return;
+
+    setSubmitting(true);
+
     try {
-      const formattedPicks = pickList.map((leg) => {
-        if (leg.kind === "player") {
-          return {
-            key: `player:${leg.propId}`,
-            type: "player",
-            side: leg.side,
-            propId: leg.propId,
-            playerId: leg.playerId,
-            selection: leg.selection,
-          };
-        }
-      
-        return {
-          key: `team:${leg.teamPropId}`,
-          type: "team",
-          side: leg.side,
-          teamPropId: leg.teamPropId,
-          selection: leg.selection,
-        };
-      });
+      const formattedPicks =
+        pickList.map((leg) => {
+          if (leg.kind === "player") {
+            return {
+              key: `player:${leg.propId}`,
+              type: "player",
+              side: leg.side,
+              propId: leg.propId,
+              playerId: leg.playerId,
+              selection:
+                leg.selection,
+            };
+          }
+
+          return {
+            key: `team:${leg.teamPropId}`,
+            type: "team",
+            side: leg.side,
+            teamPropId:
+              leg.teamPropId,
+            selection:
+              leg.selection,
+          };
+        });
 
       const response = await fetch(
         "/api/picks/submit",
@@ -532,6 +562,8 @@ export default function PicksExperience({
         "Pick submission failed:",
         error,
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -753,8 +785,7 @@ export default function PicksExperience({
               </h2>
             </div>
 
-            {visibleTeamProps.length ===
-            0 ? (
+            {visibleTeamProps.length === 0 ? (
               <div className="rounded-2xl border border-line bg-panel p-8 text-center">
                 <p className="font-head text-lg font-bold uppercase text-bone/60">
                   NO GAME PROPS
@@ -765,17 +796,19 @@ export default function PicksExperience({
                 {visibleTeamProps.map(
                   (teamProp) => (
                     <TeamPropCard
-                              key={teamProp.id}
-                              prop={teamProp}
-                              teams={teams}
-                              selection={getTeamSelection(teamProp)}
-                              onSelect={(selection) =>
-                                handleSelectTeam(
-                                  teamProp,
-                                  selection as "more" | "less",
-                                )
-                              }
-                            />
+                      key={teamProp.id}
+                      prop={teamProp}
+                      teams={teams}
+                      selection={getTeamSelection(
+                        teamProp,
+                      )}
+                      onSelect={(selection) =>
+                        handleSelectTeam(
+                          teamProp,
+                          selection,
+                        )
+                      }
+                    />
                   ),
                 )}
               </div>
@@ -783,16 +816,14 @@ export default function PicksExperience({
           </div>
         ) : (
           <>
-            {visiblePlayers.length ===
-            0 ? (
+            {visiblePlayers.length === 0 ? (
               <div className="rounded-2xl border border-line bg-panel p-10 text-center">
                 <p className="font-head text-xl font-black uppercase text-bone/60">
                   NOTHING HERE YET
                 </p>
 
                 <p className="mt-2 text-sm text-bone/35">
-                  Try another category or
-                  stat.
+                  Try another category or stat.
                 </p>
               </div>
             ) : (
@@ -803,11 +834,6 @@ export default function PicksExperience({
                     player,
                     props: playerProps,
                   }) => {
-                    const selection =
-                      getPlayerSelection(
-                        playerProps,
-                      );
-
                     const primaryProp =
                       playerProps.find(
                         (prop) =>
@@ -825,20 +851,33 @@ export default function PicksExperience({
                       playerProps[0];
 
                     return (
-                        <PlayerCard
-                            key={player.id}
-                            props={playerProps}
-                            getSelection={(propId) =>
-                              picks[`player:${propId}`]?.selection ?? null
-                            }
-                            onSelect={(prop, selection) =>
-                              handleSelect(
-                                prop,
-                                selection === "over" ? "more" : "less",
-                              )
-                            }
-                            onOpenProfile={openProfile}
-                          />
+                      <PlayerCard
+                        key={playerId}
+                        props={playerProps}
+                        primaryPropId={
+                          primaryProp?.id
+                        }
+                        getSelection={
+                          getPlayerSelection
+                        }
+                        onSelect={(
+                          prop,
+                          selection,
+                        ) =>
+                          handleSelect(
+                            prop,
+                            selection ===
+                              "over"
+                              ? "more"
+                              : "less",
+                          )
+                        }
+                        onOpenProfile={() =>
+                          openPlayerProfile(
+                            playerProps,
+                          )
+                        }
+                      />
                     );
                   },
                 )}
@@ -851,12 +890,13 @@ export default function PicksExperience({
       {/* DESKTOP PICK PANEL */}
       <div className="hidden lg:block">
         <PickSidePanel
-          picks={pickList}
-          minPicks={minPicks}
-          settings={settings}
-          locked={locked}
+          items={pickList}
           onRemove={removeLeg}
           onSubmit={handleSubmit}
+          submitting={submitting}
+          locked={locked}
+          minPicks={minPicks}
+          settings={settings}
           confettiTrigger={
             confettiTrigger
           }
@@ -908,18 +948,26 @@ export default function PicksExperience({
       )}
 
       {/* SUBMIT MODAL */}
-      {submitOpen && (
-        <SubmitModal
-          picks={pickList}
-          settings={settings}
-          onClose={() =>
-            setSubmitOpen(false)
-          }
-          onConfirm={
-            handleConfirmSubmit
-          }
-        />
-      )}
+      <SubmitModal
+        open={submitOpen}
+        onClose={() =>
+          setSubmitOpen(false)
+        }
+        onConfirm={
+          handleConfirmSubmit
+        }
+        submitting={submitting}
+        emailRequired={
+          settings?.email_required ??
+          true
+        }
+        instagramRequired={
+          settings?.instagram_required ??
+          true
+        }
+        pickCount={pickCount}
+        tierInfo={tierInfo}
+      />
     </main>
   );
 }
@@ -960,14 +1008,8 @@ function PlayerProfile({
   const teamName =
     getTeamName(player, teams);
 
-  const possiblePlayer =
-    player as Player & {
-      image_url?: string;
-      bio_tags?: string[];
-    };
-
   const imageUrl =
-    possiblePlayer.image_url;
+    player.image_url;
 
   const selectedProps =
     playerProps.filter(
@@ -1022,8 +1064,7 @@ function PlayerProfile({
 
           <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
             <div className="mb-3 inline-flex rounded-full border border-bone/15 bg-ink/70 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-bone/60 backdrop-blur">
-              {teamName ||
-                "TEAM"}
+              {teamName || "TEAM"}
             </div>
 
             <h1 className="max-w-2xl font-head text-4xl font-black uppercase leading-[0.9] tracking-tight sm:text-6xl">
@@ -1032,17 +1073,12 @@ function PlayerProfile({
 
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="rounded-full border border-line bg-panel/80 px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-bone/45">
-                {playerProps.length}{" "}
-                PROPS
+                {playerProps.length} PROPS
               </span>
 
-              {selectedProps.length >
-                0 && (
+              {selectedProps.length > 0 && (
                 <span className="rounded-full border border-young-light/30 bg-young/10 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-young-light">
-                  {
-                    selectedProps.length
-                  }{" "}
-                  SELECTED
+                  {selectedProps.length} SELECTED
                 </span>
               )}
             </div>
@@ -1050,16 +1086,15 @@ function PlayerProfile({
         </div>
 
         {/* PLAYER NOTES */}
-        {possiblePlayer.bio_tags &&
-          possiblePlayer.bio_tags.length >
-            0 && (
+        {player.bio_tags &&
+          player.bio_tags.length > 0 && (
             <div className="border-b border-line px-5 py-5 sm:px-8">
               <p className="mb-3 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-bone/25">
                 PLAYER NOTES
               </p>
 
               <div className="flex flex-wrap gap-2">
-                {possiblePlayer.bio_tags.map(
+                {player.bio_tags.map(
                   (tag) => (
                     <span
                       key={tag}
@@ -1087,13 +1122,8 @@ function PlayerProfile({
             </div>
 
             <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-bone/25">
-              {
-                selectedProps.length
-              }
-              /
-              {
-                playerProps.length
-              }
+              {selectedProps.length}/
+              {playerProps.length}
             </div>
           </div>
 
@@ -1105,15 +1135,12 @@ function PlayerProfile({
                     `player:${prop.id}`
                   ];
 
-                const side =
-                  selected?.side;
-
                 return (
                   <ProfileProp
                     key={prop.id}
                     prop={prop}
                     selectedSide={
-                      side
+                      selected?.side
                     }
                     locked={locked}
                     onSelect={
@@ -1197,10 +1224,11 @@ function ProfileProp({
         <ProfileSelectButton
           label="MORE"
           active={
-            selectedSide ===
-            "more"
+            selectedSide === "more"
           }
-          disabled={locked}
+          disabled={
+            locked || prop.locked
+          }
           onClick={() =>
             onSelect(
               prop,
@@ -1212,10 +1240,11 @@ function ProfileProp({
         <ProfileSelectButton
           label="LESS"
           active={
-            selectedSide ===
-            "less"
+            selectedSide === "less"
           }
-          disabled={locked}
+          disabled={
+            locked || prop.locked
+          }
           onClick={() =>
             onSelect(
               prop,
@@ -1225,7 +1254,7 @@ function ProfileProp({
         />
       </div>
 
-      {locked && (
+      {(locked || prop.locked) && (
         <p className="mt-3 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-bone/25">
           PICKS ARE LOCKED
         </p>
