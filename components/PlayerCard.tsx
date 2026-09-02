@@ -55,11 +55,6 @@ export default function PlayerCard({
   const selected = getSelection(primary.id);
   const isPicked = selected !== null;
 
-  const otherProps = props.filter(
-    (p) => p.id !== primary.id
-  );
-
-  // Controls the short visual feedback animation.
   const [feedback, setFeedback] = useState<
     "over" | "under" | "remove" | null
   >(null);
@@ -97,17 +92,19 @@ export default function PlayerCard({
     setPreviousSelection(selected);
   }, [selected, previousSelection]);
 
-  const handleSelect = (
-    prop: PropWithPlayer,
-    selection: "over" | "under"
-  ) => {
-    onSelect(prop, selection);
+  const handleCardClick = () => {
+    if (onOpenProfile) {
+      onOpenProfile();
+    }
   };
 
   return (
     <article
+      onClick={handleCardClick}
       className={`
-        group relative overflow-hidden border bg-ink
+        group relative overflow-hidden
+        border bg-ink
+        cursor-pointer
         transition-all duration-300 ease-out
         ${
           isPicked
@@ -127,10 +124,11 @@ export default function PlayerCard({
       `}
     >
       {/* Selection flash */}
-      {feedback === "over" || feedback === "under" ? (
+      {(feedback === "over" || feedback === "under") && (
         <div
           className={`
-            pointer-events-none absolute inset-0 z-40
+            pointer-events-none
+            absolute inset-0 z-40
             ${
               isYoung
                 ? "bg-young/10"
@@ -139,16 +137,17 @@ export default function PlayerCard({
             animate-[selectionFlash_420ms_ease-out]
           `}
         />
-      ) : null}
+      )}
 
-      {/* Picked badge */}
+      {/* PICKED badge */}
       {isPicked && (
         <div
           className={`
             absolute right-3 top-3 z-30
             flex items-center gap-1.5
             border border-white/15
-            bg-ink/90 px-2.5 py-1.5
+            bg-ink/90
+            px-2.5 py-1.5
             backdrop-blur-md
             shadow-lg
             ${accentText}
@@ -165,87 +164,110 @@ export default function PlayerCard({
         </div>
       )}
 
-      {/* Player image */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-black/20">
+      {/* =====================================================
+          PLAYER IMAGE
+          ===================================================== */}
+      <div className="relative aspect-[4/3] overflow-hidden bg-black">
         {player.image_url ? (
           <Image
             src={player.image_url}
             alt={player.name}
             fill
+            priority={false}
             className={`
               object-cover
               transition-transform duration-500
               ${
                 isPicked
                   ? "scale-[1.035]"
-                  : "group-hover:scale-[1.02]"
+                  : "group-hover:scale-[1.035]"
               }
             `}
-            sizes="(max-width: 768px) 50vw, 25vw"
+            sizes="
+              (max-width: 640px) 50vw,
+              (max-width: 1024px) 33vw,
+              25vw
+            "
           />
         ) : (
           <div className="flex h-full items-center justify-center">
             <span
-              className={`font-display text-5xl font-black ${accentText}`}
+              className={`
+                font-display text-6xl font-black
+                ${accentText}
+              `}
             >
               {player.name.charAt(0)}
             </span>
           </div>
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-transparent" />
+        {/* DARK IMAGE GRADIENT */}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/25 to-transparent" />
 
-        {/* Team indicator */}
+        {/* Additional subtle team gradient */}
         <div
           className={`
-            absolute bottom-3 left-3
-            font-mono text-[8px] font-bold
-            tracking-[0.14em]
-            ${accentText}
+            absolute inset-x-0 bottom-0 h-1/2
+            bg-gradient-to-t
+            ${
+              isYoung
+                ? "from-young/30"
+                : "from-alum/30"
+            }
+            to-transparent
+            opacity-70
           `}
-        >
-          {isYoung ? "YOUNGKNIGHTS" : "ALUMKNIGHTS"}
+        />
+
+        {/* Team label */}
+        <div className="absolute bottom-3 left-3">
+          <span
+            className={`
+              font-mono text-[8px]
+              font-bold tracking-[0.14em]
+              ${accentText}
+            `}
+          >
+            {isYoung
+              ? "YOUNGKNIGHTS"
+              : "ALUMKNIGHTS"}
+          </span>
         </div>
       </div>
 
-      {/* Main card content */}
+      {/* =====================================================
+          CARD CONTENT
+          ===================================================== */}
       <div className="p-4">
+
         {/* Player name */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate font-display text-xl font-black uppercase tracking-tight text-bone">
-              {player.name}
-            </h3>
-
-            <div className="mt-1 font-mono text-[8px] font-bold tracking-[0.14em] text-bone/35">
-              {props.length}{" "}
-              {props.length === 1 ? "PROP" : "PROPS"}
-            </div>
-          </div>
-
-          {onOpenProfile && (
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              className="
-                shrink-0
-                font-mono text-[8px] font-bold
-                tracking-[0.12em]
-                text-bone/35
-                transition-colors
-                hover:text-bone
-              "
-            >
-              VIEW
-            </button>
-          )}
+        <div className="min-w-0">
+          <h3
+            className="
+              font-display
+              text-[clamp(1rem,3.5vw,1.35rem)]
+              font-black
+              uppercase
+              leading-[0.95]
+              tracking-tight
+              text-bone
+              whitespace-normal
+              break-words
+            "
+          >
+            {player.name}
+          </h3>
         </div>
 
-        {/* Primary stat */}
-        <div className="mt-5 text-center">
+        {/* Primary prop */}
+        <div className="mt-4 text-center">
+
           <div
             className={`
-              font-mono text-[9px] font-bold
+              font-mono
+              text-[9px]
+              font-bold
               tracking-[0.16em]
               ${accentText}
             `}
@@ -257,9 +279,13 @@ export default function PlayerCard({
           <div
             className={`
               mt-1
-              font-display text-4xl font-black
-              leading-none text-bone
-              transition-transform duration-200
+              font-display
+              text-4xl
+              font-black
+              leading-none
+              text-bone
+              transition-transform
+              duration-200
               ${
                 feedback === "over" ||
                 feedback === "under"
@@ -270,10 +296,17 @@ export default function PlayerCard({
           >
             {primary.line}
           </div>
+
         </div>
 
-        {/* More / Less */}
-        <div className="mt-4 grid grid-cols-2 gap-1.5">
+        {/* =====================================================
+            MORE / LESS
+            stopPropagation keeps the card from opening profile
+        ===================================================== */}
+        <div
+          className="mt-4 grid grid-cols-2 gap-1.5"
+          onClick={(e) => e.stopPropagation()}
+        >
           <SelectButton
             label="MORE"
             active={selected === "over"}
@@ -282,7 +315,7 @@ export default function PlayerCard({
             accentText={accentText}
             pulse={feedback === "over"}
             onClick={() =>
-              handleSelect(primary, "over")
+              onSelect(primary, "over")
             }
           />
 
@@ -294,12 +327,14 @@ export default function PlayerCard({
             accentText={accentText}
             pulse={feedback === "under"}
             onClick={() =>
-              handleSelect(primary, "under")
+              onSelect(primary, "under")
             }
           />
         </div>
 
-        {/* Your Pick */}
+        {/* =====================================================
+            YOUR PICK
+        ===================================================== */}
         {selected && (
           <div
             className={`
@@ -314,13 +349,23 @@ export default function PlayerCard({
               animate-[yourPickIn_240ms_ease-out]
             `}
           >
-            <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/40">
+            <span
+              className="
+                font-mono
+                text-[8px]
+                font-bold
+                tracking-[0.12em]
+                text-bone/40
+              "
+            >
               YOUR PICK
             </span>
 
             <span
               className={`
-                font-mono text-[9px] font-bold
+                font-mono
+                text-[9px]
+                font-bold
                 tracking-[0.12em]
                 ${accentText}
               `}
@@ -333,107 +378,51 @@ export default function PlayerCard({
           </div>
         )}
 
-        {/* Additional props */}
-        {otherProps.length > 0 && (
-          <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/25">
-                MORE PROPS
-              </span>
-
-              {otherProps.length > 3 && (
-                <span
-                  className={`font-mono text-[8px] font-bold ${accentText}`}
-                >
-                  +{otherProps.length}
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              {otherProps.slice(0, 3).map((prop) => {
-                const propSelection =
-                  getSelection(prop.id);
-
-                return (
-                  <button
-                    key={prop.id}
-                    type="button"
-                    onClick={() => {
-                      if (!prop.locked) {
-                        onSelect(
-                          prop,
-                          propSelection === "over"
-                            ? "under"
-                            : "over"
-                        );
-                      }
-                    }}
-                    className={`
-                      flex w-full items-center
-                      justify-between
-                      border px-3 py-2
-                      text-left
-                      transition-all duration-200
-                      ${
-                        propSelection
-                          ? isYoung
-                            ? "border-young/50 bg-young/10"
-                            : "border-alum/50 bg-alum/10"
-                          : "border-white/5 bg-white/[0.02] hover:border-white/10"
-                      }
-                    `}
-                  >
-                    <span className="font-mono text-[8px] font-bold tracking-[0.08em] text-bone/45">
-                      {STAT_LABELS[prop.stat_type] ??
-                        prop.stat_type}
-                    </span>
-
-                    <span
-                      className={`
-                        font-mono text-[10px] font-bold
-                        ${
-                          propSelection
-                            ? accentText
-                            : "text-bone/70"
-                        }
-                      `}
-                    >
-                      {prop.line}
-                      {propSelection
-                        ? ` · ${
-                            propSelection === "over"
-                              ? "MORE"
-                              : "LESS"
-                          }`
-                        : ""}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* View all */}
-        {otherProps.length > 3 && onOpenProfile && (
-          <button
-            type="button"
-            onClick={onOpenProfile}
-            className={`
-              mt-3 w-full
-              border-t border-white/5
+        {/* =====================================================
+            OTHER PROPS TEASER
+        ===================================================== */}
+        {props.length > 1 && (
+          <div
+            className="
+              mt-3
+              flex
+              items-center
+              justify-between
+              border-t
+              border-white/5
               pt-3
-              text-center
-              font-mono text-[8px] font-bold
-              tracking-[0.14em]
-              transition-colors
-              ${accentText}
-              hover:text-bone
-            `}
+            "
           >
-            VIEW ALL {otherProps.length} MORE PROPS →
-          </button>
+            <span
+              className="
+                font-mono
+                text-[8px]
+                font-bold
+                tracking-[0.12em]
+                text-bone/30
+              "
+            >
+              {props.length - 1}{" "}
+              {props.length - 1 === 1
+                ? "MORE PROP"
+                : "MORE PROPS"}
+            </span>
+
+            <span
+              className={`
+                font-mono
+                text-[8px]
+                font-bold
+                tracking-[0.12em]
+                ${accentText}
+                transition-transform
+                duration-200
+                group-hover:translate-x-0.5
+              `}
+            >
+              VIEW →
+            </span>
+          </div>
         )}
       </div>
     </article>
@@ -464,23 +453,50 @@ function SelectButton({
       onClick={onClick}
       className={`
         relative
-        flex h-11 items-center justify-center
+        flex h-11
+        items-center
+        justify-center
         overflow-hidden
         border
-        font-mono text-[10px] font-black
+        font-mono
+        text-[10px]
+        font-black
         tracking-[0.14em]
-        transition-all duration-200
+        transition-all
+        duration-200
         active:scale-[0.96]
+
         ${
           disabled
-            ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-bone/15"
+            ? `
+              cursor-not-allowed
+              border-white/5
+              bg-white/[0.02]
+              text-bone/15
+            `
             : active
-              ? `${activeBg} border-transparent text-white shadow-lg`
-              : "border-white/10 bg-white/[0.03] text-bone/50 hover:border-white/20 hover:bg-white/[0.06] hover:text-bone"
+              ? `
+                ${activeBg}
+                border-transparent
+                text-white
+                shadow-lg
+              `
+              : `
+                border-white/10
+                bg-white/[0.03]
+                text-bone/50
+                hover:border-white/20
+                hover:bg-white/[0.06]
+                hover:text-bone
+              `
         }
+
         ${
           pulse
-            ? "scale-[1.035] shadow-[0_0_22px_rgba(255,255,255,0.18)]"
+            ? `
+              scale-[1.035]
+              shadow-[0_0_22px_rgba(255,255,255,0.18)]
+            `
             : ""
         }
       `}
@@ -490,16 +506,31 @@ function SelectButton({
         <span
           className={`
             pointer-events-none
-            absolute inset-0
+            absolute
+            inset-0
             ${accentText}
             animate-[buttonSweep_420ms_ease-out]
           `}
         />
       )}
 
-      <span className="relative z-10 flex items-center gap-1.5">
+      <span
+        className="
+          relative
+          z-10
+          flex
+          items-center
+          gap-1.5
+        "
+      >
         {active && (
-          <span className="text-[11px] leading-none animate-[checkIn_220ms_ease-out]">
+          <span
+            className="
+              text-[11px]
+              leading-none
+              animate-[checkIn_220ms_ease-out]
+            "
+          >
             ✓
           </span>
         )}
