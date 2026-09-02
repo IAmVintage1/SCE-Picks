@@ -825,32 +825,16 @@ export default function PicksExperience({
                       playerProps[0];
 
                     return (
-                      <PlayerCard
-                        key={playerId}
-                        player={player}
-                        props={playerProps}
-                        primaryPropId={
-                          primaryProp?.id
-                        }
-                        selection={
-                          selection
-                        }
-                        getSelection={(
-                          prop,
-                        ) =>
-                          picks[
-                            `player:${prop.id}`
-                          ]
-                        }
-                        onSelect={
-                          handleSelect
-                        }
-                        onOpenProfile={() =>
-                          openPlayerProfile(
-                            playerProps,
-                          )
-                        }
-                      />
+<PlayerCard
+  key={player.id}
+  player={player}
+  props={playerProps}
+  selection={
+    picks[`player:${prop.id}`]?.selection ?? null
+  }
+  onSelect={handleSelect}
+  onOpenProfile={openProfile}
+/>
                     );
                   },
                 )}
