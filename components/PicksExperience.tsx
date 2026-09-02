@@ -477,16 +477,26 @@ export default function PicksExperience({
     info?: SubmitInfo,
   ) => {
     try {
-      const formattedPicks = pickList.map(
-        (leg) => ({
-          key: leg.key,
-          type: leg.type,
-          side: leg.side,
-          propId: leg.prop?.id ?? null,
-          teamPropId:
-            leg.teamProp?.id ?? null,
-        }),
-      );
+      const formattedPicks = pickList.map((leg) => {
+        if (leg.kind === "player") {
+          return {
+            key: `player:${leg.propId}`,
+            type: "player",
+            side: leg.side,
+            propId: leg.propId,
+            playerId: leg.playerId,
+            selection: leg.selection,
+          };
+        }
+      
+        return {
+          key: `team:${leg.teamPropId}`,
+          type: "team",
+          side: leg.side,
+          teamPropId: leg.teamPropId,
+          selection: leg.selection,
+        };
+      });
 
       const response = await fetch(
         "/api/picks/submit",
