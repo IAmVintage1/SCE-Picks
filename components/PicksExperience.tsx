@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
 import TeamPropCard from "@/components/TeamPropCard";
-import PickSlip from "@/components/PickSlip";
+import { PickSlip } from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal from "@/components/SubmitModal";
 
@@ -16,6 +16,7 @@ import {
   PropWithPlayer,
   Selection,
   StatType,
+  Team,
   TeamProp,
 } from "@/lib/types";
 
@@ -32,6 +33,7 @@ type CardLeg = {
 };
 
 type PicksExperienceProps = {
+  teams: Team[];
   players: Player[];
   props: PropWithPlayer[];
   teamProps: TeamProp[];
@@ -69,6 +71,7 @@ const STAT_FILTERS: {
 ];
 
 export default function PicksExperience({
+  teams: _teams,
   players,
   props,
   teamProps,
@@ -115,7 +118,7 @@ export default function PicksExperience({
   const pickList: CardLeg[] = Object.values(picks);
 
   /*
-   * Lock background scrolling while the player profile is open.
+   * Lock background scrolling while player profile is open.
    */
   useEffect(() => {
     if (!selectedPlayer) return;
@@ -150,7 +153,7 @@ export default function PicksExperience({
   }, [props]);
 
   /*
-   * Group all props by player.
+   * Group props by player.
    */
   const groupedPlayers = useMemo(() => {
     const playerMap = new Map<
@@ -180,7 +183,7 @@ export default function PicksExperience({
   }, [props]);
 
   /*
-   * Filter player cards.
+   * Filter players.
    */
   const filteredPlayers = useMemo(() => {
     return groupedPlayers.filter(
@@ -248,7 +251,7 @@ export default function PicksExperience({
   }, [boardFilter, teamProps]);
 
   /*
-   * Trigger tier celebration when hitting 3 / 5 / 10.
+   * Tier celebration.
    */
   const maybeTriggerTierCelebration = (
     newCount: number
@@ -271,7 +274,7 @@ export default function PicksExperience({
   };
 
   /*
-   * Select a player prop.
+   * Player prop selection.
    */
   const handleSelect = (
     prop: PropWithPlayer,
@@ -308,7 +311,7 @@ export default function PicksExperience({
   };
 
   /*
-   * Select a team prop.
+   * Team prop selection.
    */
   const handleSelectTeam = (
     prop: TeamProp,
@@ -344,7 +347,7 @@ export default function PicksExperience({
   };
 
   /*
-   * Remove a pick from MY CARD.
+   * Remove pick.
    */
   const removeLeg = (key: string) => {
     setPicks((current) => {
@@ -355,21 +358,25 @@ export default function PicksExperience({
   };
 
   /*
-   * Current player prop selection.
+   * Current player selection.
    */
   const getPlayerSelection = (
     propId: string
   ): Selection | null => {
-    return picks[`player:${propId}`]?.selection ?? null;
+    return (
+      picks[`player:${propId}`]?.selection ?? null
+    );
   };
 
   /*
-   * Current team prop selection.
+   * Current team selection.
    */
   const getTeamSelection = (
     propId: string
   ): Selection | null => {
-    return picks[`team:${propId}`]?.selection ?? null;
+    return (
+      picks[`team:${propId}`]?.selection ?? null
+    );
   };
 
   /*
@@ -518,7 +525,9 @@ export default function PicksExperience({
                   YOUNGKNIGHTS
                 </span>
 
-                <span className="text-bone/20">×</span>
+                <span className="text-bone/20">
+                  ×
+                </span>
 
                 <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-bone/40">
                   ALUMKNIGHTS
@@ -650,22 +659,24 @@ export default function PicksExperience({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredTeamProps.map((teamProp) => (
-                <TeamPropCard
-                  key={teamProp.id}
-                  prop={teamProp}
-                  selection={getTeamSelection(
-                    teamProp.id
-                  )}
-                  onSelect={(selection) =>
-                    handleSelectTeam(
-                      teamProp,
-                      selection
-                    )
-                  }
-                  locked={picksLocked}
-                />
-              ))}
+              {filteredTeamProps.map(
+                (teamProp) => (
+                  <TeamPropCard
+                    key={teamProp.id}
+                    prop={teamProp}
+                    selection={getTeamSelection(
+                      teamProp.id
+                    )}
+                    onSelect={(selection) =>
+                      handleSelectTeam(
+                        teamProp,
+                        selection
+                      )
+                    }
+                    locked={picksLocked}
+                  />
+                )
+              )}
             </div>
 
             {filteredTeamProps.length === 0 && (
@@ -926,7 +937,7 @@ function PlayerProfile({
           />
 
           <div className="relative grid min-h-[300px] md:grid-cols-[0.85fr_1.15fr]">
-            {/* PLAYER PHOTO */}
+            {/* PHOTO */}
             <div className="relative min-h-[280px] overflow-hidden md:min-h-[380px]">
               <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent md:bg-gradient-to-r" />
 
@@ -1232,7 +1243,6 @@ function ProfileProp({
           )}
         </div>
 
-        {/* MORE / LESS */}
         <div className="mt-4 grid grid-cols-2 gap-2">
           <ProfileSelectButton
             label="MORE"
@@ -1294,7 +1304,9 @@ function ProfileSelectButton({
       }`}
     >
       {active && (
-        <span className="mr-1.5">✓</span>
+        <span className="mr-1.5">
+          ✓
+        </span>
       )}
 
       {label}
