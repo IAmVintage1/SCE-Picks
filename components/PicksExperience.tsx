@@ -245,7 +245,7 @@ export default function PicksExperience({
           teamName.includes("ALUMN");
 
         const hasFeatured = playerProps.some(
-          (prop) => Boolean(prop.is_featured),
+          (prop) => Boolean(prop.featured),
         );
 
         const hasStat = playerProps.some((prop) =>
@@ -790,7 +790,7 @@ export default function PicksExperience({
                       playerProps.find(
                         (prop) =>
                           Boolean(
-                            prop.is_featured,
+                            prop.featured,
                           ),
                       ) ??
                       playerProps[0];
