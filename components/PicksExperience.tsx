@@ -4,9 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
-import TeamPropCard, {
-  SquareTeamPropCard,
-} from "@/components/TeamPropCard";
+import TeamPropCard from "@/components/TeamPropCard";
 import { PickSlipBar, PickSlipDrawer } from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal, { SubmitInfo } from "@/components/SubmitModal";
@@ -434,25 +432,6 @@ const isAlum =
       (prop) => prop.active !== false,
     );
   }, [filter, teamProps]);
-
-  /*
-   * Featured game bets, shown as square tiles pinned to the
-   * front of the HOT/ALL grid so they don't get missed outside
-   * the dedicated GAME tab.
-   */
-  const featuredTeamProps = useMemo(() => {
-    if (filter !== "HOT" && filter !== "ALL") {
-      return [];
-    }
-
-    if (searchTerm.trim()) {
-      return [];
-    }
-
-    return teamProps.filter(
-      (prop) => prop.active !== false && prop.featured,
-    );
-  }, [filter, teamProps, searchTerm]);
 
   /*
    * Get selection for a player prop.
@@ -1174,8 +1153,7 @@ const isAlum =
           </div>
         ) : (
           <>
-            {visiblePlayers.length === 0 &&
-            featuredTeamProps.length === 0 ? (
+            {visiblePlayers.length === 0 ? (
               <div className="rounded-2xl border border-line bg-panel p-10 text-center">
                 <p className="font-head text-xl font-black uppercase text-bone/60">
                   NOTHING HERE YET
@@ -1190,32 +1168,6 @@ const isAlum =
                 key={`players-${filter}-${statFilter}-${searchTerm}`}
                 className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4"
               >
-                {featuredTeamProps.map(
-                  (teamProp, index) => (
-                    <div
-                      key={`featured-${teamProp.id}`}
-                      className="category-card-in"
-                      style={{
-                        animationDelay: `${Math.min(index, 10) * 40}ms`,
-                      }}
-                    >
-                      <SquareTeamPropCard
-                        prop={teamProp}
-                        teams={teams}
-                        selection={getTeamSelection(
-                          teamProp,
-                        )}
-                        onSelect={(selection) =>
-                          handleSelectTeam(
-                            teamProp,
-                            selection,
-                          )
-                        }
-                      />
-                    </div>
-                  ),
-                )}
-
                 {visiblePlayers.map(
                   ({
                     playerId,
@@ -1244,10 +1196,7 @@ const isAlum =
                         className="category-card-in"
                         style={{
                           animationDelay: `${
-                            Math.min(
-                              index + featuredTeamProps.length,
-                              10,
-                            ) * 40
+                            Math.min(index, 10) * 40
                           }ms`,
                         }}
                       >
