@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
@@ -9,345 +9,373 @@ import { PickSlip } from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal from "@/components/SubmitModal";
 
-import { getTierInfo } from "@/lib/cardTiers";
-import {
-  EventSettings,
-  Player,
-  PropWithPlayer,
-  Selection,
-  StatType,
-  Team,
-  TeamProp,
-} from "@/lib/types";
+import { EventSettings, Player, PropWithPlayer, Team, TeamProp } from "@/lib/types";
 
-type BoardFilter = "HOT" | "ALL" | "YOUNG" | "ALUM" | "GAME";
+type Filter = "HOT" | "ALL" | "YOUNG" | "ALUM" | "GAME";
+type StatFilter =
+  | "ALL"
+  | "PTS"
+  | "REB"
+  | "AST"
+  | "3PT"
+  | "STL"
+  | "BLK"
+  | "PRA"
+  | "PTS+REB"
+  | "PTS+AST"
+  | "REB+BLK";
 
 type CardLeg = {
   key: string;
   type: "player" | "team";
-  propId: string;
-  selection: Selection;
-  player?: Player;
   prop?: PropWithPlayer;
   teamProp?: TeamProp;
 };
 
 type PicksExperienceProps = {
   teams: Team[];
-  players: Player[];
+  players?: Player[];
   props: PropWithPlayer[];
   teamProps: TeamProp[];
-  settings: EventSettings | null;
+  settings: EventSettings;
 };
 
-const STAT_LABELS: Record<string, string> = {
-  points: "PTS",
-  rebounds: "REB",
-  assists: "AST",
-  steals: "STL",
-  blocks: "BLK",
-  threes: "3PT",
-  pts_reb: "PTS+REB",
-  pts_ast: "PTS+AST",
-  reb_blk: "REB+BLK",
-  pra: "PRA",
-};
-
-const STAT_FILTERS: {
-  value: StatType | "ALL";
-  label: string;
-}[] = [
-  { value: "ALL", label: "ALL STATS" },
-  { value: "points", label: "PTS" },
-  { value: "rebounds", label: "REB" },
-  { value: "assists", label: "AST" },
-  { value: "steals", label: "STL" },
-  { value: "blocks", label: "BLK" },
-  { value: "threes", label: "3PT" },
-  { value: "pts_reb", label: "PTS+REB" },
-  { value: "pts_ast", label: "PTS+AST" },
-  { value: "reb_blk", label: "REB+BLK" },
-  { value: "pra", label: "PRA" },
+const STAT_FILTERS: { label: string; value: StatFilter }[] = [
+  { label: "ALL", value: "ALL" },
+  { label: "PTS", value: "PTS" },
+  { label: "REB", value: "REB" },
+  { label: "AST", value: "AST" },
+  { label: "3PT", value: "3PT" },
+  { label: "STL", value: "STL" },
+  { label: "BLK", value: "BLK" },
+  { label: "PRA", value: "PRA" },
+  { label: "PTS+REB", value: "PTS+REB" },
+  { label: "PTS+AST", value: "PTS+AST" },
+  { label: "REB+BLK", value: "REB+BLK" },
 ];
 
+const CATEGORY_FILTERS: { label: string; value: Filter }[] = [
+  { label: "HOT", value: "HOT" },
+  { label: "ALL", value: "ALL" },
+  { label: "YOUNG", value: "YOUNG" },
+  { label: "ALUM", value: "ALUM" },
+  { label: "GAME", value: "GAME" },
+];
+
+function normalizeStat(value?: string | null): string {
+  if (!value) return "";
+  return value.toUpperCase().replace(/\s+/g, "");
+}
+
+function statMatches(statType: string | undefined, filter: StatFilter) {
+  if (filter === "ALL") return true;
+
+  const normalized = normalizeStat(statType);
+
+  return normalized === normalizeStat(filter);
+}
+
+function getTeamName(
+  player: Player | undefined,
+  teams: Team[],
+): string {
+  if (!player) return "";
+
+  const possiblePlayer = player as Player & {
+    team_name?: string;
+    team?: string;
+    team_id?: string;
+  };
+
+  if (possiblePlayer.team_name) return possiblePlayer.team_name;
+  if (possiblePlayer.team) return possiblePlayer.team;
+
+  if (possiblePlayer.team_id) {
+    const team = teams.find((t) => t.id === possiblePlayer.team_id);
+    if (team) {
+      const possibleTeam = team as Team & {
+        name?: string;
+        team_name?: string;
+      };
+
+      return possibleTeam.name ?? possibleTeam.team_name ?? "";
+    }
+  }
+
+  return "";
+}
+
+function getPlayerName(player: Player | undefined): string {
+  if (!player) return "Player";
+
+  const possiblePlayer = player as Player & {
+    name?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+
+  if (possiblePlayer.name) return possiblePlayer.name;
+
+  return [possiblePlayer.first_name, possiblePlayer.last_name]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getStatLabel(statType?: string | null): string {
+  if (!statType) return "PROP";
+
+  const labels: Record<string, string> = {
+    PTS: "POINTS",
+    REB: "REB",
+    AST: "ASSISTS",
+    "3PT": "3-POINTERS",
+    STL: "STEALS",
+    BLK: "BLOCKS",
+    PRA: "PRA",
+    "PTS+REB": "PTS + REB",
+    "PTS+AST": "PTS + AST",
+    "REB+BLK": "REB + BLK",
+  };
+
+  return labels[statType.toUpperCase()] ?? statType.toUpperCase();
+}
+
 export default function PicksExperience({
-  teams: _teams,
-  players,
+  teams,
+  players: _players,
   props,
   teamProps,
   settings,
 }: PicksExperienceProps) {
-  const [teamFilter, setTeamFilter] = useState<
-    "ALL" | "YOUNG" | "ALUM"
-  >("ALL");
+  const [filter, setFilter] = useState<Filter>("HOT");
+  const [statFilter, setStatFilter] = useState<StatFilter>("ALL");
 
-  const [statFilter, setStatFilter] = useState<
-    StatType | "ALL"
-  >("ALL");
-
-  const [boardFilter, setBoardFilter] =
-    useState<BoardFilter>("HOT");
-
-  const [picks, setPicks] = useState<Record<string, CardLeg>>(
-    {}
-  );
-
-  const [slipOpen, setSlipOpen] = useState(false);
-  const [submitModalOpen, setSubmitModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [picks, setPicks] = useState<Record<string, CardLeg>>({});
 
   const [selectedPlayer, setSelectedPlayer] = useState<
     PropWithPlayer[] | null
   >(null);
 
-  const [confirmation, setConfirmation] = useState<{
-    code: string;
-    picks: CardLeg[];
-  } | null>(null);
-
-  const [error, setError] = useState<string | null>(null);
-  const [errorShake, setErrorShake] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
-  const [reachedTiers, setReachedTiers] = useState<number[]>(
-    []
+
+  const [mobileSlipOpen, setMobileSlipOpen] = useState(false);
+
+  const pickList = useMemo<CardLeg[]>(
+    () => Object.values(picks),
+    [picks],
   );
 
+  const pickCount = pickList.length;
   const minPicks = settings?.min_picks ?? 3;
-  const picksLocked = settings?.picks_locked ?? false;
-
-  const pickList: CardLeg[] = Object.values(picks);
+  const locked = Boolean(settings?.picks_locked);
 
   /*
-   * Lock background scrolling while player profile is open.
-   */
-  useEffect(() => {
-    if (!selectedPlayer) return;
-
-    const previousOverflow = document.body.style.overflow;
-
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedPlayer(null);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [selectedPlayer]);
-
-  /*
-   * Featured / hot props.
-   */
-  const hotPropIds = useMemo(() => {
-    return new Set(
-      props
-        .filter((prop) => prop.is_featured)
-        .map((prop) => prop.id)
-    );
-  }, [props]);
-
-  /*
-   * Group props by player.
+   * Group player props together so each player gets one card.
    */
   const groupedPlayers = useMemo(() => {
-    const playerMap = new Map<
-      string,
-      {
-        player: Player;
-        props: PropWithPlayer[];
-      }
-    >();
+    const map = new Map<string, PropWithPlayer[]>();
 
     for (const prop of props) {
       if (!prop.player) continue;
 
       const playerId = prop.player.id;
 
-      if (!playerMap.has(playerId)) {
-        playerMap.set(playerId, {
-          player: prop.player,
-          props: [],
-        });
+      if (!map.has(playerId)) {
+        map.set(playerId, []);
       }
 
-      playerMap.get(playerId)!.props.push(prop);
+      map.get(playerId)!.push(prop);
     }
 
-    return Array.from(playerMap.values());
+    return Array.from(map.entries()).map(([playerId, playerProps]) => ({
+      playerId,
+      player: playerProps[0].player,
+      props: playerProps,
+    }));
   }, [props]);
 
   /*
-   * Filter players.
+   * Filter player cards.
    */
-  const filteredPlayers = useMemo(() => {
-    return groupedPlayers.filter(
-      ({ player, props: playerProps }) => {
-        const teamName =
-          player.team_name?.toLowerCase() ??
-          player.team?.toLowerCase() ??
-          "";
+  const visiblePlayers = useMemo(() => {
+    return groupedPlayers.filter(({ player, props: playerProps }) => {
+      const teamName = getTeamName(player, teams).toUpperCase();
 
-        const isYoung = teamName.includes("young");
-        const isAlum = teamName.includes("alum");
+      const isYoung =
+        teamName.includes("YOUNG") ||
+        teamName.includes("KNIGHT");
 
-        if (teamFilter === "YOUNG" && !isYoung) {
-          return false;
-        }
+      const isAlum =
+        teamName.includes("ALUM") ||
+        teamName.includes("ALUMN");
 
-        if (teamFilter === "ALUM" && !isAlum) {
-          return false;
-        }
+      const hasFeatured = playerProps.some(
+        (prop) => Boolean(prop.is_featured),
+      );
 
-        if (boardFilter === "YOUNG" && !isYoung) {
-          return false;
-        }
+      const hasStat = playerProps.some((prop) =>
+        statMatches(prop.stat_type, statFilter),
+      );
 
-        if (boardFilter === "ALUM" && !isAlum) {
-          return false;
-        }
+      if (!hasStat) return false;
 
-        if (boardFilter === "HOT") {
-          const hasHotProp = playerProps.some((prop) =>
-            hotPropIds.has(prop.id)
-          );
+      switch (filter) {
+        case "HOT":
+          return hasFeatured;
 
-          if (!hasHotProp) return false;
-        }
+        case "YOUNG":
+          return isYoung;
 
-        if (statFilter !== "ALL") {
-          const hasStat = playerProps.some(
-            (prop) => prop.stat_type === statFilter
-          );
+        case "ALUM":
+          return isAlum;
 
-          if (!hasStat) return false;
-        }
-
-        return true;
+        case "ALL":
+        default:
+          return true;
       }
-    );
-  }, [
-    groupedPlayers,
-    teamFilter,
-    statFilter,
-    boardFilter,
-    hotPropIds,
-  ]);
+    });
+  }, [groupedPlayers, filter, statFilter, teams]);
 
   /*
-   * GAME props.
+   * Game/team props.
    */
-  const filteredTeamProps = useMemo(() => {
-    if (boardFilter !== "GAME") return [];
+  const visibleTeamProps = useMemo(() => {
+    if (filter !== "GAME") return [];
 
-    return teamProps.filter(
-      (prop) => prop.is_active !== false
-    );
-  }, [boardFilter, teamProps]);
+    return teamProps.filter((prop) => prop.is_active !== false);
+  }, [filter, teamProps]);
 
   /*
-   * Tier celebration.
+   * Get a player's currently selected prop.
    */
-  const maybeTriggerTierCelebration = (
-    newCount: number
-  ) => {
-    const celebrationTiers = [3, 5, 10];
+  const getPlayerSelection = (playerProps: PropWithPlayer[]) => {
+    for (const prop of playerProps) {
+      const key = `player:${prop.id}`;
 
-    for (const tier of celebrationTiers) {
-      if (
-        newCount >= tier &&
-        !reachedTiers.includes(tier)
-      ) {
-        setReachedTiers((current) => [
-          ...current,
-          tier,
-        ]);
-
-        setConfettiTrigger((current) => current + 1);
+      if (picks[key]) {
+        return picks[key];
       }
     }
+
+    return undefined;
   };
 
   /*
-   * Player prop selection.
+   * Get team-prop selection.
    */
-  const handleSelect = (
-    prop: PropWithPlayer,
-    selection: Selection
-  ) => {
-    if (picksLocked) return;
+  const getTeamSelection = (teamProp: TeamProp) => {
+    return picks[`team:${teamProp.id}`];
+  };
+
+  /*
+   * Select a player prop.
+   */
+  const handleSelect = (prop: PropWithPlayer, side: "more" | "less") => {
+    if (locked || settings?.picks_locked) return;
 
     const key = `player:${prop.id}`;
 
-    setError(null);
-
     setPicks((current) => {
       const next = { ...current };
 
-      if (next[key]?.selection === selection) {
-        delete next[key];
-      } else {
-        next[key] = {
-          key,
-          type: "player",
-          propId: prop.id,
-          selection,
-          player: prop.player,
-          prop,
-        };
+      /*
+       * A player prop has exactly one side.
+       * If the user changes sides, replace it.
+       */
+      for (const existingKey of Object.keys(next)) {
+        const existing = next[existingKey];
+
+        if (
+          existing.type === "player" &&
+          existing.prop?.player?.id === prop.player?.id &&
+          existingKey !== key
+        ) {
+          delete next[existingKey];
+        }
       }
 
-      maybeTriggerTierCelebration(
-        Object.keys(next).length
-      );
+      const currentPick = next[key];
+
+      if (currentPick?.prop?.id === prop.id) {
+        /*
+         * Clicking the same side again removes it.
+         */
+        delete next[key];
+        return next;
+      }
+
+      next[key] = {
+        key,
+        type: "player",
+        prop,
+      };
+
+      /*
+       * Store the side separately on the object.
+       * CardLeg remains compatible with the existing pick-slip structure.
+       */
+      (
+        next[key] as CardLeg & {
+          side?: "more" | "less";
+        }
+      ).side = side;
 
       return next;
     });
+
+    setConfettiTrigger((value) => value + 1);
   };
 
   /*
-   * Team prop selection.
+   * Select a team/game prop.
    */
   const handleSelectTeam = (
-    prop: TeamProp,
-    selection: Selection
+    teamProp: TeamProp,
+    side: "more" | "less",
   ) => {
-    if (picksLocked) return;
+    if (locked || settings?.picks_locked) return;
 
-    const key = `team:${prop.id}`;
-
-    setError(null);
+    const key = `team:${teamProp.id}`;
 
     setPicks((current) => {
       const next = { ...current };
+      const currentPick = next[key];
 
-      if (next[key]?.selection === selection) {
-        delete next[key];
-      } else {
-        next[key] = {
-          key,
-          type: "team",
-          propId: prop.id,
-          selection,
-          teamProp: prop,
-        };
+      if (currentPick) {
+        const currentSide = (
+          currentPick as CardLeg & {
+            side?: "more" | "less";
+          }
+        ).side;
+
+        if (currentSide === side) {
+          delete next[key];
+          return next;
+        }
       }
 
-      maybeTriggerTierCelebration(
-        Object.keys(next).length
-      );
+      next[key] = {
+        key,
+        type: "team",
+        teamProp,
+      };
+
+      (
+        next[key] as CardLeg & {
+          side?: "more" | "less";
+        }
+      ).side = side;
 
       return next;
     });
+
+    setConfettiTrigger((value) => value + 1);
   };
 
   /*
-   * Remove pick.
+   * Remove a leg directly from the pick card.
    */
   const removeLeg = (key: string) => {
     setPicks((current) => {
@@ -358,152 +386,111 @@ export default function PicksExperience({
   };
 
   /*
-   * Current player selection.
-   */
-  const getPlayerSelection = (
-    propId: string
-  ): Selection | null => {
-    return (
-      picks[`player:${propId}`]?.selection ?? null
-    );
-  };
-
-  /*
-   * Current team selection.
-   */
-  const getTeamSelection = (
-    propId: string
-  ): Selection | null => {
-    return (
-      picks[`team:${propId}`]?.selection ?? null
-    );
-  };
-
-  /*
    * Open player profile.
    */
-  const openPlayerProfile = (
-    playerProps: PropWithPlayer[]
-  ) => {
-    if (!playerProps.length) return;
-
+  const openPlayerProfile = (playerProps: PropWithPlayer[]) => {
     setSelectedPlayer(playerProps);
   };
 
+  const closePlayerProfile = () => {
+    setSelectedPlayer(null);
+  };
+
   /*
-   * Submit card.
+   * Submit.
    */
-  const handleSubmit = async () => {
-    if (pickList.length < minPicks) {
-      setError(
-        `You need at least ${minPicks} picks to play.`
-      );
+  const handleSubmit = () => {
+    if (locked) return;
+    if (pickCount < minPicks) return;
 
-      setErrorShake(true);
+    setSubmitOpen(true);
+  };
 
-      window.setTimeout(() => {
-        setErrorShake(false);
-      }, 500);
-
-      return;
-    }
-
-    if (picksLocked) {
-      setError("Picks are locked.");
-      return;
-    }
-
-    setSubmitting(true);
-    setError(null);
-
+  const handleConfirmSubmit = async () => {
     try {
-      const response = await fetch(
-        "/api/picks/submit",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            picks: pickList.map((pick) => ({
-              type: pick.type,
-              propId: pick.propId,
-              selection: pick.selection,
-            })),
-          }),
-        }
-      );
+      const formattedPicks = pickList.map((leg) => {
+        const side = (
+          leg as CardLeg & {
+            side?: "more" | "less";
+          }
+        ).side;
 
-      const data = await response.json();
+        return {
+          key: leg.key,
+          type: leg.type,
+          side,
+          propId: leg.prop?.id ?? null,
+          teamPropId: leg.teamProp?.id ?? null,
+        };
+      });
+
+      const response = await fetch("/api/picks/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          picks: formattedPicks,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Unable to submit your card."
-        );
+        throw new Error("Unable to submit picks");
       }
 
-      setSubmitModalOpen(false);
-
-      setConfirmation({
-        code: data.code,
-        picks: pickList,
-      });
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again."
-      );
-    } finally {
-      setSubmitting(false);
+      setSubmitOpen(false);
+      setSubmitted(true);
+    } catch (error) {
+      console.error(error);
     }
   };
 
   /*
-   * Confirmation screen.
+   * After submission, show confirmation.
    */
-  if (confirmation) {
+  if (submitted) {
     return (
-      <main className="min-h-screen bg-ink px-4 py-8 text-bone sm:px-6">
-        <div className="mx-auto flex min-h-[80vh] max-w-2xl items-center justify-center">
-          <section className="w-full rounded-3xl border border-line bg-card p-6 text-center shadow-2xl sm:p-10">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-young/50 bg-young/10 text-3xl">
+      <main className="min-h-screen bg-ink text-bone">
+        <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6 py-20">
+          <div className="w-full rounded-3xl border border-line bg-panel p-8 text-center shadow-2xl">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-young-light/40 bg-young/10 text-4xl">
               ✓
             </div>
 
-            <p className="font-head text-xs font-black tracking-[0.2em] text-young-light">
-              CARD SUBMITTED
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-young-light">
+              CARD LOCKED
             </p>
 
-            <h1 className="mt-3 font-head text-4xl font-black tracking-tight">
-              GOOD LUCK.
+            <h1 className="mt-3 font-head text-4xl font-black uppercase tracking-tight text-bone">
+              YOU'RE IN.
             </h1>
 
-            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-bone/55">
-              Your picks are locked in. Save your card
-              code so you can reference your entry later.
+            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-bone/60">
+              Your card has been submitted. Every pick has to hit.
+              Good luck.
             </p>
 
             <div className="mt-8 rounded-2xl border border-line bg-ink/60 p-5">
-              <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-bone/35">
-                YOUR CARD CODE
-              </p>
+              <div className="font-mono text-xs uppercase tracking-[0.15em] text-bone/40">
+                YOUR PICKS
+              </div>
 
-              <p className="mt-2 font-mono text-3xl font-black tracking-[0.2em] text-bone">
-                {confirmation.code}
-              </p>
+              <div className="mt-2 font-head text-3xl font-black text-bone">
+                {pickCount}
+              </div>
+
+              <div className="mt-1 text-xs text-bone/40">
+                selections locked in
+              </div>
             </div>
 
-            <div className="mt-6">
-              <Link
-                href="/picks"
-                className="block rounded-xl bg-bone px-5 py-3 font-head text-sm font-black text-ink transition-transform hover:scale-[1.01]"
-              >
-                BACK TO PICKS
-              </Link>
-            </div>
-          </section>
+            <Link
+              href="/picks"
+              className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-bone px-6 font-head text-sm font-black uppercase tracking-wider text-ink transition hover:scale-[1.02]"
+            >
+              BACK TO PICKS
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -513,254 +500,222 @@ export default function PicksExperience({
     <main className="min-h-screen bg-ink text-bone">
       {/* HEADER */}
       <header className="sticky top-0 z-40 border-b border-line bg-ink/95 backdrop-blur-xl">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
-          <div className="flex min-h-[72px] items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="font-head text-xl font-black tracking-tight">
-                SCE PICKS
-              </p>
-
-              <div className="mt-1 flex items-center gap-2">
-                <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-bone/40">
-                  YOUNGKNIGHTS
-                </span>
-
-                <span className="text-bone/20">
-                  ×
-                </span>
-
-                <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-bone/40">
-                  ALUMKNIGHTS
-                </span>
-
-                <span className="hidden text-bone/15 sm:inline">
-                  •
-                </span>
-
-                <span className="hidden font-mono text-[9px] font-bold tracking-[0.16em] text-bone/35 sm:inline">
-                  OCT 9 · 7 PM
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSlipOpen(true)}
-              className="shrink-0 rounded-xl border border-line bg-card px-4 py-2.5 font-head text-xs font-black tracking-wide transition hover:border-bone/30 hover:bg-card/80"
+        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div>
+            <Link
+              href="/picks"
+              className="font-head text-xl font-black tracking-tight text-bone"
             >
-              MY CARD
+              SCE <span className="text-young-light">PICKS</span>
+            </Link>
 
-              {pickList.length > 0 && (
-                <span className="ml-2 rounded-full bg-young px-2 py-0.5 text-[10px] text-bone">
-                  {pickList.length}
-                </span>
-              )}
-            </button>
+            <div className="hidden font-mono text-[8px] uppercase tracking-[0.18em] text-bone/35 sm:block">
+              YOUNGKNIGHTS VS ALUMKNIGHTS
+            </div>
           </div>
 
-          {/* BOARD FILTERS */}
-          <div className="no-scrollbar -mx-4 flex overflow-x-auto border-t border-line sm:-mx-6">
-            {(
-              [
-                ["HOT", "HOT"],
-                ["ALL", "ALL"],
-                ["YOUNG", "YOUNGKNIGHTS"],
-                ["ALUM", "ALUMKNIGHTS"],
-                ["GAME", "GAME"],
-              ] as [BoardFilter, string][]
-            ).map(([value, label]) => {
-              const active =
-                boardFilter === value;
+          <div className="hidden text-center sm:block">
+            <div className="font-head text-xs font-bold uppercase tracking-wider text-bone/80">
+              OCT 9 · UCF
+            </div>
+
+            <div className="font-mono text-[8px] uppercase tracking-[0.15em] text-bone/30">
+              CHARITY BASKETBALL GAME
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileSlipOpen(true)}
+            className="flex items-center gap-2 rounded-full border border-line bg-panel px-3 py-2 transition hover:border-bone/30"
+          >
+            <span className="font-head text-[10px] font-black uppercase tracking-wider">
+              MY CARD
+            </span>
+
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-bone px-1 font-mono text-[10px] font-bold text-ink">
+              {pickCount}
+            </span>
+          </button>
+        </div>
+      </header>
+
+      {/* MATCHUP */}
+      <section className="border-b border-line">
+        <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-bone/30">
+                MAKE YOUR PICKS
+              </p>
+
+              <h1 className="mt-1 font-head text-3xl font-black uppercase tracking-tight sm:text-4xl">
+                BUILD YOUR CARD.
+              </h1>
+
+              <p className="mt-2 max-w-xl text-sm text-bone/45">
+                Pick more or less on player props. Every pick has to hit.
+              </p>
+            </div>
+
+            <div className="hidden text-right md:block">
+              <div className="font-head text-lg font-black">
+                {pickCount}{" "}
+                <span className="font-mono text-[9px] font-bold tracking-widest text-bone/30">
+                  PICKS
+                </span>
+              </div>
+
+              <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-bone/30">
+                MIN {minPicks}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CATEGORY FILTER */}
+      <div className="border-b border-line">
+        <div className="mx-auto max-w-[1600px] overflow-x-auto px-4 sm:px-6 lg:px-8">
+          <div className="no-scrollbar flex min-w-max gap-1 py-3">
+            {CATEGORY_FILTERS.map((item) => {
+              const active = filter === item.value;
 
               return (
                 <button
-                  key={value}
+                  key={item.value}
                   type="button"
-                  onClick={() => {
-                    setBoardFilter(value);
-
-                    if (value === "YOUNG") {
-                      setTeamFilter("YOUNG");
-                    } else if (value === "ALUM") {
-                      setTeamFilter("ALUM");
-                    } else if (
-                      value === "ALL" ||
-                      value === "HOT"
-                    ) {
-                      setTeamFilter("ALL");
-                    }
-                  }}
-                  className={`shrink-0 border-r border-line px-5 py-3 font-mono text-[10px] font-bold tracking-[0.14em] transition ${
+                  onClick={() => setFilter(item.value)}
+                  className={[
+                    "rounded-full px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition",
                     active
                       ? "bg-bone text-ink"
-                      : "text-bone/40 hover:bg-card hover:text-bone"
-                  }`}
+                      : "text-bone/40 hover:bg-panel hover:text-bone",
+                  ].join(" ")}
                 >
-                  {label}
+                  {item.label}
                 </button>
               );
             })}
           </div>
+        </div>
+      </div>
 
-          {/* STAT FILTERS */}
-          {boardFilter !== "GAME" && (
-            <div className="no-scrollbar -mx-4 flex overflow-x-auto py-2 sm:-mx-6">
-              {STAT_FILTERS.map((filter) => {
-                const active =
-                  statFilter === filter.value;
+      {/* STAT FILTER */}
+      {filter !== "GAME" && (
+        <div className="border-b border-line/70">
+          <div className="mx-auto max-w-[1600px] overflow-x-auto px-4 sm:px-6 lg:px-8">
+            <div className="no-scrollbar flex min-w-max gap-4 py-3">
+              {STAT_FILTERS.map((item) => {
+                const active = statFilter === item.value;
 
                 return (
                   <button
-                    key={filter.value}
+                    key={item.value}
                     type="button"
-                    onClick={() =>
-                      setStatFilter(filter.value)
-                    }
-                    className={`mr-2 shrink-0 rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold tracking-[0.1em] transition ${
+                    onClick={() => setStatFilter(item.value)}
+                    className={[
+                      "font-mono text-[9px] font-bold uppercase tracking-[0.12em] transition",
                       active
-                        ? "border-bone bg-bone text-ink"
-                        : "border-line text-bone/35 hover:border-bone/30 hover:text-bone"
-                    }`}
+                        ? "text-bone"
+                        : "text-bone/30 hover:text-bone/70",
+                    ].join(" ")}
                   >
-                    {filter.label}
+                    {item.label}
                   </button>
                 );
               })}
             </div>
-          )}
-        </div>
-      </header>
-
-      {/* ERROR */}
-      {error && (
-        <div
-          className={`mx-auto max-w-[1600px] px-4 pt-4 sm:px-6 ${
-            errorShake ? "animate-shake" : ""
-          }`}
-        >
-          <div className="rounded-xl border border-young/30 bg-young/10 px-4 py-3 text-sm text-young-light">
-            {error}
           </div>
         </div>
       )}
 
-      {/* BOARD */}
-      <section className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8">
-        {boardFilter === "GAME" ? (
+      {/* CONTENT */}
+      <section className="mx-auto max-w-[1600px] px-4 py-6 pb-32 sm:px-6 lg:px-8 lg:pb-12">
+        {filter === "GAME" ? (
           <div>
             <div className="mb-5">
-              <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-bone/35">
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-bone/30">
                 GAME PROPS
               </p>
 
-              <h2 className="mt-1 font-head text-2xl font-black">
-                CALL THE GAME.
+              <h2 className="mt-1 font-head text-2xl font-black uppercase">
+                THE GAME.
               </h2>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredTeamProps.map(
-                (teamProp) => (
+            {visibleTeamProps.length === 0 ? (
+              <div className="rounded-2xl border border-line bg-panel p-8 text-center">
+                <p className="font-head text-lg font-bold uppercase text-bone/60">
+                  NO GAME PROPS
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleTeamProps.map((teamProp) => (
                   <TeamPropCard
                     key={teamProp.id}
-                    prop={teamProp}
-                    selection={getTeamSelection(
-                      teamProp.id
-                    )}
-                    onSelect={(selection) =>
-                      handleSelectTeam(
-                        teamProp,
-                        selection
-                      )
+                    teamProp={teamProp}
+                    selection={getTeamSelection(teamProp)}
+                    onSelect={(side) =>
+                      handleSelectTeam(teamProp, side)
                     }
-                    locked={picksLocked}
+                    locked={locked}
                   />
-                )
-              )}
-            </div>
-
-            {filteredTeamProps.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-line p-10 text-center">
-                <p className="font-head text-lg font-bold text-bone/50">
-                  NO GAME PROPS AVAILABLE
-                </p>
+                ))}
               </div>
             )}
           </div>
         ) : (
           <>
-            <div className="mb-5 flex items-end justify-between gap-4">
-              <div>
-                <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-bone/35">
-                  {boardFilter === "HOT"
-                    ? "FEATURED PICKS"
-                    : boardFilter === "YOUNG"
-                    ? "YOUNGKNIGHTS"
-                    : boardFilter === "ALUM"
-                    ? "ALUMKNIGHTS"
-                    : "ALL PLAYERS"}
+            {visiblePlayers.length === 0 ? (
+              <div className="rounded-2xl border border-line bg-panel p-10 text-center">
+                <p className="font-head text-xl font-black uppercase text-bone/60">
+                  NOTHING HERE YET
                 </p>
 
-                <h2 className="mt-1 font-head text-2xl font-black sm:text-3xl">
-                  MAKE YOUR CALL.
-                </h2>
+                <p className="mt-2 text-sm text-bone/35">
+                  Try another category or stat.
+                </p>
               </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                {visiblePlayers.map(
+                  ({ playerId, player, props: playerProps }) => {
+                    const selection = getPlayerSelection(playerProps);
 
-              <p className="shrink-0 font-mono text-[9px] font-bold tracking-[0.12em] text-bone/25">
-                {filteredPlayers.length} PLAYERS
-              </p>
-            </div>
+                    /*
+                     * Pick the first matching stat as the card's primary prop.
+                     * If no stat filter is active, prefer featured props,
+                     * then fall back to the first available prop.
+                     */
+                    const primaryProp =
+                      playerProps.find((prop) =>
+                        statMatches(prop.stat_type, statFilter),
+                      ) ??
+                      playerProps.find((prop) =>
+                        Boolean(prop.is_featured),
+                      ) ??
+                      playerProps[0];
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredPlayers.map(
-                ({
-                  player,
-                  props: playerProps,
-                }) => {
-                  const primary =
-                    playerProps.find((prop) =>
-                      hotPropIds.has(prop.id)
-                    ) ?? playerProps[0];
-
-                  if (!primary) return null;
-
-                  return (
-                    <PlayerCard
-                      key={player.id}
-                      props={playerProps}
-                      primaryPropId={primary.id}
-                      getSelection={
-                        getPlayerSelection
-                      }
-                      onSelect={handleSelect}
-                      onOpenProfile={() =>
-                        openPlayerProfile(
-                          playerProps
-                        )
-                      }
-                    />
-                  );
-                }
-              )}
-            </div>
-
-            {filteredPlayers.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-line p-10 text-center">
-                <p className="font-head text-lg font-bold text-bone/50">
-                  NO PICKS FOUND
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBoardFilter("ALL");
-                    setTeamFilter("ALL");
-                    setStatFilter("ALL");
-                  }}
-                  className="mt-3 font-mono text-[10px] font-bold tracking-[0.12em] text-young-light"
-                >
-                  CLEAR FILTERS →
-                </button>
+                    return (
+                      <PlayerCard
+                        key={playerId}
+                        player={player}
+                        props={playerProps}
+                        primaryPropId={primaryProp?.id}
+                        selection={selection}
+                        getSelection={(prop) =>
+                          picks[`player:${prop.id}`]
+                        }
+                        onSelect={handleSelect}
+                        onOpenProfile={() =>
+                          openPlayerProfile(playerProps)
+                        }
+                      />
+                    );
+                  },
+                )}
               </div>
             )}
           </>
@@ -773,11 +728,9 @@ export default function PicksExperience({
           picks={pickList}
           minPicks={minPicks}
           settings={settings}
-          locked={picksLocked}
+          locked={locked}
           onRemove={removeLeg}
-          onSubmit={() =>
-            setSubmitModalOpen(true)
-          }
+          onSubmit={handleSubmit}
           confettiTrigger={confettiTrigger}
         />
       </div>
@@ -788,41 +741,35 @@ export default function PicksExperience({
           picks={pickList}
           minPicks={minPicks}
           settings={settings}
-          locked={picksLocked}
-          open={slipOpen}
-          onOpen={() => setSlipOpen(true)}
-          onClose={() => setSlipOpen(false)}
+          locked={locked}
+          open={mobileSlipOpen}
+          onOpen={() => setMobileSlipOpen(true)}
+          onClose={() => setMobileSlipOpen(false)}
           onRemove={removeLeg}
-          onSubmit={() =>
-            setSubmitModalOpen(true)
-          }
+          onSubmit={handleSubmit}
           confettiTrigger={confettiTrigger}
         />
       </div>
 
-      {/* SUBMIT MODAL */}
-      <SubmitModal
-        open={submitModalOpen}
-        picks={pickList}
-        minPicks={minPicks}
-        settings={settings}
-        submitting={submitting}
-        onClose={() =>
-          setSubmitModalOpen(false)
-        }
-        onSubmit={handleSubmit}
-      />
-
       {/* PLAYER PROFILE */}
       {selectedPlayer && (
         <PlayerProfile
-          props={selectedPlayer}
-          locked={picksLocked}
-          getSelection={getPlayerSelection}
+          playerProps={selectedPlayer}
+          teams={teams}
+          picks={picks}
+          locked={locked}
+          onClose={closePlayerProfile}
           onSelect={handleSelect}
-          onClose={() =>
-            setSelectedPlayer(null)
-          }
+        />
+      )}
+
+      {/* SUBMIT MODAL */}
+      {submitOpen && (
+        <SubmitModal
+          picks={pickList}
+          settings={settings}
+          onClose={() => setSubmitOpen(false)}
+          onConfirm={handleConfirmSubmit}
         />
       )}
     </main>
@@ -834,324 +781,175 @@ export default function PicksExperience({
 /* -------------------------------------------------------------------------- */
 
 function PlayerProfile({
-  props,
+  playerProps,
+  teams,
+  picks,
   locked,
-  getSelection,
-  onSelect,
   onClose,
+  onSelect,
 }: {
-  props: PropWithPlayer[];
+  playerProps: PropWithPlayer[];
+  teams: Team[];
+  picks: Record<string, CardLeg>;
   locked: boolean;
-  getSelection: (
-    propId: string
-  ) => Selection | null;
+  onClose: () => void;
   onSelect: (
     prop: PropWithPlayer,
-    selection: Selection
+    side: "more" | "less",
   ) => void;
-  onClose: () => void;
 }) {
-  const player = props[0]?.player;
+  const player = playerProps[0]?.player;
 
   if (!player) return null;
 
-  const selectedProps = props.filter(
-    (prop) => getSelection(prop.id) !== null
+  const playerName = getPlayerName(player);
+  const teamName = getTeamName(player, teams);
+
+  const possiblePlayer = player as Player & {
+    image_url?: string;
+    bio_tags?: string[];
+  };
+
+  const imageUrl = possiblePlayer.image_url;
+
+  const selectedProps = playerProps.filter(
+    (prop) => Boolean(picks[`player:${prop.id}`]),
   );
-
-  const primaryProp =
-    props.find((prop) => prop.is_featured) ??
-    props[0];
-
-  const teamName =
-    player.team_name?.toLowerCase() ??
-    player.team?.toLowerCase() ??
-    "";
-
-  const isYoung = teamName.includes("young");
-
-  const teamLabel = isYoung
-    ? "YOUNGKNIGHTS"
-    : "ALUMKNIGHTS";
-
-  const firstName =
-    player.name?.split(" ")[0] ?? "";
-
-  const lastName =
-    player.name
-      ?.split(" ")
-      .slice(1)
-      .join(" ") ?? "";
 
   return (
     <div
-      className="fixed inset-0 z-[100] overflow-y-auto bg-ink/95 backdrop-blur-md"
+      className="fixed inset-0 z-[100] overflow-y-auto bg-ink/95 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
-      aria-label={`${player.name} player profile`}
     >
-      {/* TOP BAR */}
-      <div className="sticky top-0 z-20 border-b border-line bg-ink/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+      <div className="mx-auto min-h-screen w-full max-w-3xl">
+        {/* TOP BAR */}
+        <div className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-line bg-ink/90 px-4 backdrop-blur-xl sm:px-6">
           <button
             type="button"
             onClick={onClose}
-            className="flex items-center gap-2 rounded-lg px-2 py-2 font-mono text-[10px] font-bold tracking-[0.12em] text-bone/45 transition hover:bg-card hover:text-bone"
+            className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.15em] text-bone/50 transition hover:text-bone"
           >
-            <span className="text-lg leading-none">
-              ←
-            </span>
+            <span className="text-lg">←</span>
             BACK
           </button>
 
-          <div className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/25">
-            PLAYER PROFILE
-          </div>
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-bone/25">
+            PLAYER PROPS
+          </span>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close player profile"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-bone/50 transition hover:border-bone/30 hover:text-bone"
-          >
-            ×
-          </button>
+          <div className="w-12" />
         </div>
-      </div>
 
-      <div className="mx-auto max-w-5xl px-4 pb-32 pt-5 sm:px-6 sm:pt-8">
         {/* HERO */}
-        <section
-          className={`relative overflow-hidden rounded-3xl border ${
-            isYoung
-              ? "border-young/30"
-              : "border-alum/30"
-          } bg-card`}
-        >
-          <div
-            className={`pointer-events-none absolute inset-0 ${
-              isYoung
-                ? "bg-[radial-gradient(circle_at_25%_20%,rgba(226,52,40,0.28),transparent_45%)]"
-                : "bg-[radial-gradient(circle_at_25%_20%,rgba(73,87,170,0.28),transparent_45%)]"
-            }`}
-          />
+        <div className="relative overflow-hidden border-b border-line">
+          <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
 
-          <div className="relative grid min-h-[300px] md:grid-cols-[0.85fr_1.15fr]">
-            {/* PHOTO */}
-            <div className="relative min-h-[280px] overflow-hidden md:min-h-[380px]">
-              <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent md:bg-gradient-to-r" />
+          {imageUrl ? (
+            <div className="relative h-[340px] w-full sm:h-[420px]">
+              <img
+                src={imageUrl}
+                alt={playerName}
+                className="h-full w-full object-contain object-bottom"
+              />
+            </div>
+          ) : (
+            <div className="h-[260px] w-full bg-panel sm:h-[320px]" />
+          )}
 
-              {player.image_url ? (
-                <img
-                  src={player.image_url}
-                  alt={player.name}
-                  className="absolute inset-0 h-full w-full object-contain object-center p-4 transition-transform duration-700 md:p-6"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex h-32 w-32 items-center justify-center rounded-full border border-line bg-ink/40 font-head text-5xl font-black text-bone/20">
-                    {player.name?.charAt(0) ??
-                      "?"}
-                  </div>
-                </div>
-              )}
-
-              <div className="absolute bottom-4 left-4">
-                <span
-                  className={`inline-flex rounded-full border px-3 py-1.5 font-mono text-[9px] font-black tracking-[0.14em] ${
-                    isYoung
-                      ? "border-young/40 bg-young/20 text-young-light"
-                      : "border-alum/40 bg-alum/20 text-alum-light"
-                  }`}
-                >
-                  {teamLabel}
-                </span>
-              </div>
+          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
+            <div className="mb-3 inline-flex rounded-full border border-bone/15 bg-ink/70 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-bone/60 backdrop-blur">
+              {teamName || "TEAM"}
             </div>
 
-            {/* PLAYER INFO */}
-            <div className="relative flex flex-col justify-end p-5 sm:p-7 md:p-9">
-              <div className="mb-auto">
-                <p className="font-mono text-[9px] font-bold tracking-[0.2em] text-bone/30">
-                  {props.length} AVAILABLE PROP
-                  {props.length === 1
-                    ? ""
-                    : "S"}
-                </p>
-              </div>
+            <h1 className="max-w-2xl font-head text-4xl font-black uppercase leading-[0.9] tracking-tight sm:text-6xl">
+              {playerName}
+            </h1>
 
-              <div>
-                <h1 className="font-head text-4xl font-black leading-[0.95] tracking-tight sm:text-5xl md:text-6xl">
-                  {firstName}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full border border-line bg-panel/80 px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-bone/45">
+                {playerProps.length} PROPS
+              </span>
 
-                  {lastName && (
-                    <>
-                      <br />
-                      <span className="text-bone/55">
-                        {lastName}
-                      </span>
-                    </>
-                  )}
-                </h1>
-
-                {player.bio_tags &&
-                  player.bio_tags.length > 0 && (
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {player.bio_tags.map(
-                        (tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full border border-line bg-ink/50 px-3 py-1.5 font-mono text-[9px] font-bold tracking-[0.08em] text-bone/50"
-                          >
-                            {tag}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  )}
-              </div>
+              {selectedProps.length > 0 && (
+                <span className="rounded-full border border-young-light/30 bg-young/10 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-young-light">
+                  {selectedProps.length} SELECTED
+                </span>
+              )}
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* CARD STATUS */}
-        <section className="mt-4 rounded-2xl border border-line bg-card p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-4">
+        {/* PLAYER NOTES */}
+        {possiblePlayer.bio_tags &&
+          possiblePlayer.bio_tags.length > 0 && (
+            <div className="border-b border-line px-5 py-5 sm:px-8">
+              <p className="mb-3 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-bone/25">
+                PLAYER NOTES
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {possiblePlayer.bio_tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-bone/60"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+        {/* PROPS */}
+        <div className="px-5 py-6 sm:px-8 sm:py-8">
+          <div className="mb-5 flex items-end justify-between">
             <div>
-              <p className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/30">
-                YOUR CARD
+              <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-bone/25">
+                AVAILABLE PROPS
               </p>
 
-              <p className="mt-1 font-head text-lg font-black">
-                {selectedProps.length === 0
-                  ? "NO PICKS FROM THIS PLAYER"
-                  : `${selectedProps.length} PICK${
-                      selectedProps.length === 1
-                        ? ""
-                        : "S"
-                    } SELECTED`}
-              </p>
+              <h2 className="mt-1 font-head text-2xl font-black uppercase">
+                MAKE YOUR PICKS
+              </h2>
             </div>
 
-            <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border font-mono text-sm font-black ${
-                selectedProps.length > 0
-                  ? "border-young/40 bg-young/10 text-young-light"
-                  : "border-line text-bone/25"
-              }`}
-            >
-              {selectedProps.length}
+            <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-bone/25">
+              {selectedProps.length}/{playerProps.length}
             </div>
-          </div>
-        </section>
-
-        {/* FEATURED PROP */}
-        {primaryProp && (
-          <section className="mt-6">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/30">
-                  FEATURED BET
-                </p>
-
-                <h2 className="mt-1 font-head text-xl font-black">
-                  MAKE YOUR CALL
-                </h2>
-              </div>
-
-              {primaryProp.is_featured && (
-                <span className="rounded-full border border-young/30 bg-young/10 px-2.5 py-1 font-mono text-[8px] font-black tracking-[0.12em] text-young-light">
-                  HOT
-                </span>
-              )}
-            </div>
-
-            <ProfileProp
-              prop={primaryProp}
-              selection={getSelection(
-                primaryProp.id
-              )}
-              locked={locked}
-              featured
-              onSelect={(selection) =>
-                onSelect(
-                  primaryProp,
-                  selection
-                )
-              }
-            />
-          </section>
-        )}
-
-        {/* ALL PROPS */}
-        <section className="mt-8">
-          <div className="mb-3">
-            <p className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/30">
-              FULL PROP BOARD
-            </p>
-
-            <h2 className="mt-1 font-head text-xl font-black">
-              ALL {player.name?.toUpperCase()} PROPS
-            </h2>
           </div>
 
           <div className="space-y-3">
-            {props.map((prop) => (
-              <ProfileProp
-                key={prop.id}
-                prop={prop}
-                selection={getSelection(prop.id)}
-                locked={locked}
-                featured={
-                  prop.id === primaryProp?.id
-                }
-                onSelect={(selection) =>
-                  onSelect(prop, selection)
-                }
-              />
-            ))}
+            {playerProps.map((prop) => {
+              const selected = picks[`player:${prop.id}`];
+
+              const side = selected
+                ? (
+                    selected as CardLeg & {
+                      side?: "more" | "less";
+                    }
+                  ).side
+                : undefined;
+
+              return (
+                <ProfileProp
+                  key={prop.id}
+                  prop={prop}
+                  selectedSide={side}
+                  locked={locked}
+                  onSelect={onSelect}
+                />
+              );
+            })}
           </div>
-        </section>
-
-        {/* PROFILE FOOTER */}
-        <div className="mt-8 rounded-2xl border border-line bg-card p-4 text-center sm:p-5">
-          <p className="font-mono text-[9px] font-bold tracking-[0.16em] text-bone/30">
-            EVERY PICK HAS TO HIT
-          </p>
-
-          <p className="mt-2 text-xs leading-5 text-bone/40">
-            Choose More or Less on any prop above.
-            Your selections are added directly to MY
-            CARD.
-          </p>
         </div>
-      </div>
 
-      {/* MOBILE STICKY FOOTER */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-ink/95 p-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-[9px] font-bold tracking-[0.12em] text-bone/30">
-              {selectedProps.length === 0
-                ? "NO PLAYER PICKS"
-                : `${selectedProps.length} PLAYER PICK${
-                    selectedProps.length === 1
-                      ? ""
-                      : "S"
-                  }`}
-            </p>
-
-            <p className="truncate font-head text-sm font-black">
-              {locked
-                ? "PICKS ARE LOCKED"
-                : "YOUR PICKS UPDATE LIVE"}
-            </p>
-          </div>
-
+        {/* CLOSE */}
+        <div className="px-5 pb-12 sm:px-8">
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-xl bg-bone px-5 py-3 font-head text-xs font-black text-ink transition hover:scale-[1.01]"
+            className="w-full rounded-xl border border-line bg-panel py-4 font-head text-xs font-black uppercase tracking-wider text-bone/70 transition hover:border-bone/30 hover:text-bone"
           >
             DONE
           </button>
@@ -1167,109 +965,73 @@ function PlayerProfile({
 
 function ProfileProp({
   prop,
-  selection,
+  selectedSide,
   locked,
-  featured = false,
   onSelect,
 }: {
   prop: PropWithPlayer;
-  selection: Selection | null;
+  selectedSide?: "more" | "less";
   locked: boolean;
-  featured?: boolean;
-  onSelect: (selection: Selection) => void;
+  onSelect: (
+    prop: PropWithPlayer,
+    side: "more" | "less",
+  ) => void;
 }) {
-  const statLabel =
-    STAT_LABELS[prop.stat_type] ??
-    prop.stat_type
-      ?.replaceAll("_", " ")
-      .toUpperCase();
+  const statLabel = getStatLabel(prop.stat_type);
 
-  const isPicked = selection !== null;
+  const line = prop.line;
 
   return (
-    <article
-      className={`overflow-hidden rounded-2xl border transition-all duration-300 ${
-        isPicked
-          ? "border-young/50 bg-young/[0.06] shadow-[0_0_30px_rgba(226,52,40,0.08)]"
-          : featured
-          ? "border-bone/15 bg-card"
-          : "border-line bg-card"
-      }`}
+    <div
+      className={[
+        "rounded-2xl border bg-panel p-4 transition sm:p-5",
+        selectedSide
+          ? "border-bone/40 shadow-[0_0_30px_rgba(255,255,255,0.06)]"
+          : "border-line",
+      ].join(" ")}
     >
-      <div className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-[9px] font-black tracking-[0.16em] text-bone/35">
-                {statLabel}
-              </span>
-
-              {featured && (
-                <span className="rounded-full bg-young/10 px-2 py-0.5 font-mono text-[7px] font-black tracking-[0.12em] text-young-light">
-                  FEATURED
-                </span>
-              )}
-
-              {isPicked && (
-                <span className="animate-pop rounded-full bg-young px-2 py-0.5 font-mono text-[7px] font-black tracking-[0.12em] text-bone">
-                  ✓ PICKED
-                </span>
-              )}
-            </div>
-
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-head text-3xl font-black tracking-tight">
-                {prop.line}
-              </span>
-
-              <span className="font-mono text-[9px] font-bold tracking-[0.1em] text-bone/30">
-                LINE
-              </span>
-            </div>
-          </div>
-
-          {isPicked && (
-            <div className="shrink-0 rounded-lg border border-young/30 bg-young/10 px-2.5 py-2 text-center">
-              <p className="font-mono text-[7px] font-bold tracking-[0.12em] text-bone/35">
-                YOUR PICK
-              </p>
-
-              <p className="mt-0.5 font-head text-xs font-black text-young-light">
-                {selection === "more"
-                  ? "MORE"
-                  : "LESS"}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <ProfileSelectButton
-            label="MORE"
-            active={selection === "more"}
-            disabled={locked}
-            onClick={() =>
-              onSelect("more")
-            }
-          />
-
-          <ProfileSelectButton
-            label="LESS"
-            active={selection === "less"}
-            disabled={locked}
-            onClick={() =>
-              onSelect("less")
-            }
-          />
-        </div>
-
-        {locked && (
-          <p className="mt-3 text-center font-mono text-[8px] font-bold tracking-[0.12em] text-bone/25">
-            PICKS ARE LOCKED 🔒
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-bone/30">
+            {statLabel}
           </p>
+
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="font-head text-3xl font-black">
+              {line}
+            </span>
+          </div>
+        </div>
+
+        {selectedSide && (
+          <div className="rounded-full bg-bone px-3 py-1 font-mono text-[9px] font-black uppercase tracking-wider text-ink">
+            {selectedSide}
+          </div>
         )}
       </div>
-    </article>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <ProfileSelectButton
+          label="MORE"
+          active={selectedSide === "more"}
+          disabled={locked}
+          onClick={() => onSelect(prop, "more")}
+        />
+
+        <ProfileSelectButton
+          label="LESS"
+          active={selectedSide === "less"}
+          disabled={locked}
+          onClick={() => onSelect(prop, "less")}
+        />
+      </div>
+
+      {locked && (
+        <p className="mt-3 text-center font-mono text-[8px] uppercase tracking-[0.14em] text-bone/25">
+          PICKS ARE LOCKED
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1283,7 +1045,7 @@ function ProfileSelectButton({
   disabled,
   onClick,
 }: {
-  label: "MORE" | "LESS";
+  label: string;
   active: boolean;
   disabled: boolean;
   onClick: () => void;
@@ -1293,22 +1055,17 @@ function ProfileSelectButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`relative overflow-hidden rounded-xl border px-4 py-3 font-head text-xs font-black tracking-wide transition-all duration-200 ${
+      className={[
+        "min-h-11 rounded-xl border font-head text-xs font-black uppercase tracking-wider transition",
         active
-          ? "border-young bg-young text-bone shadow-[0_0_20px_rgba(226,52,40,0.18)]"
-          : "border-line bg-ink/50 text-bone/55 hover:border-bone/25 hover:bg-bone/[0.04] hover:text-bone"
-      } ${
+          ? "border-bone bg-bone text-ink shadow-lg"
+          : "border-line bg-ink text-bone/50 hover:border-bone/30 hover:text-bone",
         disabled
           ? "cursor-not-allowed opacity-40"
-          : "active:scale-[0.97]"
-      }`}
+          : "active:scale-[0.98]",
+      ].join(" ")}
     >
-      {active && (
-        <span className="mr-1.5">
-          ✓
-        </span>
-      )}
-
+      {active && <span className="mr-1">✓</span>}
       {label}
     </button>
   );
