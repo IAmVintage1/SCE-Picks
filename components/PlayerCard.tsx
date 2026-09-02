@@ -52,6 +52,12 @@ export default function PlayerCard({
     ? "shadow-[0_0_30px_-10px_rgba(220,38,38,0.65)]"
     : "shadow-[0_0_30px_-10px_rgba(37,99,235,0.65)]";
 
+  const isHot = props.some((p) => Boolean(p.featured));
+
+  const teamGradient = isYoung
+    ? "from-young/45 via-young-dark/25 to-ink"
+    : "from-alum/45 via-alum-dark/25 to-ink";
+
   const selected = getSelection(primary.id);
   const isPicked = selected !== null;
 
@@ -139,6 +145,28 @@ export default function PlayerCard({
         />
       )}
 
+      {/* HOT badge */}
+      {isHot && (
+        <div
+          className={`
+            hot-badge
+            absolute left-3 top-3 z-30
+            flex items-center gap-1
+            rounded-full border border-orange-400/40
+            bg-ink/90 px-2.5 py-1.5
+            backdrop-blur-md
+            text-orange-300
+          `}
+        >
+          <span className="hot-badge-flame text-[11px] leading-none">
+            🔥
+          </span>
+          <span className="font-mono text-[8px] font-black tracking-[0.14em]">
+            HOT
+          </span>
+        </div>
+      )}
+
       {/* PICKED badge */}
       {isPicked && (
         <div
@@ -168,6 +196,13 @@ export default function PlayerCard({
           PLAYER IMAGE
       ===================================================== */}
       <div className="relative aspect-[4/3] overflow-hidden bg-black">
+        {/* Team color gradient backdrop -- sits behind the player
+            photo so it shows through transparent/cutout edges and
+            as a colorful placeholder while the image loads. */}
+        <div
+          className={`absolute inset-0 bg-gradient-to-b ${teamGradient}`}
+        />
+
         {player.image_url ? (
           <Image
             src={player.image_url}
@@ -228,6 +263,10 @@ export default function PlayerCard({
               font-bold tracking-[0.14em]
               ${accentText}
             `}
+            style={{
+              textShadow:
+                "0 1px 3px rgba(0,0,0,0.95), 0 2px 8px rgba(0,0,0,0.7)",
+            }}
           >
             {isYoung
               ? "YOUNGKNIGHTS"

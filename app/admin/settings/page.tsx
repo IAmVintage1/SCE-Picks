@@ -58,6 +58,34 @@ export default function AdminSettingsPage() {
 
       <div className="rounded-2xl border border-line bg-panel p-5">
         <h2 className="font-display text-sm font-semibold tracking-wide text-bone/70">
+          LOGOS
+        </h2>
+        <p className="mt-1 text-xs text-bone/40">
+          Paste public image URLs (upload to Supabase Storage first, then
+          copy the public URL here). These power the splash animation on
+          site open.
+        </p>
+        <div className="mt-4 space-y-3">
+          <Field
+            label="YoungKnights logo URL"
+            value={settings.young_logo_url ?? ""}
+            onSave={(v) => save({ young_logo_url: v })}
+          />
+          <Field
+            label="AlumKnights logo URL"
+            value={settings.alum_logo_url ?? ""}
+            onSave={(v) => save({ alum_logo_url: v })}
+          />
+          <Field
+            label="Event logo URL (optional)"
+            value={settings.event_logo_url ?? ""}
+            onSave={(v) => save({ event_logo_url: v })}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-line bg-panel p-5">
+        <h2 className="font-display text-sm font-semibold tracking-wide text-bone/70">
           PICKS
         </h2>
         <div className="mt-4 space-y-3">

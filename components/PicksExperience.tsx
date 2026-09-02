@@ -8,7 +8,7 @@ import TeamPropCard from "@/components/TeamPropCard";
 import { PickSlipBar, PickSlipDrawer } from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal, { SubmitInfo } from "@/components/SubmitModal";
-import { getTierInfo } from "@/lib/cardTiers";
+import { getTierInfo, legLabel, legKey } from "@/lib/cardTiers";
 
 import {
   CardLeg,
@@ -48,8 +48,12 @@ const STAT_FILTERS: { label: string; value: StatFilter }[] = [
   { label: "REB+BLK", value: "REB+BLK" },
 ];
 
-const CATEGORY_FILTERS: { label: string; value: Filter }[] = [
-  { label: "HOT", value: "HOT" },
+const CATEGORY_FILTERS: {
+  label: string;
+  value: Filter;
+  icon?: string;
+}[] = [
+  { label: "HOT", value: "HOT", icon: "🔥" },
   { label: "ALL", value: "ALL" },
   { label: "YOUNG", value: "YOUNG" },
   { label: "ALUM", value: "ALUM" },
@@ -161,6 +165,20 @@ function getStatLabel(statType?: string | null): string {
   };
 
   return labels[statType.toUpperCase()] ?? statType.toUpperCase();
+}
+
+function legIsYoung(leg: LegWithSide): boolean {
+  if (leg.kind === "player") {
+    return (
+      leg.teamName?.toLowerCase().includes("young") ?? false
+    );
+  }
+
+  if (leg.kind === "team" && leg.propType === "winning_team") {
+    return leg.selection === "youngknights";
+  }
+
+  return false;
 }
 
 type PicksExperienceProps = {
@@ -362,21 +380,12 @@ const isAlum =
       const next = { ...current };
 
       /*
-       * Only one player prop can be selected
-       * for each player.
+       * Multiple props on the same player are allowed
+       * (e.g. MORE points AND LESS rebounds for one
+       * player). Each prop has its own key, so nothing
+       * needs to be cleared here -- only the exact same
+       * prop/side toggles off below.
        */
-      for (const existingKey of Object.keys(next)) {
-        const existing = next[existingKey];
-
-        if (
-          existing.kind === "player" &&
-          existing.playerId ===
-            prop.player?.id &&
-          existingKey !== key
-        ) {
-          delete next[existingKey];
-        }
-      }
 
       const currentPick = next[key];
 
@@ -593,45 +602,119 @@ const isAlum =
    */
   if (submitted) {
     return (
-      <main className="min-h-screen bg-ink text-bone">
-        <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6 py-20">
-          <div className="w-full rounded-3xl border border-line bg-panel p-8 text-center shadow-2xl">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border border-young-light/40 bg-young/10 text-4xl">
-              ✓
+      <main className="min-h-screen bg-ink px-4 py-10 text-bone sm:px-6">
+        <div className="mx-auto max-w-md">
+          {/* =====================================================
+              SHAREABLE FLEX CARD -- this is the part meant to be
+              screenshotted and posted.
+          ===================================================== */}
+          <div className="flex-card-in overflow-hidden rounded-3xl border border-line bg-gradient-to-b from-panel via-ink to-ink shadow-2xl">
+            {/* Header */}
+            <div className="relative border-b border-line bg-hero-glow px-6 pb-6 pt-7 text-center">
+              <p className="font-mono text-[10px] font-black uppercase tracking-[0.3em] text-young-light">
+                🔒 CARD LOCKED
+              </p>
+
+              <h1 className="mt-2 font-display text-4xl uppercase leading-[0.9] tracking-tight text-bone">
+                YOU&apos;RE IN.
+              </h1>
+
+              <p className="mt-3 font-mono text-[9px] uppercase tracking-[0.2em] text-bone/40">
+                {settings?.event_name ?? "SCE PICKS"} &middot;{" "}
+                YOUNGKNIGHTS VS ALUMKNIGHTS
+              </p>
             </div>
 
-            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-young-light">
-              CARD LOCKED
-            </p>
-
-            <h1 className="mt-3 font-head text-4xl font-black uppercase tracking-tight text-bone">
-              YOU&apos;RE IN.
-            </h1>
-
-            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-bone/60">
-              Your card has been submitted.
-              Every pick has to hit. Good luck.
-            </p>
-
-            <div className="mt-8 rounded-2xl border border-line bg-ink/60 p-5">
-              <div className="font-mono text-xs uppercase tracking-[0.15em] text-bone/40">
-                YOUR PICKS
+            {/* Tier / stakes */}
+            <div className="flex items-center justify-between border-b border-line px-6 py-4">
+              <div>
+                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-bone/35">
+                  PICKS ON THE CARD
+                </p>
+                <p className="mt-0.5 font-head text-2xl font-black text-bone">
+                  {pickCount}
+                </p>
               </div>
 
-              <div className="mt-2 font-head text-3xl font-black text-bone">
-                {pickCount}
-              </div>
-
-              <div className="mt-1 text-xs text-bone/40">
-                selections locked in
+              <div className="text-right">
+                <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-bone/35">
+                  {tierInfo.tier ? "TIER REACHED" : "NEXT TIER"}
+                </p>
+                <p className="mt-0.5 font-head text-sm font-black uppercase text-young-light">
+                  {tierInfo.tier
+                    ? tierInfo.label
+                    : `${tierInfo.picksToNextTier} MORE TO ${tierInfo.nextTier}`}
+                </p>
               </div>
             </div>
 
-            <Link
-              href="/picks"
-              className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-bone px-6 font-head text-sm font-black uppercase tracking-wider text-ink transition hover:scale-[1.02]"
+            {/* The actual picks list */}
+            <div className="max-h-[45vh] space-y-2 overflow-y-auto px-4 py-4">
+              {pickList.map((leg) => {
+                const key = legKey(leg);
+                const { title, subtitle } = legLabel(leg);
+                const isYoung = legIsYoung(leg);
+
+                return (
+                  <div
+                    key={key}
+                    className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 ${
+                      isYoung
+                        ? "border-young/25 bg-young/[0.06]"
+                        : "border-alum/25 bg-alum/[0.06]"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-head text-sm font-bold text-bone">
+                        {title}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`shrink-0 font-mono text-[10px] font-black uppercase tracking-[0.1em] ${
+                        isYoung
+                          ? "text-young-light"
+                          : "text-alum-light"
+                      }`}
+                    >
+                      {subtitle}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer branding */}
+            <div className="border-t border-line px-6 py-4 text-center">
+              <p className="font-head text-xs font-black uppercase tracking-[0.15em] text-bone">
+                SCE{" "}
+                <span className="text-young-light">PICKS</span>
+              </p>
+              <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.18em] text-bone/30">
+                CALL YOUR SHOT &middot; FREE TO PLAY
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-center font-mono text-[10px] uppercase tracking-[0.15em] text-bone/35">
+            📸 Screenshot this card and post your picks.
+          </p>
+
+          {/* Actions -- outside the shareable card on purpose */}
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => setSubmitted(false)}
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-bone px-6 font-head text-sm font-black uppercase tracking-wider text-ink transition hover:scale-[1.02] active:scale-[0.98]"
             >
               BACK TO PICKS
+            </button>
+
+            <Link
+              href="/"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-line px-6 font-head text-sm font-black uppercase tracking-wider text-bone/60 transition hover:border-bone/30 hover:text-bone"
+            >
+              HOME
             </Link>
           </div>
         </div>
@@ -726,7 +809,7 @@ const isAlum =
       {/* CATEGORY FILTER */}
       <div className="border-b border-line">
         <div className="mx-auto max-w-[1600px] overflow-x-auto px-4 sm:px-6 lg:px-8">
-          <div className="no-scrollbar flex min-w-max gap-1 py-3">
+          <div className="no-scrollbar flex min-w-max gap-2.5 py-4">
             {CATEGORY_FILTERS.map(
               (item) => {
                 const active =
@@ -740,12 +823,23 @@ const isAlum =
                       setFilter(item.value)
                     }
                     className={[
-                      "rounded-full px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition",
+                      "flex items-center gap-1.5 rounded-full border px-6 py-3 font-head text-sm font-black uppercase tracking-[0.08em] transition active:scale-[0.96]",
                       active
-                        ? "bg-bone text-ink"
-                        : "text-bone/40 hover:bg-panel hover:text-bone",
+                        ? "border-bone bg-bone text-ink shadow-lg"
+                        : "border-line text-bone/45 hover:border-bone/25 hover:bg-panel hover:text-bone",
                     ].join(" ")}
                   >
+                    {item.icon && (
+                      <span
+                        className={
+                          active
+                            ? "hot-badge-flame text-base leading-none"
+                            : "text-base leading-none"
+                        }
+                      >
+                        {item.icon}
+                      </span>
+                    )}
                     {item.label}
                   </button>
                 );
@@ -1027,6 +1121,13 @@ function PlayerProfile({
   const imageUrl =
     player.image_url;
 
+  const isYoung =
+    player.team?.slug === "youngknights";
+
+  const heroGradient = isYoung
+    ? "from-young/50 via-young-dark/20 to-ink"
+    : "from-alum/50 via-alum-dark/20 to-ink";
+
   const selectedProps =
     playerProps.filter(
       (prop) =>
@@ -1064,6 +1165,9 @@ function PlayerProfile({
 
         {/* HERO */}
         <div className="relative overflow-hidden border-b border-line">
+          <div
+            className={`absolute inset-0 bg-gradient-to-b ${heroGradient}`}
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
 
           {imageUrl ? (
@@ -1095,6 +1199,13 @@ function PlayerProfile({
               {selectedProps.length > 0 && (
                 <span className="rounded-full border border-young-light/30 bg-young/10 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-young-light">
                   {selectedProps.length} SELECTED
+                </span>
+              )}
+
+              {playerProps.some((p) => p.featured) && (
+                <span className="hot-badge flex items-center gap-1 rounded-full border border-orange-400/40 bg-ink/70 px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-[0.12em] text-orange-300">
+                  <span className="hot-badge-flame">🔥</span>
+                  HOT
                 </span>
               )}
             </div>
@@ -1218,8 +1329,11 @@ function ProfileProp({
     >
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-bone/30">
+          <p className="flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-bone/30">
             {statLabel}
+            {prop.featured && (
+              <span className="hot-badge-flame">🔥</span>
+            )}
           </p>
 
           <div className="mt-1 flex items-baseline gap-2">

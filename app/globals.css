@@ -177,3 +177,170 @@ body {
 .tier-celebrate {
   animation: tierCelebrate 450ms ease-out;
 }
+
+/* ---------------------------------
+   SPLASH SCREEN
+---------------------------------- */
+
+@keyframes splashSlideLeft {
+  0% {
+    transform: translateX(-120%) rotate(-4deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes splashSlideRight {
+  0% {
+    transform: translateX(120%) rotate(4deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes splashVsPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes splashFlash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes splashShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes splashFadeOut {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+  99% {
+    opacity: 0;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.splash-slide-left {
+  animation: splashSlideLeft 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.splash-slide-right {
+  animation: splashSlideRight 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.splash-vs-pop {
+  animation: splashVsPop 500ms 550ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.splash-flash {
+  animation: splashFlash 500ms 550ms ease-out forwards;
+}
+
+.splash-shake {
+  animation: splashShake 400ms 600ms ease-out;
+}
+
+.splash-fade-out {
+  animation: splashFadeOut 500ms ease-in forwards;
+}
+
+/* ---------------------------------
+   HOT PICK BADGE
+---------------------------------- */
+
+@keyframes hotFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.08) rotate(-4deg);
+  }
+  50% {
+    transform: scale(0.97) rotate(3deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(-2deg);
+  }
+}
+
+@keyframes hotGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px 0 rgba(255, 122, 24, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(255, 122, 24, 0.85);
+  }
+}
+
+.hot-badge {
+  animation: hotGlow 1.6s ease-in-out infinite;
+}
+
+.hot-badge-flame {
+  display: inline-block;
+  animation: hotFlicker 900ms ease-in-out infinite;
+}
+
+/* ---------------------------------
+   FLEX CARD (Card Locked screen)
+---------------------------------- */
+
+@keyframes flexCardIn {
+  0% {
+    transform: scale(0.94) translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.flex-card-in {
+  animation: flexCardIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
