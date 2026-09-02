@@ -67,7 +67,22 @@ function statMatches(
 ): boolean {
   if (filter === "ALL") return true;
 
-  return normalizeStat(statType) === normalizeStat(filter);
+  const statMap: Record<string, StatFilter> = {
+    points: "PTS",
+    rebounds: "REB",
+    assists: "AST",
+    three_pt_made: "3PT",
+    steals: "STL",
+    blocks: "BLK",
+    turnovers: "ALL",
+    points_rebounds: "PTS+REB",
+    points_assists: "PTS+AST",
+    rebounds_assists: "ALL",
+    rebounds_blocks: "REB+BLK",
+    pra: "PRA",
+  };
+
+  return statMap[statType ?? ""] === filter;
 }
 
 function getTeamName(
