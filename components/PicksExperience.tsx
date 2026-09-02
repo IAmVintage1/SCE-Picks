@@ -5,9 +5,14 @@ import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
 import TeamPropCard from "@/components/TeamPropCard";
-import { PickSlipBar, PickSlipDrawer } from "@/components/PickSlip";
+import {
+  PickSlipBar,
+  PickSlipDrawer,
+} from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
-import SubmitModal, { SubmitInfo } from "@/components/SubmitModal";
+import SubmitModal, {
+  SubmitInfo,
+} from "@/components/SubmitModal";
 import { getTierInfo } from "@/lib/cardTiers";
 
 import {
@@ -92,6 +97,10 @@ export default function PicksExperience({
     settings
   );
 
+  /* ========================================================== */
+  /* AVAILABLE STATS                                            */
+  /* ========================================================== */
+
   const availableStats =
     useMemo(() => {
       const set =
@@ -103,6 +112,10 @@ export default function PicksExperience({
 
       return Array.from(set);
     }, [props]);
+
+  /* ========================================================== */
+  /* GROUP PLAYERS                                               */
+  /* ========================================================== */
 
   const groupedPlayers =
     useMemo(() => {
@@ -182,6 +195,10 @@ export default function PicksExperience({
       boardFilter,
     ]);
 
+  /* ========================================================== */
+  /* TIER CELEBRATION                                            */
+  /* ========================================================== */
+
   function maybeTriggerTierCelebration(
     newCount: number
   ) {
@@ -207,6 +224,10 @@ export default function PicksExperience({
     );
   }
 
+  /* ========================================================== */
+  /* PLAYER PICK SELECTION                                       */
+  /* ========================================================== */
+
   function handleSelect(
     prop: PropWithPlayer,
     selection:
@@ -220,6 +241,7 @@ export default function PicksExperience({
       const existing =
         prev[key];
 
+      /* Clicking the same selection removes it */
       if (
         existing?.kind ===
           "player" &&
@@ -235,6 +257,7 @@ export default function PicksExperience({
         return next;
       }
 
+      /* Otherwise create / replace the pick */
       const next = {
         ...prev,
         [key]: {
@@ -260,6 +283,10 @@ export default function PicksExperience({
       return next;
     });
   }
+
+  /* ========================================================== */
+  /* TEAM PICK SELECTION                                         */
+  /* ========================================================== */
 
   function handleSelectTeam(
     prop: TeamProp,
@@ -312,6 +339,10 @@ export default function PicksExperience({
     });
   }
 
+  /* ========================================================== */
+  /* REMOVE PICK                                                 */
+  /* ========================================================== */
+
   function removeLeg(
     key: string
   ) {
@@ -325,6 +356,10 @@ export default function PicksExperience({
       return next;
     });
   }
+
+  /* ========================================================== */
+  /* GET PLAYER SELECTION                                        */
+  /* ========================================================== */
 
   function getPlayerSelection(
     propId: string
@@ -343,6 +378,10 @@ export default function PicksExperience({
       : null;
   }
 
+  /* ========================================================== */
+  /* GET TEAM SELECTION                                          */
+  /* ========================================================== */
+
   function getTeamSelection(
     teamPropId: string
   ): string | null {
@@ -355,6 +394,10 @@ export default function PicksExperience({
       ? leg.selection
       : null;
   }
+
+  /* ========================================================== */
+  /* ERROR                                                       */
+  /* ========================================================== */
 
   function flashError(
     message: string
@@ -370,6 +413,10 @@ export default function PicksExperience({
       3500
     );
   }
+
+  /* ========================================================== */
+  /* SUBMIT                                                       */
+  /* ========================================================== */
 
   async function handleConfirmSubmit(
     info: SubmitInfo
@@ -484,14 +531,20 @@ export default function PicksExperience({
     }
   }
 
+  /* ========================================================== */
+  /* CONFIRMATION SCREEN                                         */
+  /* ========================================================== */
+
   if (confirmation) {
     return (
       <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-ink px-6 text-center text-bone">
+
         <div className="pointer-events-none absolute inset-0 bg-hero-glow opacity-60" />
 
         <div className="grain-overlay" />
 
         <div className="relative">
+
           <p className="font-display text-5xl leading-none">
             CARD
             <br />
@@ -533,10 +586,15 @@ export default function PicksExperience({
           >
             BACK HOME
           </Link>
+
         </div>
       </main>
     );
   }
+
+  /* ========================================================== */
+  /* MAIN PAGE                                                    */
+  /* ========================================================== */
 
   return (
     <main className="min-h-[100dvh] bg-ink pb-28 lg:pb-10">
@@ -546,6 +604,7 @@ export default function PicksExperience({
       {/* ====================================================== */}
 
       <header className="sticky top-0 z-30 border-b border-line bg-ink/92 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+
         <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-5 lg:pt-4">
 
           <div className="flex items-center justify-between gap-3">
@@ -559,6 +618,7 @@ export default function PicksExperience({
               <span className="hidden h-4 w-px bg-lineBright sm:block" />
 
               <div className="hidden sm:block">
+
                 <p className="font-head text-xs font-bold tracking-[0.12em] text-bone">
                   YOUNGKNIGHTS{" "}
                   <span className="text-bone/30">
@@ -570,7 +630,9 @@ export default function PicksExperience({
                 <p className="font-mono text-[8px] tracking-[0.15em] text-bone/35">
                   OCT 9 · 7 PM · FREE TO PLAY
                 </p>
+
               </div>
+
             </div>
 
             <button
@@ -580,17 +642,22 @@ export default function PicksExperience({
               className="border border-line bg-panelLight px-3 py-2 font-head text-[11px] font-bold tracking-[0.08em] text-bone transition active:scale-95"
             >
               MY CARD{" "}
+
               {pickList.length >
                 0 && (
                 <span className="ml-1 text-young-light">
                   {pickList.length}
                 </span>
               )}
+
             </button>
 
           </div>
 
+          {/* MOBILE MATCHUP */}
+
           <div className="mt-2 flex items-center justify-between sm:hidden">
+
             <p className="font-head text-[11px] font-bold tracking-[0.1em] text-bone/75">
               YOUNGKNIGHTS{" "}
               <span className="text-bone/25">
@@ -602,13 +669,16 @@ export default function PicksExperience({
             <p className="font-mono text-[8px] tracking-[0.1em] text-bone/30">
               OCT 9 · 7 PM
             </p>
+
           </div>
 
           {/* CATEGORY NAV */}
+
           <nav
             className="no-scrollbar -mx-1 mt-3 flex gap-1 overflow-x-auto pb-2"
             aria-label="Board categories"
           >
+
             <BoardPill
               active={
                 boardFilter ===
@@ -618,6 +688,7 @@ export default function PicksExperience({
                 setBoardFilter(
                   "hot"
                 );
+
                 setStatFilter(
                   "all"
                 );
@@ -634,9 +705,11 @@ export default function PicksExperience({
                 setBoardFilter(
                   "all"
                 );
+
                 setTeamFilter(
                   "all"
                 );
+
                 setStatFilter(
                   "all"
                 );
@@ -696,13 +769,16 @@ export default function PicksExperience({
                 label="GAME"
               />
             )}
+
           </nav>
 
           {/* STAT NAV */}
+
           <nav
             className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto pb-3"
             aria-label="Stat filters"
           >
+
             <StatPill
               active={
                 statFilter ===
@@ -741,7 +817,9 @@ export default function PicksExperience({
                 />
               )
             )}
+
           </nav>
+
         </div>
       </header>
 
@@ -754,12 +832,14 @@ export default function PicksExperience({
         {boardFilter ===
         "game" ? (
           <section>
+
             <BoardTitle
               eyebrow="THE MATCHUP"
               title="GAME PICKS"
             />
 
             <div className="grid gap-3 sm:grid-cols-2">
+
               {teamProps.map(
                 (teamProp) => (
                   <TeamPropCard
@@ -784,7 +864,9 @@ export default function PicksExperience({
                   />
                 )
               )}
+
             </div>
+
           </section>
         ) : (
           <section>
@@ -792,6 +874,7 @@ export default function PicksExperience({
             <div className="mb-4 flex items-end justify-between gap-3">
 
               <div>
+
                 <p className="font-mono text-[9px] font-bold tracking-[0.24em] text-bone/35">
                   CALL YOUR SHOT
                 </p>
@@ -799,6 +882,7 @@ export default function PicksExperience({
                 <h1 className="font-display text-3xl leading-none text-bone sm:text-4xl">
                   PLAYER PROPS
                 </h1>
+
               </div>
 
               <p className="font-mono text-[9px] tracking-[0.12em] text-bone/30">
@@ -862,8 +946,10 @@ export default function PicksExperience({
 
               </div>
             )}
+
           </section>
         )}
+
       </div>
 
       {/* ====================================================== */}
@@ -904,6 +990,7 @@ export default function PicksExperience({
       {/* ====================================================== */}
 
       <div className="lg:hidden">
+
         <PickSlipBar
           count={
             pickList.length
@@ -951,6 +1038,7 @@ export default function PicksExperience({
             confettiTrigger
           }
         />
+
       </div>
 
       {/* ====================================================== */}
@@ -1025,6 +1113,7 @@ export default function PicksExperience({
           {error}
         </div>
       )}
+
     </main>
   );
 }
@@ -1109,6 +1198,7 @@ function BoardTitle({
 }) {
   return (
     <div className="mb-4">
+
       <p className="font-mono text-[9px] font-bold tracking-[0.25em] text-bone/35">
         {eyebrow}
       </p>
@@ -1116,6 +1206,7 @@ function BoardTitle({
       <h2 className="font-display text-3xl leading-none text-bone">
         {title}
       </h2>
+
     </div>
   );
 }
@@ -1131,6 +1222,7 @@ function EmptyState({
 }) {
   return (
     <div className="border border-line bg-panel px-6 py-16 text-center">
+
       <p className="font-display text-4xl leading-none text-bone">
         GAME DAY
         <br />
@@ -1142,12 +1234,13 @@ function EmptyState({
           ? "NO PROPS MATCH THIS FILTER"
           : "PLAYER PROPS DROP SOON"}
       </p>
+
     </div>
   );
 }
 
 /* ============================================================= */
-/* PLAYER PROFILE                                                 */
+/* PLAYER PROFILE — 2D.1 + 2D.2                                  */
 /* ============================================================= */
 
 function PlayerProfile({
@@ -1190,8 +1283,12 @@ function PlayerProfile({
       ? {
           main: "bg-young",
           soft: "bg-young/10",
+          softStrong:
+            "bg-young/15",
           border:
             "border-young/40",
+          borderStrong:
+            "border-young",
           text:
             "text-young-light",
           glow:
@@ -1200,8 +1297,12 @@ function PlayerProfile({
       : {
           main: "bg-alum",
           soft: "bg-alum/10",
+          softStrong:
+            "bg-alum/15",
           border:
             "border-alum/40",
+          borderStrong:
+            "border-alum",
           text:
             "text-alum-light",
           glow:
@@ -1220,15 +1321,30 @@ function PlayerProfile({
       0
     );
 
+  const featuredProps =
+    props.filter(
+      (prop) =>
+        prop.featured
+    );
+
+  const regularProps =
+    props.filter(
+      (prop) =>
+        !prop.featured
+    );
+
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-label={`${player.name} player profile`}
     >
 
-      {/* BACKDROP */}
+      {/* ==================================================== */}
+      {/* BACKDROP                                              */}
+      {/* ==================================================== */}
+
       <button
         type="button"
         onClick={
@@ -1238,39 +1354,46 @@ function PlayerProfile({
         aria-label="Close player profile"
       />
 
-      {/* ===================================================== */}
+      {/* ==================================================== */}
       {/* PROFILE SHEET                                          */}
-      {/* ===================================================== */}
+      {/* ==================================================== */}
 
       <div
         className="
-          relative
+          absolute
+          inset-x-0
+          bottom-0
+          mx-auto
           flex
-          max-h-[94dvh]
+          max-h-[96dvh]
           w-full
           flex-col
           overflow-hidden
-          rounded-t-[18px]
+          rounded-t-[20px]
           border
           border-lineBright
           bg-panel
           shadow-2xl
-          animate-in
+          sm:inset-y-6
+          sm:bottom-auto
           sm:max-w-2xl
-          sm:rounded-[14px]
+          sm:rounded-[16px]
         "
       >
 
-        {/* TOP HANDLE — MOBILE */}
-        <div className="flex justify-center pt-2 sm:hidden">
+        {/* MOBILE HANDLE */}
+
+        <div className="flex shrink-0 justify-center pt-2 sm:hidden">
           <span className="h-1 w-10 rounded-full bg-bone/15" />
         </div>
 
         {/* ================================================= */}
-        {/* HERO                                                */}
+        {/* HERO                                               */}
         {/* ================================================= */}
 
-        <div className="relative h-[250px] shrink-0 overflow-hidden sm:h-[310px]">
+        <div className="relative h-[270px] shrink-0 overflow-hidden sm:h-[330px]">
+
+          {/* PLAYER IMAGE */}
 
           {player.image_url ? (
             <img
@@ -1285,8 +1408,8 @@ function PlayerProfile({
                 inset-0
                 h-full
                 w-full
-                object-cover
-                object-top
+                object-contain
+                object-center
               "
             />
           ) : (
@@ -1303,7 +1426,7 @@ function PlayerProfile({
               <span
                 className={`
                   font-display
-                  text-[150px]
+                  text-[160px]
                   leading-none
                   ${teamClass.text}
                   opacity-20
@@ -1316,23 +1439,16 @@ function PlayerProfile({
             </div>
           )}
 
-          {/* HERO GRADIENT */}
-          <div
-            className="
-              pointer-events-none
-              absolute
-              inset-0
-              bg-gradient-to-t
-              from-panel
-              via-black/25
-              to-black/5
-            "
-          />
+          {/* DARK BACKDROP */}
 
-          {/* TEAM COLOR GLOW */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-panel" />
+
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/15" />
+
+          {/* TEAM COLOR STRIPE */}
+
           <div
             className={`
-              pointer-events-none
               absolute
               inset-x-0
               bottom-0
@@ -1342,6 +1458,7 @@ function PlayerProfile({
           />
 
           {/* CLOSE */}
+
           <button
             type="button"
             onClick={
@@ -1353,42 +1470,40 @@ function PlayerProfile({
               top-3
               z-20
               flex
-              h-9
-              w-9
+              h-10
+              w-10
               items-center
               justify-center
               rounded-full
               border
               border-white/15
               bg-black/55
-              text-lg
-              text-white/80
+              text-xl
+              text-white/75
               backdrop-blur-md
               transition
               hover:bg-black/80
               hover:text-white
               active:scale-95
             "
-            aria-label="Close"
+            aria-label="Close player profile"
           >
             ×
           </button>
 
           {/* TEAM BADGE */}
-          <div
-            className="
-              absolute
-              left-4
-              top-4
-              z-20
-            "
-          >
+
+          <div className="absolute left-4 top-4 z-20">
+
             <span
               className="
+                inline-flex
+                items-center
+                gap-2
                 border
                 border-white/15
                 bg-black/55
-                px-2.5
+                px-3
                 py-1.5
                 font-mono
                 text-[8px]
@@ -1398,31 +1513,28 @@ function PlayerProfile({
                 backdrop-blur-md
               "
             >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${teamClass.main}`}
+              />
+
               {player.team.name.toUpperCase()}
             </span>
+
           </div>
 
-          {/* PLAYER NAME */}
+          {/* HERO NAME */}
+
           <div className="absolute bottom-5 left-4 right-4 z-20 sm:left-6 sm:right-6">
 
             <p className="font-mono text-[8px] font-bold tracking-[0.25em] text-white/45">
               PLAYER PROFILE
             </p>
 
-            <h2 className="mt-1 font-display text-[42px] leading-[0.86] tracking-tight text-white sm:text-5xl">
+            <h2 className="mt-1 max-w-full whitespace-normal break-words font-display text-[40px] leading-[0.88] tracking-tight text-white sm:text-5xl">
               {player.name}
             </h2>
 
-            <div className="mt-2 flex items-center gap-2">
-
-              <span
-                className={`
-                  h-2
-                  w-2
-                  rounded-full
-                  ${teamClass.main}
-                `}
-              />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
 
               <span
                 className={`
@@ -1436,73 +1548,117 @@ function PlayerProfile({
                 {player.team.name.toUpperCase()}
               </span>
 
+              <span className="text-white/20">
+                /
+              </span>
+
+              <span className="font-mono text-[8px] tracking-[0.15em] text-white/40">
+                {props.length} PROPS
+              </span>
+
             </div>
+
           </div>
+
         </div>
 
         {/* ================================================= */}
-        {/* SCROLLABLE CONTENT                                  */}
+        {/* SCROLLABLE BODY                                     */}
         {/* ================================================= */}
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
-          {/* PLAYER INFO */}
+          {/* ================================================= */}
+          {/* PLAYER SUMMARY                                      */}
+          {/* ================================================= */}
+
           <div className="border-b border-line px-4 py-4 sm:px-6">
 
-            <div className="flex items-center justify-between">
+            <div className="grid grid-cols-2 gap-2">
 
-              <div>
-                <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
-                  AVAILABLE PROPS
+              {/* AVAILABLE */}
+
+              <div className="border border-line bg-ink2 p-3">
+
+                <p className="font-mono text-[7px] font-bold tracking-[0.2em] text-bone/30">
+                  AVAILABLE
                 </p>
 
-                <p className="mt-0.5 font-display text-3xl leading-none text-bone">
+                <p className="mt-1 font-display text-3xl leading-none text-bone">
                   {props.length}
                 </p>
+
+                <p className="mt-1 font-mono text-[7px] tracking-[0.12em] text-bone/25">
+                  PLAYER PROPS
+                </p>
+
               </div>
 
-              {selectedCount >
-                0 && (
-                <div
+              {/* SELECTED */}
+
+              <div
+                className={`
+                  border
+                  ${
+                    selectedCount >
+                    0
+                      ? `${teamClass.border} ${teamClass.soft}`
+                      : "border-line bg-ink2"
+                  }
+                  p-3
+                `}
+              >
+
+                <p className="font-mono text-[7px] font-bold tracking-[0.2em] text-bone/30">
+                  YOUR CARD
+                </p>
+
+                <p
                   className={`
-                    border
-                    ${teamClass.border}
-                    ${teamClass.soft}
-                    px-3
-                    py-2
-                    text-right
+                    mt-1
+                    font-display
+                    text-3xl
+                    leading-none
+                    ${
+                      selectedCount >
+                      0
+                        ? teamClass.text
+                        : "text-bone"
+                    }
                   `}
                 >
-                  <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/35">
-                    ON YOUR CARD
-                  </p>
+                  {selectedCount}
+                </p>
 
-                  <p
-                    className={`
-                      font-display
-                      text-2xl
-                      leading-none
-                      ${teamClass.text}
-                    `}
-                  >
-                    {selectedCount}
-                  </p>
-                </div>
-              )}
+                <p className="mt-1 font-mono text-[7px] tracking-[0.12em] text-bone/25">
+                  SELECTED PROPS
+                </p>
+
+              </div>
 
             </div>
 
-            {/* BIO */}
+            {/* PLAYER NOTES */}
+
             {player.bio_tags &&
               player.bio_tags.length >
                 0 && (
                 <div className="mt-4">
 
-                  <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
-                    PLAYER NOTES
-                  </p>
+                  <div className="mb-2 flex items-center justify-between">
 
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
+                      PLAYER NOTES
+                    </p>
+
+                    <span className="font-mono text-[7px] tracking-[0.1em] text-bone/20">
+                      SCOUTING
+                    </span>
+
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+
                     {player.bio_tags.map(
                       (
                         tag,
@@ -1510,7 +1666,7 @@ function PlayerProfile({
                       ) => (
                         <span
                           key={`${tag}-${index}`}
-                          className="
+                          className={`
                             border
                             border-line
                             bg-ink2
@@ -1519,114 +1675,259 @@ function PlayerProfile({
                             font-mono
                             text-[8px]
                             font-bold
-                            tracking-[0.06em]
+                            tracking-[0.05em]
                             text-bone/55
-                          "
+                          `}
                         >
                           {tag}
                         </span>
                       )
                     )}
+
                   </div>
 
                 </div>
               )}
+
           </div>
 
-          {/* PROPS */}
+          {/* ================================================= */}
+          {/* PROP SECTION                                       */}
+          {/* ================================================= */}
+
           <div className="px-4 py-4 sm:px-6">
 
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-4">
 
-              <div>
-                <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
-                  MAKE YOUR CALL
-                </p>
+              <div className="flex items-end justify-between gap-3">
 
-                <h3 className="font-display text-2xl leading-none text-bone">
-                  PLAYER PROPS
-                </h3>
+                <div>
+
+                  <p className="font-mono text-[8px] font-bold tracking-[0.22em] text-bone/30">
+                    MAKE YOUR CALL
+                  </p>
+
+                  <h3 className="mt-0.5 font-display text-3xl leading-none text-bone">
+                    ALL PROPS
+                  </h3>
+
+                </div>
+
+                {selectedCount >
+                  0 && (
+                  <span
+                    className={`
+                      border
+                      ${teamClass.border}
+                      ${teamClass.soft}
+                      px-2.5
+                      py-1.5
+                      font-mono
+                      text-[7px]
+                      font-bold
+                      tracking-[0.12em]
+                      ${teamClass.text}
+                    `}
+                  >
+                    {selectedCount}{" "}
+                    PICKED
+                  </span>
+                )}
+
               </div>
 
-              <span
-                className={`
-                  font-mono
-                  text-[8px]
-                  font-bold
-                  tracking-[0.1em]
-                  ${teamClass.text}
-                `}
-              >
-                MORE / LESS
-              </span>
+              <p className="mt-1 max-w-[90%] text-xs leading-relaxed text-bone/35">
+                Choose MORE or LESS for any prop.
+                You can build your entire card from this profile.
+              </p>
 
             </div>
 
-            <div className="space-y-2">
+            {/* FEATURED PROPS */}
 
-              {props.map(
-                (prop) => {
-                  const selection =
-                    getSelection(
-                      prop.id
-                    );
+            {featuredProps.length >
+              0 && (
+              <div className="mb-5">
 
-                  return (
-                    <ProfileProp
-                      key={
-                        prop.id
-                      }
-                      prop={
-                        prop
-                      }
-                      selection={
-                        selection
-                      }
-                      teamClass={
-                        teamClass
-                      }
-                      onSelect={
-                        onSelect
-                      }
-                    />
-                  );
-                }
+                <div className="mb-2 flex items-center gap-2">
+
+                  <span className="text-xs">
+                    🔥
+                  </span>
+
+                  <p className="font-mono text-[8px] font-bold tracking-[0.18em] text-bone/40">
+                    FEATURED
+                  </p>
+
+                </div>
+
+                <div className="space-y-2">
+
+                  {featuredProps.map(
+                    (prop) => (
+                      <ProfileProp
+                        key={
+                          prop.id
+                        }
+                        prop={
+                          prop
+                        }
+                        selection={
+                          getSelection(
+                            prop.id
+                          )
+                        }
+                        teamClass={
+                          teamClass
+                        }
+                        onSelect={
+                          onSelect
+                        }
+                      />
+                    )
+                  )}
+
+                </div>
+
+              </div>
+            )}
+
+            {/* OTHER PROPS */}
+
+            {regularProps.length >
+              0 && (
+              <div>
+
+                {featuredProps.length >
+                  0 && (
+                  <div className="mb-2">
+
+                    <p className="font-mono text-[8px] font-bold tracking-[0.18em] text-bone/30">
+                      MORE PROPS
+                    </p>
+
+                  </div>
+                )}
+
+                <div className="space-y-2">
+
+                  {regularProps.map(
+                    (prop) => (
+                      <ProfileProp
+                        key={
+                          prop.id
+                        }
+                        prop={
+                          prop
+                        }
+                        selection={
+                          getSelection(
+                            prop.id
+                          )
+                        }
+                        teamClass={
+                          teamClass
+                        }
+                        onSelect={
+                          onSelect
+                        }
+                      />
+                    )
+                  )}
+
+                </div>
+
+              </div>
+            )}
+
+          </div>
+
+          {/* BOTTOM SPACING FOR MOBILE FOOTER */}
+
+          <div className="h-3 sm:hidden" />
+
+        </div>
+
+        {/* ================================================= */}
+        {/* PROFILE FOOTER                                      */}
+        {/* ================================================= */}
+
+        <div className="shrink-0 border-t border-line bg-panel/95 p-3 backdrop-blur-xl">
+
+          <div className="flex items-center gap-2">
+
+            <div className="min-w-0 flex-1">
+
+              {selectedCount >
+              0 ? (
+                <>
+                  <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/30">
+                    CURRENTLY ON YOUR CARD
+                  </p>
+
+                  <p
+                    className={`
+                      mt-0.5
+                      truncate
+                      font-head
+                      text-xs
+                      font-bold
+                      tracking-[0.05em]
+                      ${teamClass.text}
+                    `}
+                  >
+                    {selectedCount}{" "}
+                    PLAYER PROP
+                    {selectedCount ===
+                    1
+                      ? ""
+                      : "S"}{" "}
+                    SELECTED
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/30">
+                    READY TO PICK?
+                  </p>
+
+                  <p className="mt-0.5 font-head text-xs font-bold tracking-[0.05em] text-bone/65">
+                    SELECT A PROP ABOVE
+                  </p>
+                </>
               )}
 
             </div>
+
+            <button
+              type="button"
+              onClick={
+                onClose
+              }
+              className="
+                shrink-0
+                border
+                border-lineBright
+                bg-panelLight
+                px-4
+                py-3
+                font-head
+                text-[10px]
+                font-bold
+                tracking-[0.1em]
+                text-bone
+                transition
+                hover:bg-line
+                active:scale-[0.98]
+              "
+            >
+              DONE
+            </button>
+
           </div>
-        </div>
-
-        {/* ================================================= */}
-        {/* MOBILE PROFILE FOOTER                              */}
-        {/* ================================================= */}
-
-        <div className="shrink-0 border-t border-line bg-panel/95 p-3 backdrop-blur-xl sm:hidden">
-
-          <button
-            type="button"
-            onClick={
-              onClose
-            }
-            className="
-              w-full
-              border
-              border-lineBright
-              bg-panelLight
-              py-3
-              font-head
-              text-xs
-              font-bold
-              tracking-[0.12em]
-              text-bone/75
-              transition
-              active:scale-[0.99]
-            "
-          >
-            BACK TO PLAYERS
-          </button>
 
         </div>
+
       </div>
     </div>
   );
@@ -1642,7 +1943,7 @@ function ProfileProp({
   teamClass,
   onSelect,
 }: {
-  prop: PropWithPlayer;
+  prop: PropWithPlayer[];
 
   selection:
     | "over"
@@ -1652,7 +1953,9 @@ function ProfileProp({
   teamClass: {
     main: string;
     soft: string;
+    softStrong: string;
     border: string;
+    borderStrong: string;
     text: string;
     glow: string;
   };
@@ -1664,157 +1967,5 @@ function ProfileProp({
       | "under"
   ) => void;
 }) {
-  const isSelected =
-    selection !== null;
-
-  return (
-    <div
-      className={`
-        relative
-        overflow-hidden
-        border
-        transition-all
-        duration-200
-        ${
-          isSelected
-            ? `${teamClass.border} ${teamClass.soft}`
-            : "border-line bg-ink2"
-        }
-      `}
-    >
-
-      {/* SELECTED INDICATOR */}
-      {isSelected && (
-        <div
-          className={`
-            absolute
-            inset-y-0
-            left-0
-            w-1
-            ${teamClass.main}
-          `}
-        />
-      )}
-
-      <div className="flex items-center gap-3 p-3">
-
-        {/* STAT */}
-        <div className="min-w-0 flex-1">
-
-          <p className="truncate font-mono text-[8px] font-bold tracking-[0.13em] text-bone/35">
-            {STAT_LABELS[
-              prop.stat_type
-            ]}
-          </p>
-
-          <div className="mt-0.5 flex items-baseline gap-2">
-
-            <span className="font-display text-[34px] leading-none tracking-tight text-bone">
-              {prop.line}
-            </span>
-
-            {prop.featured && (
-              <span className="text-[11px]">
-                🔥
-              </span>
-            )}
-
-          </div>
-
-        </div>
-
-        {/* BUTTONS */}
-        <div className="grid w-[128px] shrink-0 grid-cols-2 gap-1.5">
-
-          <button
-            type="button"
-            disabled={
-              prop.locked
-            }
-            onClick={() =>
-              onSelect(
-                prop,
-                "over"
-              )
-            }
-            className={`
-              min-h-12
-              font-head
-              text-[10px]
-              font-bold
-              tracking-[0.07em]
-              transition-all
-              active:scale-95
-              disabled:cursor-not-allowed
-              disabled:opacity-25
-              ${
-                selection ===
-                "over"
-                  ? `${teamClass.main} text-white shadow-lg`
-                  : "bg-panelLight text-bone/55 hover:bg-line hover:text-bone"
-              }
-            `}
-          >
-            {selection ===
-            "over" ? (
-              <span>
-                ✓ MORE
-              </span>
-            ) : (
-              "MORE"
-            )}
-          </button>
-
-          <button
-            type="button"
-            disabled={
-              prop.locked
-            }
-            onClick={() =>
-              onSelect(
-                prop,
-                "under"
-              )
-            }
-            className={`
-              min-h-12
-              font-head
-              text-[10px]
-              font-bold
-              tracking-[0.07em]
-              transition-all
-              active:scale-95
-              disabled:cursor-not-allowed
-              disabled:opacity-25
-              ${
-                selection ===
-                "under"
-                  ? `${teamClass.main} text-white shadow-lg`
-                  : "bg-panelLight text-bone/55 hover:bg-line hover:text-bone"
-              }
-            `}
-          >
-            {selection ===
-            "under" ? (
-              <span>
-                ✓ LESS
-              </span>
-            ) : (
-              "LESS"
-            )}
-          </button>
-
-        </div>
-      </div>
-
-      {/* LOCKED */}
-      {prop.locked && (
-        <div className="border-t border-line px-3 py-1.5">
-          <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/25">
-            🔒 LOCKED
-          </p>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
