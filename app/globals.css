@@ -7,17 +7,18 @@ html {
 }
 
 body {
-  background-color: #050506;
-  color: #f5f4f1;
+  background-color: #0A0A0C;
+  color: #F4F3F0;
 }
 
 ::selection {
-  background-color: #ea2a2a;
+  background-color: #E23428;
   color: #fff;
 }
 
+/* visible keyboard focus everywhere */
 :focus-visible {
-  outline: 2px solid #f5f4f1;
+  outline: 2px solid #F4F3F0;
   outline-offset: 2px;
 }
 
@@ -35,66 +36,148 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-/* film-grain texture overlay, used sparingly on dark surfaces */
-.grain-overlay {
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: 0.05;
-  mix-blend-mode: overlay;
-  pointer-events: none;
+
+/* =========================================================
+   SCE PICKS — PHASE 2C.4
+   INTERACTION ANIMATIONS
+   ========================================================= */
+
+@keyframes pickPulse {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.012);
+  }
+
+  100% {
+    transform: scale(1.005);
+  }
 }
 
-/* thin gradient hairline used under headlines / section dividers */
-.hairline-red {
-  height: 2px;
-  background: linear-gradient(90deg, #ea2a2a 0%, rgba(234, 42, 42, 0) 100%);
+@keyframes selectionFlash {
+  0% {
+    opacity: 0;
+  }
+
+  25% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
-.hairline-blue {
-  height: 2px;
-  background: linear-gradient(90deg, rgba(30, 95, 255, 0) 0%, #1e5fff 100%);
+
+@keyframes badgeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.92);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-/* number ticker feel for big stat lines */
-.tabular {
-  font-variant-numeric: tabular-nums;
+@keyframes yourPickIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.card-shimmer {
-  background: linear-gradient(
-    100deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.06) 50%,
-    transparent 70%
-  );
+@keyframes checkIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
 
-  @keyframes tierShine {
-  0% {
-    transform: translateX(-80px);
-    opacity: 0;
-  }
+  70% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 
-  25% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.8;
-  }
-
-  75% {
-    opacity: 0;
-  }
-
-  100% {
-    transform: translateX(400px);
-    opacity: 0;
-  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-  background-size: 200% 100%;
+
+@keyframes buttonSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  35% {
+    opacity: 0.15;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pickRemove {
+  0% {
+    transform: scale(1.005);
+  }
+
+  45% {
+    transform: scale(0.995);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+
+/* =========================================================
+   SCE PICKS — PHASE 2C.5
+   TIER PROGRESSION ANIMATION
+   ========================================================= */
+
+@keyframes tierShine {
+  0% {
+    transform: translateX(-80px);
+    opacity: 0;
+  }
+
+  25% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+
+  75% {
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateX(400px);
+    opacity: 0;
+  }
 }
