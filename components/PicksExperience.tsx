@@ -1,335 +1,339 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import PlayerCard from "@/components/PlayerCard";
 import TeamPropCard from "@/components/TeamPropCard";
-import {
-  PickSlipBar,
-  PickSlipDrawer,
-} from "@/components/PickSlip";
+import PickSlip from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
-import SubmitModal, {
-  SubmitInfo,
-} from "@/components/SubmitModal";
-import { getTierInfo } from "@/lib/cardTiers";
+import SubmitModal from "@/components/SubmitModal";
 
+import { getTierInfo } from "@/lib/cardTiers";
 import {
-  CardLeg,
   EventSettings,
+  Player,
   PropWithPlayer,
-  STAT_LABELS,
+  Selection,
   StatType,
-  Team,
   TeamProp,
 } from "@/lib/types";
 
-type TeamFilter = "all" | string;
-type BoardFilter = "all" | "hot" | "game";
+type BoardFilter = "HOT" | "ALL" | "YOUNG" | "ALUM" | "GAME";
 
-export default function PicksExperience({
-  teams,
-  props,
-  teamProps,
-  settings,
-}: {
-  teams: Team[];
+type CardLeg = {
+  key: string;
+  type: "player" | "team";
+  propId: string;
+  selection: Selection;
+  player?: Player;
+  prop?: PropWithPlayer;
+  teamProp?: TeamProp;
+};
+
+type PicksExperienceProps = {
+  players: Player[];
   props: PropWithPlayer[];
   teamProps: TeamProp[];
   settings: EventSettings | null;
-}) {
-  const [teamFilter, setTeamFilter] =
-    useState<TeamFilter>("all");
+};
 
-  const [statFilter, setStatFilter] =
-    useState<StatType | "all">("all");
+const STAT_LABELS: Record<string, string> = {
+  points: "PTS",
+  rebounds: "REB",
+  assists: "AST",
+  steals: "STL",
+  blocks: "BLK",
+  threes: "3PT",
+  pts_reb: "PTS+REB",
+  pts_ast: "PTS+AST",
+  reb_blk: "REB+BLK",
+  pra: "PRA",
+};
+
+const STAT_FILTERS: {
+  value: StatType | "ALL";
+  label: string;
+}[] = [
+  { value: "ALL", label: "ALL STATS" },
+  { value: "points", label: "PTS" },
+  { value: "rebounds", label: "REB" },
+  { value: "assists", label: "AST" },
+  { value: "steals", label: "STL" },
+  { value: "blocks", label: "BLK" },
+  { value: "threes", label: "3PT" },
+  { value: "pts_reb", label: "PTS+REB" },
+  { value: "pts_ast", label: "PTS+AST" },
+  { value: "reb_blk", label: "REB+BLK" },
+  { value: "pra", label: "PRA" },
+];
+
+export default function PicksExperience({
+  players,
+  props,
+  teamProps,
+  settings,
+}: PicksExperienceProps) {
+  const [teamFilter, setTeamFilter] = useState<
+    "ALL" | "YOUNG" | "ALUM"
+  >("ALL");
+
+  const [statFilter, setStatFilter] = useState<
+    StatType | "ALL"
+  >("ALL");
 
   const [boardFilter, setBoardFilter] =
-    useState<BoardFilter>("all");
+    useState<BoardFilter>("HOT");
 
-  const [picks, setPicks] =
-    useState<Record<string, CardLeg>>({});
-
-  const [slipOpen, setSlipOpen] =
-    useState(false);
-
-  const [submitModalOpen, setSubmitModalOpen] =
-    useState(false);
-
-  const [submitting, setSubmitting] =
-    useState(false);
-
-  const [selectedPlayer, setSelectedPlayer] =
-    useState<PropWithPlayer[] | null>(null);
-
-  const [confirmation, setConfirmation] =
-    useState<{
-      code: string;
-      count: number;
-      tier: number | null;
-      prize: string | null;
-    } | null>(null);
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const [errorShake, setErrorShake] =
-    useState(0);
-
-  const [confettiTrigger, setConfettiTrigger] =
-    useState(0);
-
-  const [reachedTiers, setReachedTiers] =
-    useState<Set<number>>(new Set());
-
-  const minPicks =
-    settings?.min_picks ?? 3;
-
-  const picksLocked =
-    settings?.picks_locked ?? false;
-
-  const pickList: CardLeg[] =
-    Object.values(picks);
-
-  const tierInfo = getTierInfo(
-    pickList.length,
-    settings
+  const [picks, setPicks] = useState<Record<string, CardLeg>>(
+    {}
   );
 
-  /* ========================================================== */
-  /* AVAILABLE STATS                                            */
-  /* ========================================================== */
+  const [slipOpen, setSlipOpen] = useState(false);
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const availableStats =
-    useMemo(() => {
-      const set =
-        new Set<StatType>();
+  const [selectedPlayer, setSelectedPlayer] = useState<
+    PropWithPlayer[] | null
+  >(null);
 
-      props.forEach((p) =>
-        set.add(p.stat_type)
-      );
+  const [confirmation, setConfirmation] = useState<{
+    code: string;
+    picks: CardLeg[];
+  } | null>(null);
 
-      return Array.from(set);
-    }, [props]);
+  const [error, setError] = useState<string | null>(null);
+  const [errorShake, setErrorShake] = useState(false);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [reachedTiers, setReachedTiers] = useState<number[]>(
+    []
+  );
 
-  /* ========================================================== */
-  /* GROUP PLAYERS                                               */
-  /* ========================================================== */
+  const minPicks = settings?.min_picks ?? 3;
+  const picksLocked = settings?.picks_locked ?? false;
 
-  const groupedPlayers =
-    useMemo(() => {
-      const map =
-        new Map<
-          string,
-          PropWithPlayer[]
-        >();
+  const pickList: CardLeg[] = Object.values(picks);
 
-      props.forEach((prop) => {
-        if (
-          teamFilter !== "all" &&
-          prop.player.team.slug !==
-            teamFilter
-        ) {
-          return;
+  /*
+   * Lock background scrolling while the player profile is open.
+   */
+  useEffect(() => {
+    if (!selectedPlayer) return;
+
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedPlayer(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedPlayer]);
+
+  /*
+   * Featured / hot props.
+   */
+  const hotPropIds = useMemo(() => {
+    return new Set(
+      props
+        .filter((prop) => prop.is_featured)
+        .map((prop) => prop.id)
+    );
+  }, [props]);
+
+  /*
+   * Group all props by player.
+   */
+  const groupedPlayers = useMemo(() => {
+    const playerMap = new Map<
+      string,
+      {
+        player: Player;
+        props: PropWithPlayer[];
+      }
+    >();
+
+    for (const prop of props) {
+      if (!prop.player) continue;
+
+      const playerId = prop.player.id;
+
+      if (!playerMap.has(playerId)) {
+        playerMap.set(playerId, {
+          player: prop.player,
+          props: [],
+        });
+      }
+
+      playerMap.get(playerId)!.props.push(prop);
+    }
+
+    return Array.from(playerMap.values());
+  }, [props]);
+
+  /*
+   * Filter player cards.
+   */
+  const filteredPlayers = useMemo(() => {
+    return groupedPlayers.filter(
+      ({ player, props: playerProps }) => {
+        const teamName =
+          player.team_name?.toLowerCase() ??
+          player.team?.toLowerCase() ??
+          "";
+
+        const isYoung = teamName.includes("young");
+        const isAlum = teamName.includes("alum");
+
+        if (teamFilter === "YOUNG" && !isYoung) {
+          return false;
         }
 
-        if (
-          boardFilter === "hot" &&
-          !prop.featured
-        ) {
-          return;
+        if (teamFilter === "ALUM" && !isAlum) {
+          return false;
         }
 
-        if (
-          statFilter !== "all" &&
-          prop.stat_type !==
-            statFilter
-        ) {
-          return;
+        if (boardFilter === "YOUNG" && !isYoung) {
+          return false;
         }
 
-        const list =
-          map.get(
-            prop.player.id
-          ) ?? [];
+        if (boardFilter === "ALUM" && !isAlum) {
+          return false;
+        }
 
-        list.push(prop);
-
-        map.set(
-          prop.player.id,
-          list
-        );
-      });
-
-      return Array.from(
-        map.values()
-      ).sort((a, b) => {
-        const aFeatured =
-          a.some(
-            (p) => p.featured
+        if (boardFilter === "HOT") {
+          const hasHotProp = playerProps.some((prop) =>
+            hotPropIds.has(prop.id)
           );
 
-        const bFeatured =
-          b.some(
-            (p) => p.featured
-          );
-
-        if (
-          aFeatured !==
-          bFeatured
-        ) {
-          return aFeatured
-            ? -1
-            : 1;
+          if (!hasHotProp) return false;
         }
 
-        return a[0].player.name.localeCompare(
-          b[0].player.name
-        );
-      });
-    }, [
-      props,
-      teamFilter,
-      statFilter,
-      boardFilter,
-    ]);
+        if (statFilter !== "ALL") {
+          const hasStat = playerProps.some(
+            (prop) => prop.stat_type === statFilter
+          );
 
-  /* ========================================================== */
-  /* TIER CELEBRATION                                            */
-  /* ========================================================== */
+          if (!hasStat) return false;
+        }
 
-  function maybeTriggerTierCelebration(
+        return true;
+      }
+    );
+  }, [
+    groupedPlayers,
+    teamFilter,
+    statFilter,
+    boardFilter,
+    hotPropIds,
+  ]);
+
+  /*
+   * GAME props.
+   */
+  const filteredTeamProps = useMemo(() => {
+    if (boardFilter !== "GAME") return [];
+
+    return teamProps.filter(
+      (prop) => prop.is_active !== false
+    );
+  }, [boardFilter, teamProps]);
+
+  /*
+   * Trigger tier celebration when hitting 3 / 5 / 10.
+   */
+  const maybeTriggerTierCelebration = (
     newCount: number
-  ) {
-    [3, 5, 10].forEach(
-      (tier) => {
-        if (
-          newCount >= tier &&
-          !reachedTiers.has(tier)
-        ) {
-          setReachedTiers(
-            (prev) =>
-              new Set(prev).add(
-                tier
-              )
-          );
+  ) => {
+    const celebrationTiers = [3, 5, 10];
 
-          setConfettiTrigger(
-            (count) =>
-              count + 1
-          );
-        }
+    for (const tier of celebrationTiers) {
+      if (
+        newCount >= tier &&
+        !reachedTiers.includes(tier)
+      ) {
+        setReachedTiers((current) => [
+          ...current,
+          tier,
+        ]);
+
+        setConfettiTrigger((current) => current + 1);
       }
-    );
-  }
+    }
+  };
 
-  /* ========================================================== */
-  /* PLAYER PICK SELECTION                                       */
-  /* ========================================================== */
-
-  function handleSelect(
+  /*
+   * Select a player prop.
+   */
+  const handleSelect = (
     prop: PropWithPlayer,
-    selection:
-      | "over"
-      | "under"
-  ) {
-    const key =
-      `player:${prop.id}`;
+    selection: Selection
+  ) => {
+    if (picksLocked) return;
 
-    setPicks((prev) => {
-      const existing =
-        prev[key];
+    const key = `player:${prop.id}`;
 
-      /* Clicking the same selection removes it */
-      if (
-        existing?.kind ===
-          "player" &&
-        existing.selection ===
-          selection
-      ) {
-        const next = {
-          ...prev,
-        };
+    setError(null);
 
+    setPicks((current) => {
+      const next = { ...current };
+
+      if (next[key]?.selection === selection) {
         delete next[key];
-
-        return next;
-      }
-
-      /* Otherwise create / replace the pick */
-      const next = {
-        ...prev,
-        [key]: {
-          kind: "player" as const,
+      } else {
+        next[key] = {
+          key,
+          type: "player",
           propId: prop.id,
-          playerId:
-            prop.player.id,
-          playerName:
-            prop.player.name,
-          teamName:
-            prop.player.team.name,
-          statType:
-            prop.stat_type,
-          line: prop.line,
           selection,
-        },
-      };
-
-      maybeTriggerTierCelebration(
-        Object.keys(next).length
-      );
-
-      return next;
-    });
-  }
-
-  /* ========================================================== */
-  /* TEAM PICK SELECTION                                         */
-  /* ========================================================== */
-
-  function handleSelectTeam(
-    prop: TeamProp,
-    selection: string
-  ) {
-    const key =
-      `team:${prop.id}`;
-
-    setPicks((prev) => {
-      const existing =
-        prev[key];
-
-      if (
-        existing?.kind ===
-          "team" &&
-        existing.selection ===
-          selection
-      ) {
-        const next = {
-          ...prev,
+          player: prop.player,
+          prop,
         };
-
-        delete next[key];
-
-        return next;
       }
 
-      const next = {
-        ...prev,
-        [key]: {
-          kind: "team" as const,
-          teamPropId: prop.id,
-          propType:
-            prop.prop_type,
-          label:
-            prop.prop_type ===
-            "winning_team"
-              ? "WINNING TEAM"
-              : "COMBINED POINTS",
+      maybeTriggerTierCelebration(
+        Object.keys(next).length
+      );
+
+      return next;
+    });
+  };
+
+  /*
+   * Select a team prop.
+   */
+  const handleSelectTeam = (
+    prop: TeamProp,
+    selection: Selection
+  ) => {
+    if (picksLocked) return;
+
+    const key = `team:${prop.id}`;
+
+    setError(null);
+
+    setPicks((current) => {
+      const next = { ...current };
+
+      if (next[key]?.selection === selection) {
+        delete next[key];
+      } else {
+        next[key] = {
+          key,
+          type: "team",
+          propId: prop.id,
           selection,
-          line: prop.line,
-        },
-      };
+          teamProp: prop,
+        };
+      }
 
       maybeTriggerTierCelebration(
         Object.keys(next).length
@@ -337,98 +341,68 @@ export default function PicksExperience({
 
       return next;
     });
-  }
+  };
 
-  /* ========================================================== */
-  /* REMOVE PICK                                                 */
-  /* ========================================================== */
-
-  function removeLeg(
-    key: string
-  ) {
-    setPicks((prev) => {
-      const next = {
-        ...prev,
-      };
-
+  /*
+   * Remove a pick from MY CARD.
+   */
+  const removeLeg = (key: string) => {
+    setPicks((current) => {
+      const next = { ...current };
       delete next[key];
-
       return next;
     });
-  }
+  };
 
-  /* ========================================================== */
-  /* GET PLAYER SELECTION                                        */
-  /* ========================================================== */
-
-  function getPlayerSelection(
+  /*
+   * Current player prop selection.
+   */
+  const getPlayerSelection = (
     propId: string
-  ):
-    | "over"
-    | "under"
-    | null {
-    const leg =
-      picks[
-        `player:${propId}`
-      ];
+  ): Selection | null => {
+    return picks[`player:${propId}`]?.selection ?? null;
+  };
 
-    return leg?.kind ===
-      "player"
-      ? leg.selection
-      : null;
-  }
+  /*
+   * Current team prop selection.
+   */
+  const getTeamSelection = (
+    propId: string
+  ): Selection | null => {
+    return picks[`team:${propId}`]?.selection ?? null;
+  };
 
-  /* ========================================================== */
-  /* GET TEAM SELECTION                                          */
-  /* ========================================================== */
+  /*
+   * Open player profile.
+   */
+  const openPlayerProfile = (
+    playerProps: PropWithPlayer[]
+  ) => {
+    if (!playerProps.length) return;
 
-  function getTeamSelection(
-    teamPropId: string
-  ): string | null {
-    const leg =
-      picks[
-        `team:${teamPropId}`
-      ];
+    setSelectedPlayer(playerProps);
+  };
 
-    return leg?.kind === "team"
-      ? leg.selection
-      : null;
-  }
-
-  /* ========================================================== */
-  /* ERROR                                                       */
-  /* ========================================================== */
-
-  function flashError(
-    message: string
-  ) {
-    setError(message);
-
-    setErrorShake(
-      (value) => value + 1
-    );
-
-    setTimeout(
-      () => setError(null),
-      3500
-    );
-  }
-
-  /* ========================================================== */
-  /* SUBMIT                                                       */
-  /* ========================================================== */
-
-  async function handleConfirmSubmit(
-    info: SubmitInfo
-  ) {
-    if (
-      pickList.length <
-      minPicks
-    ) {
-      flashError(
-        `You need at least ${minPicks} picks.`
+  /*
+   * Submit card.
+   */
+  const handleSubmit = async () => {
+    if (pickList.length < minPicks) {
+      setError(
+        `You need at least ${minPicks} picks to play.`
       );
 
+      setErrorShake(true);
+
+      window.setTimeout(() => {
+        setErrorShake(false);
+      }, 500);
+
+      return;
+    }
+
+    if (picksLocked) {
+      setError("Picks are locked.");
       return;
     }
 
@@ -436,1536 +410,894 @@ export default function PicksExperience({
     setError(null);
 
     try {
-      const res =
-        await fetch(
-          "/api/picks/submit",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              ...info,
+      const response = await fetch(
+        "/api/picks/submit",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            picks: pickList.map((pick) => ({
+              type: pick.type,
+              propId: pick.propId,
+              selection: pick.selection,
+            })),
+          }),
+        }
+      );
 
-              playerPicks:
-                pickList
-                  .filter(
-                    (
-                      leg
-                    ): leg is Extract<
-                      CardLeg,
-                      {
-                        kind: "player";
-                      }
-                    > =>
-                      leg.kind ===
-                      "player"
-                  )
-                  .map(
-                    (leg) => ({
-                      propId:
-                        leg.propId,
-                      selection:
-                        leg.selection,
-                    })
-                  ),
+      const data = await response.json();
 
-              teamPicks:
-                pickList
-                  .filter(
-                    (
-                      leg
-                    ): leg is Extract<
-                      CardLeg,
-                      {
-                        kind: "team";
-                      }
-                    > =>
-                      leg.kind ===
-                      "team"
-                  )
-                  .map(
-                    (leg) => ({
-                      teamPropId:
-                        leg.teamPropId,
-                      selection:
-                        leg.selection,
-                    })
-                  ),
-            }),
-          }
-        );
-
-      const data =
-        await res.json();
-
-      if (!res.ok) {
+      if (!response.ok) {
         throw new Error(
-          data.error ||
-            "Something went wrong."
+          data?.error ||
+            "Unable to submit your card."
         );
       }
 
-      setConfirmation({
-        code:
-          data.submissionCode,
-        count:
-          pickList.length,
-        tier:
-          tierInfo.tier,
-        prize:
-          tierInfo.prize,
-      });
-
       setSubmitModalOpen(false);
-      setSlipOpen(false);
-      setPicks({});
-    } catch (e: any) {
-      flashError(
-        e.message ||
-          "Something went wrong."
+
+      setConfirmation({
+        code: data.code,
+        picks: pickList,
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
       );
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
-  /* ========================================================== */
-  /* CONFIRMATION SCREEN                                         */
-  /* ========================================================== */
-
+  /*
+   * Confirmation screen.
+   */
   if (confirmation) {
     return (
-      <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-ink px-6 text-center text-bone">
+      <main className="min-h-screen bg-ink px-4 py-8 text-bone sm:px-6">
+        <div className="mx-auto flex min-h-[80vh] max-w-2xl items-center justify-center">
+          <section className="w-full rounded-3xl border border-line bg-card p-6 text-center shadow-2xl sm:p-10">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-young/50 bg-young/10 text-3xl">
+              ✓
+            </div>
 
-        <div className="pointer-events-none absolute inset-0 bg-hero-glow opacity-60" />
-
-        <div className="grain-overlay" />
-
-        <div className="relative">
-
-          <p className="font-display text-5xl leading-none">
-            CARD
-            <br />
-            LOCKED
-          </p>
-
-          <p className="mt-2 text-2xl">
-            🔒
-          </p>
-
-          <p className="mt-6 text-bone/60">
-            {confirmation.count} PICKS ·
-            PERFECT CARD REQUIRED
-          </p>
-
-          {confirmation.prize && (
-            <p className="mt-1 font-head text-sm font-bold tracking-wide text-young-light">
-              PRIZE:{" "}
-              {confirmation.prize.toUpperCase()}
+            <p className="font-head text-xs font-black tracking-[0.2em] text-young-light">
+              CARD SUBMITTED
             </p>
-          )}
 
-          <p className="mt-4 text-bone/60">
-            Good luck. 👀
-          </p>
+            <h1 className="mt-3 font-head text-4xl font-black tracking-tight">
+              GOOD LUCK.
+            </h1>
 
-          <p className="mt-8 inline-block border border-line bg-panel px-4 py-2 font-mono text-sm tracking-wide text-bone/70">
-            #{confirmation.code}
-          </p>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-bone/55">
+              Your picks are locked in. Save your card
+              code so you can reference your entry later.
+            </p>
 
-          <p className="mt-6 font-mono text-[10px] tracking-[0.15em] text-bone/35">
-            FREE TO PLAY · NO ENTRY FEES ·
-            NO WAGERING
-          </p>
+            <div className="mt-8 rounded-2xl border border-line bg-ink/60 p-5">
+              <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-bone/35">
+                YOUR CARD CODE
+              </p>
 
-          <Link
-            href="/"
-            className="mt-10 inline-block bg-bone px-8 py-3 font-head text-sm font-bold tracking-[0.08em] text-ink"
-          >
-            BACK HOME
-          </Link>
+              <p className="mt-2 font-mono text-3xl font-black tracking-[0.2em] text-bone">
+                {confirmation.code}
+              </p>
+            </div>
 
+            <div className="mt-6">
+              <Link
+                href="/picks"
+                className="block rounded-xl bg-bone px-5 py-3 font-head text-sm font-black text-ink transition-transform hover:scale-[1.01]"
+              >
+                BACK TO PICKS
+              </Link>
+            </div>
+          </section>
         </div>
       </main>
     );
   }
 
-  /* ========================================================== */
-  /* MAIN PAGE                                                    */
-  /* ========================================================== */
-
   return (
-    <main className="min-h-[100dvh] bg-ink pb-28 lg:pb-10">
-
-      {/* ====================================================== */}
-      {/* HEADER                                                  */}
-      {/* ====================================================== */}
-
-      <header className="sticky top-0 z-30 border-b border-line bg-ink/92 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-
-        <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-5 lg:pt-4">
-
-          <div className="flex items-center justify-between gap-3">
-
-            <div className="flex min-w-0 items-center gap-3">
-
-              <span className="font-display text-2xl tracking-tight text-bone sm:text-3xl">
+    <main className="min-h-screen bg-ink text-bone">
+      {/* HEADER */}
+      <header className="sticky top-0 z-40 border-b border-line bg-ink/95 backdrop-blur-xl">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
+          <div className="flex min-h-[72px] items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-head text-xl font-black tracking-tight">
                 SCE PICKS
-              </span>
+              </p>
 
-              <span className="hidden h-4 w-px bg-lineBright sm:block" />
+              <div className="mt-1 flex items-center gap-2">
+                <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-bone/40">
+                  YOUNGKNIGHTS
+                </span>
 
-              <div className="hidden sm:block">
+                <span className="text-bone/20">×</span>
 
-                <p className="font-head text-xs font-bold tracking-[0.12em] text-bone">
-                  YOUNGKNIGHTS{" "}
-                  <span className="text-bone/30">
-                    VS
-                  </span>{" "}
+                <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-bone/40">
                   ALUMKNIGHTS
-                </p>
+                </span>
 
-                <p className="font-mono text-[8px] tracking-[0.15em] text-bone/35">
-                  OCT 9 · 7 PM · FREE TO PLAY
-                </p>
+                <span className="hidden text-bone/15 sm:inline">
+                  •
+                </span>
 
+                <span className="hidden font-mono text-[9px] font-bold tracking-[0.16em] text-bone/35 sm:inline">
+                  OCT 9 · 7 PM
+                </span>
               </div>
-
             </div>
 
             <button
-              onClick={() =>
-                setSlipOpen(true)
-              }
-              className="border border-line bg-panelLight px-3 py-2 font-head text-[11px] font-bold tracking-[0.08em] text-bone transition active:scale-95"
+              type="button"
+              onClick={() => setSlipOpen(true)}
+              className="shrink-0 rounded-xl border border-line bg-card px-4 py-2.5 font-head text-xs font-black tracking-wide transition hover:border-bone/30 hover:bg-card/80"
             >
-              MY CARD{" "}
+              MY CARD
 
-              {pickList.length >
-                0 && (
-                <span className="ml-1 text-young-light">
+              {pickList.length > 0 && (
+                <span className="ml-2 rounded-full bg-young px-2 py-0.5 text-[10px] text-bone">
                   {pickList.length}
                 </span>
               )}
-
             </button>
-
           </div>
 
-          {/* MOBILE MATCHUP */}
+          {/* BOARD FILTERS */}
+          <div className="no-scrollbar -mx-4 flex overflow-x-auto border-t border-line sm:-mx-6">
+            {(
+              [
+                ["HOT", "HOT"],
+                ["ALL", "ALL"],
+                ["YOUNG", "YOUNGKNIGHTS"],
+                ["ALUM", "ALUMKNIGHTS"],
+                ["GAME", "GAME"],
+              ] as [BoardFilter, string][]
+            ).map(([value, label]) => {
+              const active =
+                boardFilter === value;
 
-          <div className="mt-2 flex items-center justify-between sm:hidden">
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setBoardFilter(value);
 
-            <p className="font-head text-[11px] font-bold tracking-[0.1em] text-bone/75">
-              YOUNGKNIGHTS{" "}
-              <span className="text-bone/25">
-                VS
-              </span>{" "}
-              ALUMKNIGHTS
-            </p>
-
-            <p className="font-mono text-[8px] tracking-[0.1em] text-bone/30">
-              OCT 9 · 7 PM
-            </p>
-
+                    if (value === "YOUNG") {
+                      setTeamFilter("YOUNG");
+                    } else if (value === "ALUM") {
+                      setTeamFilter("ALUM");
+                    } else if (
+                      value === "ALL" ||
+                      value === "HOT"
+                    ) {
+                      setTeamFilter("ALL");
+                    }
+                  }}
+                  className={`shrink-0 border-r border-line px-5 py-3 font-mono text-[10px] font-bold tracking-[0.14em] transition ${
+                    active
+                      ? "bg-bone text-ink"
+                      : "text-bone/40 hover:bg-card hover:text-bone"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* CATEGORY NAV */}
+          {/* STAT FILTERS */}
+          {boardFilter !== "GAME" && (
+            <div className="no-scrollbar -mx-4 flex overflow-x-auto py-2 sm:-mx-6">
+              {STAT_FILTERS.map((filter) => {
+                const active =
+                  statFilter === filter.value;
 
-          <nav
-            className="no-scrollbar -mx-1 mt-3 flex gap-1 overflow-x-auto pb-2"
-            aria-label="Board categories"
-          >
-
-            <BoardPill
-              active={
-                boardFilter ===
-                "hot"
-              }
-              onClick={() => {
-                setBoardFilter(
-                  "hot"
+                return (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    onClick={() =>
+                      setStatFilter(filter.value)
+                    }
+                    className={`mr-2 shrink-0 rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold tracking-[0.1em] transition ${
+                      active
+                        ? "border-bone bg-bone text-ink"
+                        : "border-line text-bone/35 hover:border-bone/30 hover:text-bone"
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
                 );
-
-                setStatFilter(
-                  "all"
-                );
-              }}
-              label="🔥 HOT"
-            />
-
-            <BoardPill
-              active={
-                boardFilter ===
-                "all"
-              }
-              onClick={() => {
-                setBoardFilter(
-                  "all"
-                );
-
-                setTeamFilter(
-                  "all"
-                );
-
-                setStatFilter(
-                  "all"
-                );
-              }}
-              label="ALL"
-            />
-
-            {teams.map(
-              (team) => (
-                <BoardPill
-                  key={
-                    team.id
-                  }
-                  active={
-                    teamFilter ===
-                      team.slug &&
-                    boardFilter !==
-                      "game"
-                  }
-                  onClick={() => {
-                    setBoardFilter(
-                      "all"
-                    );
-
-                    setTeamFilter(
-                      team.slug
-                    );
-                  }}
-                  label={
-                    team.slug ===
-                    "youngknights"
-                      ? "YOUNG"
-                      : "ALUM"
-                  }
-                  team={
-                    team.slug ===
-                    "youngknights"
-                      ? "young"
-                      : "alum"
-                  }
-                />
-              )
-            )}
-
-            {teamProps.length >
-              0 && (
-              <BoardPill
-                active={
-                  boardFilter ===
-                  "game"
-                }
-                onClick={() =>
-                  setBoardFilter(
-                    "game"
-                  )
-                }
-                label="GAME"
-              />
-            )}
-
-          </nav>
-
-          {/* STAT NAV */}
-
-          <nav
-            className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto pb-3"
-            aria-label="Stat filters"
-          >
-
-            <StatPill
-              active={
-                statFilter ===
-                "all"
-              }
-              onClick={() =>
-                setStatFilter(
-                  "all"
-                )
-              }
-              label="ALL"
-            />
-
-            {availableStats.map(
-              (stat) => (
-                <StatPill
-                  key={stat}
-                  active={
-                    statFilter ===
-                    stat
-                  }
-                  onClick={() => {
-                    setBoardFilter(
-                      "all"
-                    );
-
-                    setStatFilter(
-                      stat
-                    );
-                  }}
-                  label={
-                    STAT_LABELS[
-                      stat
-                    ]
-                  }
-                />
-              )
-            )}
-
-          </nav>
-
+              })}
+            </div>
+          )}
         </div>
       </header>
 
-      {/* ====================================================== */}
-      {/* BOARD                                                    */}
-      {/* ====================================================== */}
-
-      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-5 lg:py-6">
-
-        {boardFilter ===
-        "game" ? (
-          <section>
-
-            <BoardTitle
-              eyebrow="THE MATCHUP"
-              title="GAME PICKS"
-            />
-
-            <div className="grid gap-3 sm:grid-cols-2">
-
-              {teamProps.map(
-                (teamProp) => (
-                  <TeamPropCard
-                    key={
-                      teamProp.id
-                    }
-                    prop={
-                      teamProp
-                    }
-                    teams={teams}
-                    selection={getTeamSelection(
-                      teamProp.id
-                    )}
-                    onSelect={(
-                      selection
-                    ) =>
-                      handleSelectTeam(
-                        teamProp,
-                        selection
-                      )
-                    }
-                  />
-                )
-              )}
-
-            </div>
-
-          </section>
-        ) : (
-          <section>
-
-            <div className="mb-4 flex items-end justify-between gap-3">
-
-              <div>
-
-                <p className="font-mono text-[9px] font-bold tracking-[0.24em] text-bone/35">
-                  CALL YOUR SHOT
-                </p>
-
-                <h1 className="font-display text-3xl leading-none text-bone sm:text-4xl">
-                  PLAYER PROPS
-                </h1>
-
-              </div>
-
-              <p className="font-mono text-[9px] tracking-[0.12em] text-bone/30">
-                {groupedPlayers.length}{" "}
-                PLAYERS
-              </p>
-
-            </div>
-
-            {groupedPlayers.length ===
-            0 ? (
-              <EmptyState
-                hasAnyProps={
-                  props.length >
-                  0
-                }
-              />
-            ) : (
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-
-                {groupedPlayers.map(
-                  (
-                    playerProps
-                  ) => (
-                    <PlayerCard
-                      key={
-                        playerProps[0]
-                          .player.id
-                      }
-                      props={
-                        playerProps
-                      }
-                      primaryPropId={
-                        playerProps.find(
-                          (p) =>
-                            p.featured
-                        )?.id ??
-                        playerProps[0]
-                          .id
-                      }
-                      getSelection={
-                        getPlayerSelection
-                      }
-                      onSelect={
-                        handleSelect
-                      }
-                      onOpenProfile={() =>
-                        setSelectedPlayer(
-                          props.filter(
-                            (p) =>
-                              p.player
-                                .id ===
-                              playerProps[0]
-                                .player.id
-                          )
-                        )
-                      }
-                    />
-                  )
-                )}
-
-              </div>
-            )}
-
-          </section>
-        )}
-
-      </div>
-
-      {/* ====================================================== */}
-      {/* DESKTOP PICK SLIP                                        */}
-      {/* ====================================================== */}
-
-      <PickSidePanel
-        items={
-          pickList
-        }
-        onRemove={
-          removeLeg
-        }
-        onSubmit={() =>
-          setSubmitModalOpen(
-            true
-          )
-        }
-        submitting={
-          submitting
-        }
-        locked={
-          picksLocked
-        }
-        minPicks={
-          minPicks
-        }
-        settings={
-          settings
-        }
-        confettiTrigger={
-          confettiTrigger
-        }
-      />
-
-      {/* ====================================================== */}
-      {/* MOBILE PICK SLIP                                         */}
-      {/* ====================================================== */}
-
-      <div className="lg:hidden">
-
-        <PickSlipBar
-          count={
-            pickList.length
-          }
-          onOpen={() =>
-            setSlipOpen(
-              true
-            )
-          }
-        />
-
-        <PickSlipDrawer
-          items={
-            pickList
-          }
-          open={
-            slipOpen
-          }
-          onClose={() =>
-            setSlipOpen(
-              false
-            )
-          }
-          onRemove={
-            removeLeg
-          }
-          onSubmit={() =>
-            setSubmitModalOpen(
-              true
-            )
-          }
-          submitting={
-            submitting
-          }
-          locked={
-            picksLocked
-          }
-          minPicks={
-            minPicks
-          }
-          settings={
-            settings
-          }
-          confettiTrigger={
-            confettiTrigger
-          }
-        />
-
-      </div>
-
-      {/* ====================================================== */}
-      {/* SUBMIT MODAL                                             */}
-      {/* ====================================================== */}
-
-      <SubmitModal
-        open={
-          submitModalOpen
-        }
-        onClose={() =>
-          setSubmitModalOpen(
-            false
-          )
-        }
-        onConfirm={
-          handleConfirmSubmit
-        }
-        submitting={
-          submitting
-        }
-        emailRequired={
-          settings?.email_required ??
-          true
-        }
-        instagramRequired={
-          settings?.instagram_required ??
-          true
-        }
-        pickCount={
-          pickList.length
-        }
-        tierInfo={
-          tierInfo
-        }
-      />
-
-      {/* ====================================================== */}
-      {/* PLAYER PROFILE                                           */}
-      {/* ====================================================== */}
-
-      {selectedPlayer && (
-        <PlayerProfile
-          props={
-            selectedPlayer
-          }
-          getSelection={
-            getPlayerSelection
-          }
-          onSelect={
-            handleSelect
-          }
-          onClose={() =>
-            setSelectedPlayer(
-              null
-            )
-          }
-        />
-      )}
-
-      {/* ====================================================== */}
-      {/* ERROR                                                    */}
-      {/* ====================================================== */}
-
+      {/* ERROR */}
       {error && (
         <div
-          key={
-            errorShake
-          }
-          className="fixed inset-x-4 bottom-24 z-50 animate-shake border border-bone/10 bg-young px-4 py-3 text-center text-sm font-semibold text-white shadow-glowRed lg:bottom-6"
+          className={`mx-auto max-w-[1600px] px-4 pt-4 sm:px-6 ${
+            errorShake ? "animate-shake" : ""
+          }`}
         >
-          {error}
+          <div className="rounded-xl border border-young/30 bg-young/10 px-4 py-3 text-sm text-young-light">
+            {error}
+          </div>
         </div>
       )}
 
+      {/* BOARD */}
+      <section className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8">
+        {boardFilter === "GAME" ? (
+          <div>
+            <div className="mb-5">
+              <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-bone/35">
+                GAME PROPS
+              </p>
+
+              <h2 className="mt-1 font-head text-2xl font-black">
+                CALL THE GAME.
+              </h2>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredTeamProps.map((teamProp) => (
+                <TeamPropCard
+                  key={teamProp.id}
+                  prop={teamProp}
+                  selection={getTeamSelection(
+                    teamProp.id
+                  )}
+                  onSelect={(selection) =>
+                    handleSelectTeam(
+                      teamProp,
+                      selection
+                    )
+                  }
+                  locked={picksLocked}
+                />
+              ))}
+            </div>
+
+            {filteredTeamProps.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-line p-10 text-center">
+                <p className="font-head text-lg font-bold text-bone/50">
+                  NO GAME PROPS AVAILABLE
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <p className="font-mono text-[10px] font-bold tracking-[0.2em] text-bone/35">
+                  {boardFilter === "HOT"
+                    ? "FEATURED PICKS"
+                    : boardFilter === "YOUNG"
+                    ? "YOUNGKNIGHTS"
+                    : boardFilter === "ALUM"
+                    ? "ALUMKNIGHTS"
+                    : "ALL PLAYERS"}
+                </p>
+
+                <h2 className="mt-1 font-head text-2xl font-black sm:text-3xl">
+                  MAKE YOUR CALL.
+                </h2>
+              </div>
+
+              <p className="shrink-0 font-mono text-[9px] font-bold tracking-[0.12em] text-bone/25">
+                {filteredPlayers.length} PLAYERS
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredPlayers.map(
+                ({
+                  player,
+                  props: playerProps,
+                }) => {
+                  const primary =
+                    playerProps.find((prop) =>
+                      hotPropIds.has(prop.id)
+                    ) ?? playerProps[0];
+
+                  if (!primary) return null;
+
+                  return (
+                    <PlayerCard
+                      key={player.id}
+                      props={playerProps}
+                      primaryPropId={primary.id}
+                      getSelection={
+                        getPlayerSelection
+                      }
+                      onSelect={handleSelect}
+                      onOpenProfile={() =>
+                        openPlayerProfile(
+                          playerProps
+                        )
+                      }
+                    />
+                  );
+                }
+              )}
+            </div>
+
+            {filteredPlayers.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-line p-10 text-center">
+                <p className="font-head text-lg font-bold text-bone/50">
+                  NO PICKS FOUND
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBoardFilter("ALL");
+                    setTeamFilter("ALL");
+                    setStatFilter("ALL");
+                  }}
+                  className="mt-3 font-mono text-[10px] font-bold tracking-[0.12em] text-young-light"
+                >
+                  CLEAR FILTERS →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* DESKTOP PICK PANEL */}
+      <div className="hidden lg:block">
+        <PickSidePanel
+          picks={pickList}
+          minPicks={minPicks}
+          settings={settings}
+          locked={picksLocked}
+          onRemove={removeLeg}
+          onSubmit={() =>
+            setSubmitModalOpen(true)
+          }
+          confettiTrigger={confettiTrigger}
+        />
+      </div>
+
+      {/* MOBILE PICK SLIP */}
+      <div className="lg:hidden">
+        <PickSlip
+          picks={pickList}
+          minPicks={minPicks}
+          settings={settings}
+          locked={picksLocked}
+          open={slipOpen}
+          onOpen={() => setSlipOpen(true)}
+          onClose={() => setSlipOpen(false)}
+          onRemove={removeLeg}
+          onSubmit={() =>
+            setSubmitModalOpen(true)
+          }
+          confettiTrigger={confettiTrigger}
+        />
+      </div>
+
+      {/* SUBMIT MODAL */}
+      <SubmitModal
+        open={submitModalOpen}
+        picks={pickList}
+        minPicks={minPicks}
+        settings={settings}
+        submitting={submitting}
+        onClose={() =>
+          setSubmitModalOpen(false)
+        }
+        onSubmit={handleSubmit}
+      />
+
+      {/* PLAYER PROFILE */}
+      {selectedPlayer && (
+        <PlayerProfile
+          props={selectedPlayer}
+          locked={picksLocked}
+          getSelection={getPlayerSelection}
+          onSelect={handleSelect}
+          onClose={() =>
+            setSelectedPlayer(null)
+          }
+        />
+      )}
     </main>
   );
 }
 
-/* ============================================================= */
-/* CATEGORY PILL                                                 */
-/* ============================================================= */
-
-function BoardPill({
-  active,
-  onClick,
-  label,
-  team,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  team?: "young" | "alum";
-}) {
-  const activeClass =
-    team === "young"
-      ? "border-young bg-young/15 text-young-light"
-      : team === "alum"
-        ? "border-alum bg-alum/15 text-alum-light"
-        : "border-bone bg-bone text-ink";
-
-  return (
-    <button
-      onClick={
-        onClick
-      }
-      className={`shrink-0 border px-3 py-2 font-head text-[10px] font-bold tracking-[0.1em] transition ${
-        active
-          ? activeClass
-          : "border-line bg-panel text-bone/45 hover:text-bone"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-/* ============================================================= */
-/* STAT PILL                                                      */
-/* ============================================================= */
-
-function StatPill({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      onClick={
-        onClick
-      }
-      className={`shrink-0 border px-2.5 py-1.5 font-mono text-[8px] font-bold tracking-[0.1em] transition ${
-        active
-          ? "border-bone/45 bg-panelLight text-bone"
-          : "border-line text-bone/35 hover:text-bone/60"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-/* ============================================================= */
-/* BOARD TITLE                                                    */
-/* ============================================================= */
-
-function BoardTitle({
-  eyebrow,
-  title,
-}: {
-  eyebrow: string;
-  title: string;
-}) {
-  return (
-    <div className="mb-4">
-
-      <p className="font-mono text-[9px] font-bold tracking-[0.25em] text-bone/35">
-        {eyebrow}
-      </p>
-
-      <h2 className="font-display text-3xl leading-none text-bone">
-        {title}
-      </h2>
-
-    </div>
-  );
-}
-
-/* ============================================================= */
-/* EMPTY STATE                                                     */
-/* ============================================================= */
-
-function EmptyState({
-  hasAnyProps,
-}: {
-  hasAnyProps: boolean;
-}) {
-  return (
-    <div className="border border-line bg-panel px-6 py-16 text-center">
-
-      <p className="font-display text-4xl leading-none text-bone">
-        GAME DAY
-        <br />
-        IS COMING.
-      </p>
-
-      <p className="mt-3 font-mono text-[9px] tracking-[0.2em] text-bone/35">
-        {hasAnyProps
-          ? "NO PROPS MATCH THIS FILTER"
-          : "PLAYER PROPS DROP SOON"}
-      </p>
-
-    </div>
-  );
-}
-
-/* ============================================================= */
-/* PLAYER PROFILE — 2D.1 + 2D.2                                  */
-/* ============================================================= */
+/* -------------------------------------------------------------------------- */
+/* PLAYER PROFILE                                                             */
+/* -------------------------------------------------------------------------- */
 
 function PlayerProfile({
   props,
+  locked,
   getSelection,
   onSelect,
   onClose,
 }: {
   props: PropWithPlayer[];
-
+  locked: boolean;
   getSelection: (
-    id: string
-  ) =>
-    | "over"
-    | "under"
-    | null;
-
+    propId: string
+  ) => Selection | null;
   onSelect: (
     prop: PropWithPlayer,
-    selection:
-      | "over"
-      | "under"
+    selection: Selection
   ) => void;
-
   onClose: () => void;
 }) {
-  const player =
-    props[0]?.player;
+  const player = props[0]?.player;
 
-  if (!player) {
-    return null;
-  }
+  if (!player) return null;
 
-  const isYoung =
-    player.team.slug ===
-    "youngknights";
+  const selectedProps = props.filter(
+    (prop) => getSelection(prop.id) !== null
+  );
 
-  const teamClass =
-    isYoung
-      ? {
-          main: "bg-young",
-          soft: "bg-young/10",
-          softStrong:
-            "bg-young/15",
-          border:
-            "border-young/40",
-          borderStrong:
-            "border-young",
-          text:
-            "text-young-light",
-          glow:
-            "shadow-glowRed",
-        }
-      : {
-          main: "bg-alum",
-          soft: "bg-alum/10",
-          softStrong:
-            "bg-alum/15",
-          border:
-            "border-alum/40",
-          borderStrong:
-            "border-alum",
-          text:
-            "text-alum-light",
-          glow:
-            "shadow-glowBlue",
-        };
+  const primaryProp =
+    props.find((prop) => prop.is_featured) ??
+    props[0];
 
-  const selectedCount =
-    props.reduce(
-      (count, prop) =>
-        count +
-        (getSelection(
-          prop.id
-        )
-          ? 1
-          : 0),
-      0
-    );
+  const teamName =
+    player.team_name?.toLowerCase() ??
+    player.team?.toLowerCase() ??
+    "";
 
-  const featuredProps =
-    props.filter(
-      (prop) =>
-        prop.featured
-    );
+  const isYoung = teamName.includes("young");
 
-  const regularProps =
-    props.filter(
-      (prop) =>
-        !prop.featured
-    );
+  const teamLabel = isYoung
+    ? "YOUNGKNIGHTS"
+    : "ALUMKNIGHTS";
+
+  const firstName =
+    player.name?.split(" ")[0] ?? "";
+
+  const lastName =
+    player.name
+      ?.split(" ")
+      .slice(1)
+      .join(" ") ?? "";
 
   return (
     <div
-      className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-md"
+      className="fixed inset-0 z-[100] overflow-y-auto bg-ink/95 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-label={`${player.name} player profile`}
     >
+      {/* TOP BAR */}
+      <div className="sticky top-0 z-20 border-b border-line bg-ink/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-lg px-2 py-2 font-mono text-[10px] font-bold tracking-[0.12em] text-bone/45 transition hover:bg-card hover:text-bone"
+          >
+            <span className="text-lg leading-none">
+              ←
+            </span>
+            BACK
+          </button>
 
-      {/* ==================================================== */}
-      {/* BACKDROP                                              */}
-      {/* ==================================================== */}
-
-      <button
-        type="button"
-        onClick={
-          onClose
-        }
-        className="absolute inset-0 cursor-default"
-        aria-label="Close player profile"
-      />
-
-      {/* ==================================================== */}
-      {/* PROFILE SHEET                                          */}
-      {/* ==================================================== */}
-
-      <div
-        className="
-          absolute
-          inset-x-0
-          bottom-0
-          mx-auto
-          flex
-          max-h-[96dvh]
-          w-full
-          flex-col
-          overflow-hidden
-          rounded-t-[20px]
-          border
-          border-lineBright
-          bg-panel
-          shadow-2xl
-          sm:inset-y-6
-          sm:bottom-auto
-          sm:max-w-2xl
-          sm:rounded-[16px]
-        "
-      >
-
-        {/* MOBILE HANDLE */}
-
-        <div className="flex shrink-0 justify-center pt-2 sm:hidden">
-          <span className="h-1 w-10 rounded-full bg-bone/15" />
-        </div>
-
-        {/* ================================================= */}
-        {/* HERO                                               */}
-        {/* ================================================= */}
-
-        <div className="relative h-[270px] shrink-0 overflow-hidden sm:h-[330px]">
-
-          {/* PLAYER IMAGE */}
-
-          {player.image_url ? (
-            <img
-              src={
-                player.image_url
-              }
-              alt={
-                player.name
-              }
-              className="
-                absolute
-                inset-0
-                h-full
-                w-full
-                object-contain
-                object-center
-              "
-            />
-          ) : (
-            <div
-              className={`
-                absolute
-                inset-0
-                ${teamClass.soft}
-                flex
-                items-center
-                justify-center
-              `}
-            >
-              <span
-                className={`
-                  font-display
-                  text-[160px]
-                  leading-none
-                  ${teamClass.text}
-                  opacity-20
-                `}
-              >
-                {player.name.charAt(
-                  0
-                )}
-              </span>
-            </div>
-          )}
-
-          {/* DARK BACKDROP */}
-
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-panel" />
-
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/15" />
-
-          {/* TEAM COLOR STRIPE */}
-
-          <div
-            className={`
-              absolute
-              inset-x-0
-              bottom-0
-              h-1
-              ${teamClass.main}
-            `}
-          />
-
-          {/* CLOSE */}
+          <div className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/25">
+            PLAYER PROFILE
+          </div>
 
           <button
             type="button"
-            onClick={
-              onClose
-            }
-            className="
-              absolute
-              right-3
-              top-3
-              z-20
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-full
-              border
-              border-white/15
-              bg-black/55
-              text-xl
-              text-white/75
-              backdrop-blur-md
-              transition
-              hover:bg-black/80
-              hover:text-white
-              active:scale-95
-            "
+            onClick={onClose}
             aria-label="Close player profile"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-bone/50 transition hover:border-bone/30 hover:text-bone"
           >
             ×
           </button>
-
-          {/* TEAM BADGE */}
-
-          <div className="absolute left-4 top-4 z-20">
-
-            <span
-              className="
-                inline-flex
-                items-center
-                gap-2
-                border
-                border-white/15
-                bg-black/55
-                px-3
-                py-1.5
-                font-mono
-                text-[8px]
-                font-bold
-                tracking-[0.18em]
-                text-white
-                backdrop-blur-md
-              "
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${teamClass.main}`}
-              />
-
-              {player.team.name.toUpperCase()}
-            </span>
-
-          </div>
-
-          {/* HERO NAME */}
-
-          <div className="absolute bottom-5 left-4 right-4 z-20 sm:left-6 sm:right-6">
-
-            <p className="font-mono text-[8px] font-bold tracking-[0.25em] text-white/45">
-              PLAYER PROFILE
-            </p>
-
-            <h2 className="mt-1 max-w-full whitespace-normal break-words font-display text-[40px] leading-[0.88] tracking-tight text-white sm:text-5xl">
-              {player.name}
-            </h2>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-
-              <span
-                className={`
-                  font-mono
-                  text-[9px]
-                  font-bold
-                  tracking-[0.18em]
-                  ${teamClass.text}
-                `}
-              >
-                {player.team.name.toUpperCase()}
-              </span>
-
-              <span className="text-white/20">
-                /
-              </span>
-
-              <span className="font-mono text-[8px] tracking-[0.15em] text-white/40">
-                {props.length} PROPS
-              </span>
-
-            </div>
-
-          </div>
-
         </div>
+      </div>
 
-        {/* ================================================= */}
-        {/* SCROLLABLE BODY                                     */}
-        {/* ================================================= */}
+      <div className="mx-auto max-w-5xl px-4 pb-32 pt-5 sm:px-6 sm:pt-8">
+        {/* HERO */}
+        <section
+          className={`relative overflow-hidden rounded-3xl border ${
+            isYoung
+              ? "border-young/30"
+              : "border-alum/30"
+          } bg-card`}
+        >
+          <div
+            className={`pointer-events-none absolute inset-0 ${
+              isYoung
+                ? "bg-[radial-gradient(circle_at_25%_20%,rgba(226,52,40,0.28),transparent_45%)]"
+                : "bg-[radial-gradient(circle_at_25%_20%,rgba(73,87,170,0.28),transparent_45%)]"
+            }`}
+          />
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="relative grid min-h-[300px] md:grid-cols-[0.85fr_1.15fr]">
+            {/* PLAYER PHOTO */}
+            <div className="relative min-h-[280px] overflow-hidden md:min-h-[380px]">
+              <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent md:bg-gradient-to-r" />
 
-          {/* ================================================= */}
-          {/* PLAYER SUMMARY                                      */}
-          {/* ================================================= */}
-
-          <div className="border-b border-line px-4 py-4 sm:px-6">
-
-            <div className="grid grid-cols-2 gap-2">
-
-              {/* AVAILABLE */}
-
-              <div className="border border-line bg-ink2 p-3">
-
-                <p className="font-mono text-[7px] font-bold tracking-[0.2em] text-bone/30">
-                  AVAILABLE
-                </p>
-
-                <p className="mt-1 font-display text-3xl leading-none text-bone">
-                  {props.length}
-                </p>
-
-                <p className="mt-1 font-mono text-[7px] tracking-[0.12em] text-bone/25">
-                  PLAYER PROPS
-                </p>
-
-              </div>
-
-              {/* SELECTED */}
-
-              <div
-                className={`
-                  border
-                  ${
-                    selectedCount >
-                    0
-                      ? `${teamClass.border} ${teamClass.soft}`
-                      : "border-line bg-ink2"
-                  }
-                  p-3
-                `}
-              >
-
-                <p className="font-mono text-[7px] font-bold tracking-[0.2em] text-bone/30">
-                  YOUR CARD
-                </p>
-
-                <p
-                  className={`
-                    mt-1
-                    font-display
-                    text-3xl
-                    leading-none
-                    ${
-                      selectedCount >
-                      0
-                        ? teamClass.text
-                        : "text-bone"
-                    }
-                  `}
-                >
-                  {selectedCount}
-                </p>
-
-                <p className="mt-1 font-mono text-[7px] tracking-[0.12em] text-bone/25">
-                  SELECTED PROPS
-                </p>
-
-              </div>
-
-            </div>
-
-            {/* PLAYER NOTES */}
-
-            {player.bio_tags &&
-              player.bio_tags.length >
-                0 && (
-                <div className="mt-4">
-
-                  <div className="mb-2 flex items-center justify-between">
-
-                    <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
-                      PLAYER NOTES
-                    </p>
-
-                    <span className="font-mono text-[7px] tracking-[0.1em] text-bone/20">
-                      SCOUTING
-                    </span>
-
+              {player.image_url ? (
+                <img
+                  src={player.image_url}
+                  alt={player.name}
+                  className="absolute inset-0 h-full w-full object-contain object-center p-4 transition-transform duration-700 md:p-6"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex h-32 w-32 items-center justify-center rounded-full border border-line bg-ink/40 font-head text-5xl font-black text-bone/20">
+                    {player.name?.charAt(0) ??
+                      "?"}
                   </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-
-                    {player.bio_tags.map(
-                      (
-                        tag,
-                        index
-                      ) => (
-                        <span
-                          key={`${tag}-${index}`}
-                          className={`
-                            border
-                            border-line
-                            bg-ink2
-                            px-2.5
-                            py-1.5
-                            font-mono
-                            text-[8px]
-                            font-bold
-                            tracking-[0.05em]
-                            text-bone/55
-                          `}
-                        >
-                          {tag}
-                        </span>
-                      )
-                    )}
-
-                  </div>
-
                 </div>
               )}
 
-          </div>
+              <div className="absolute bottom-4 left-4">
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1.5 font-mono text-[9px] font-black tracking-[0.14em] ${
+                    isYoung
+                      ? "border-young/40 bg-young/20 text-young-light"
+                      : "border-alum/40 bg-alum/20 text-alum-light"
+                  }`}
+                >
+                  {teamLabel}
+                </span>
+              </div>
+            </div>
 
-          {/* ================================================= */}
-          {/* PROP SECTION                                       */}
-          {/* ================================================= */}
-
-          <div className="px-4 py-4 sm:px-6">
-
-            <div className="mb-4">
-
-              <div className="flex items-end justify-between gap-3">
-
-                <div>
-
-                  <p className="font-mono text-[8px] font-bold tracking-[0.22em] text-bone/30">
-                    MAKE YOUR CALL
-                  </p>
-
-                  <h3 className="mt-0.5 font-display text-3xl leading-none text-bone">
-                    ALL PROPS
-                  </h3>
-
-                </div>
-
-                {selectedCount >
-                  0 && (
-                  <span
-                    className={`
-                      border
-                      ${teamClass.border}
-                      ${teamClass.soft}
-                      px-2.5
-                      py-1.5
-                      font-mono
-                      text-[7px]
-                      font-bold
-                      tracking-[0.12em]
-                      ${teamClass.text}
-                    `}
-                  >
-                    {selectedCount}{" "}
-                    PICKED
-                  </span>
-                )}
-
+            {/* PLAYER INFO */}
+            <div className="relative flex flex-col justify-end p-5 sm:p-7 md:p-9">
+              <div className="mb-auto">
+                <p className="font-mono text-[9px] font-bold tracking-[0.2em] text-bone/30">
+                  {props.length} AVAILABLE PROP
+                  {props.length === 1
+                    ? ""
+                    : "S"}
+                </p>
               </div>
 
-              <p className="mt-1 max-w-[90%] text-xs leading-relaxed text-bone/35">
-                Choose MORE or LESS for any prop.
-                You can build your entire card from this profile.
+              <div>
+                <h1 className="font-head text-4xl font-black leading-[0.95] tracking-tight sm:text-5xl md:text-6xl">
+                  {firstName}
+
+                  {lastName && (
+                    <>
+                      <br />
+                      <span className="text-bone/55">
+                        {lastName}
+                      </span>
+                    </>
+                  )}
+                </h1>
+
+                {player.bio_tags &&
+                  player.bio_tags.length > 0 && (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {player.bio_tags.map(
+                        (tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-line bg-ink/50 px-3 py-1.5 font-mono text-[9px] font-bold tracking-[0.08em] text-bone/50"
+                          >
+                            {tag}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CARD STATUS */}
+        <section className="mt-4 rounded-2xl border border-line bg-card p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/30">
+                YOUR CARD
               </p>
 
+              <p className="mt-1 font-head text-lg font-black">
+                {selectedProps.length === 0
+                  ? "NO PICKS FROM THIS PLAYER"
+                  : `${selectedProps.length} PICK${
+                      selectedProps.length === 1
+                        ? ""
+                        : "S"
+                    } SELECTED`}
+              </p>
             </div>
 
-            {/* FEATURED PROPS */}
-
-            {featuredProps.length >
-              0 && (
-              <div className="mb-5">
-
-                <div className="mb-2 flex items-center gap-2">
-
-                  <span className="text-xs">
-                    🔥
-                  </span>
-
-                  <p className="font-mono text-[8px] font-bold tracking-[0.18em] text-bone/40">
-                    FEATURED
-                  </p>
-
-                </div>
-
-                <div className="space-y-2">
-
-                  {featuredProps.map(
-                    (prop) => (
-                      <ProfileProp
-                        key={
-                          prop.id
-                        }
-                        prop={
-                          prop
-                        }
-                        selection={
-                          getSelection(
-                            prop.id
-                          )
-                        }
-                        teamClass={
-                          teamClass
-                        }
-                        onSelect={
-                          onSelect
-                        }
-                      />
-                    )
-                  )}
-
-                </div>
-
-              </div>
-            )}
-
-            {/* OTHER PROPS */}
-
-            {regularProps.length >
-              0 && (
-              <div>
-
-                {featuredProps.length >
-                  0 && (
-                  <div className="mb-2">
-
-                    <p className="font-mono text-[8px] font-bold tracking-[0.18em] text-bone/30">
-                      MORE PROPS
-                    </p>
-
-                  </div>
-                )}
-
-                <div className="space-y-2">
-
-                  {regularProps.map(
-                    (prop) => (
-                      <ProfileProp
-                        key={
-                          prop.id
-                        }
-                        prop={
-                          prop
-                        }
-                        selection={
-                          getSelection(
-                            prop.id
-                          )
-                        }
-                        teamClass={
-                          teamClass
-                        }
-                        onSelect={
-                          onSelect
-                        }
-                      />
-                    )
-                  )}
-
-                </div>
-
-              </div>
-            )}
-
-          </div>
-
-          {/* BOTTOM SPACING FOR MOBILE FOOTER */}
-
-          <div className="h-3 sm:hidden" />
-
-        </div>
-
-        {/* ================================================= */}
-        {/* PROFILE FOOTER                                      */}
-        {/* ================================================= */}
-
-        <div className="shrink-0 border-t border-line bg-panel/95 p-3 backdrop-blur-xl">
-
-          <div className="flex items-center gap-2">
-
-            <div className="min-w-0 flex-1">
-
-              {selectedCount >
-              0 ? (
-                <>
-                  <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/30">
-                    CURRENTLY ON YOUR CARD
-                  </p>
-
-                  <p
-                    className={`
-                      mt-0.5
-                      truncate
-                      font-head
-                      text-xs
-                      font-bold
-                      tracking-[0.05em]
-                      ${teamClass.text}
-                    `}
-                  >
-                    {selectedCount}{" "}
-                    PLAYER PROP
-                    {selectedCount ===
-                    1
-                      ? ""
-                      : "S"}{" "}
-                    SELECTED
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/30">
-                    READY TO PICK?
-                  </p>
-
-                  <p className="mt-0.5 font-head text-xs font-bold tracking-[0.05em] text-bone/65">
-                    SELECT A PROP ABOVE
-                  </p>
-                </>
-              )}
-
-            </div>
-
-            <button
-              type="button"
-              onClick={
-                onClose
-              }
-              className="
-                shrink-0
-                border
-                border-lineBright
-                bg-panelLight
-                px-4
-                py-3
-                font-head
-                text-[10px]
-                font-bold
-                tracking-[0.1em]
-                text-bone
-                transition
-                hover:bg-line
-                active:scale-[0.98]
-              "
+            <div
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border font-mono text-sm font-black ${
+                selectedProps.length > 0
+                  ? "border-young/40 bg-young/10 text-young-light"
+                  : "border-line text-bone/25"
+              }`}
             >
-              DONE
-            </button>
+              {selectedProps.length}
+            </div>
+          </div>
+        </section>
 
+        {/* FEATURED PROP */}
+        {primaryProp && (
+          <section className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/30">
+                  FEATURED BET
+                </p>
+
+                <h2 className="mt-1 font-head text-xl font-black">
+                  MAKE YOUR CALL
+                </h2>
+              </div>
+
+              {primaryProp.is_featured && (
+                <span className="rounded-full border border-young/30 bg-young/10 px-2.5 py-1 font-mono text-[8px] font-black tracking-[0.12em] text-young-light">
+                  HOT
+                </span>
+              )}
+            </div>
+
+            <ProfileProp
+              prop={primaryProp}
+              selection={getSelection(
+                primaryProp.id
+              )}
+              locked={locked}
+              featured
+              onSelect={(selection) =>
+                onSelect(
+                  primaryProp,
+                  selection
+                )
+              }
+            />
+          </section>
+        )}
+
+        {/* ALL PROPS */}
+        <section className="mt-8">
+          <div className="mb-3">
+            <p className="font-mono text-[9px] font-bold tracking-[0.18em] text-bone/30">
+              FULL PROP BOARD
+            </p>
+
+            <h2 className="mt-1 font-head text-xl font-black">
+              ALL {player.name?.toUpperCase()} PROPS
+            </h2>
           </div>
 
-        </div>
+          <div className="space-y-3">
+            {props.map((prop) => (
+              <ProfileProp
+                key={prop.id}
+                prop={prop}
+                selection={getSelection(prop.id)}
+                locked={locked}
+                featured={
+                  prop.id === primaryProp?.id
+                }
+                onSelect={(selection) =>
+                  onSelect(prop, selection)
+                }
+              />
+            ))}
+          </div>
+        </section>
 
+        {/* PROFILE FOOTER */}
+        <div className="mt-8 rounded-2xl border border-line bg-card p-4 text-center sm:p-5">
+          <p className="font-mono text-[9px] font-bold tracking-[0.16em] text-bone/30">
+            EVERY PICK HAS TO HIT
+          </p>
+
+          <p className="mt-2 text-xs leading-5 text-bone/40">
+            Choose More or Less on any prop above.
+            Your selections are added directly to MY
+            CARD.
+          </p>
+        </div>
+      </div>
+
+      {/* MOBILE STICKY FOOTER */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-ink/95 p-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[9px] font-bold tracking-[0.12em] text-bone/30">
+              {selectedProps.length === 0
+                ? "NO PLAYER PICKS"
+                : `${selectedProps.length} PLAYER PICK${
+                    selectedProps.length === 1
+                      ? ""
+                      : "S"
+                  }`}
+            </p>
+
+            <p className="truncate font-head text-sm font-black">
+              {locked
+                ? "PICKS ARE LOCKED"
+                : "YOUR PICKS UPDATE LIVE"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-xl bg-bone px-5 py-3 font-head text-xs font-black text-ink transition hover:scale-[1.01]"
+          >
+            DONE
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ============================================================= */
-/* PROFILE PROP                                                   */
-/* ============================================================= */
+/* -------------------------------------------------------------------------- */
+/* PROFILE PROP                                                               */
+/* -------------------------------------------------------------------------- */
 
 function ProfileProp({
   prop,
   selection,
-  teamClass,
+  locked,
+  featured = false,
   onSelect,
 }: {
-  prop: PropWithPlayer[];
-
-  selection:
-    | "over"
-    | "under"
-    | null;
-
-  teamClass: {
-    main: string;
-    soft: string;
-    softStrong: string;
-    border: string;
-    borderStrong: string;
-    text: string;
-    glow: string;
-  };
-
-  onSelect: (
-    prop: PropWithPlayer,
-    selection:
-      | "over"
-      | "under"
-  ) => void;
+  prop: PropWithPlayer;
+  selection: Selection | null;
+  locked: boolean;
+  featured?: boolean;
+  onSelect: (selection: Selection) => void;
 }) {
-  return null;
+  const statLabel =
+    STAT_LABELS[prop.stat_type] ??
+    prop.stat_type
+      ?.replaceAll("_", " ")
+      .toUpperCase();
+
+  const isPicked = selection !== null;
+
+  return (
+    <article
+      className={`overflow-hidden rounded-2xl border transition-all duration-300 ${
+        isPicked
+          ? "border-young/50 bg-young/[0.06] shadow-[0_0_30px_rgba(226,52,40,0.08)]"
+          : featured
+          ? "border-bone/15 bg-card"
+          : "border-line bg-card"
+      }`}
+    >
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[9px] font-black tracking-[0.16em] text-bone/35">
+                {statLabel}
+              </span>
+
+              {featured && (
+                <span className="rounded-full bg-young/10 px-2 py-0.5 font-mono text-[7px] font-black tracking-[0.12em] text-young-light">
+                  FEATURED
+                </span>
+              )}
+
+              {isPicked && (
+                <span className="animate-pop rounded-full bg-young px-2 py-0.5 font-mono text-[7px] font-black tracking-[0.12em] text-bone">
+                  ✓ PICKED
+                </span>
+              )}
+            </div>
+
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="font-head text-3xl font-black tracking-tight">
+                {prop.line}
+              </span>
+
+              <span className="font-mono text-[9px] font-bold tracking-[0.1em] text-bone/30">
+                LINE
+              </span>
+            </div>
+          </div>
+
+          {isPicked && (
+            <div className="shrink-0 rounded-lg border border-young/30 bg-young/10 px-2.5 py-2 text-center">
+              <p className="font-mono text-[7px] font-bold tracking-[0.12em] text-bone/35">
+                YOUR PICK
+              </p>
+
+              <p className="mt-0.5 font-head text-xs font-black text-young-light">
+                {selection === "more"
+                  ? "MORE"
+                  : "LESS"}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* MORE / LESS */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <ProfileSelectButton
+            label="MORE"
+            active={selection === "more"}
+            disabled={locked}
+            onClick={() =>
+              onSelect("more")
+            }
+          />
+
+          <ProfileSelectButton
+            label="LESS"
+            active={selection === "less"}
+            disabled={locked}
+            onClick={() =>
+              onSelect("less")
+            }
+          />
+        </div>
+
+        {locked && (
+          <p className="mt-3 text-center font-mono text-[8px] font-bold tracking-[0.12em] text-bone/25">
+            PICKS ARE LOCKED 🔒
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* PROFILE SELECT BUTTON                                                      */
+/* -------------------------------------------------------------------------- */
+
+function ProfileSelectButton({
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  label: "MORE" | "LESS";
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-xl border px-4 py-3 font-head text-xs font-black tracking-wide transition-all duration-200 ${
+        active
+          ? "border-young bg-young text-bone shadow-[0_0_20px_rgba(226,52,40,0.18)]"
+          : "border-line bg-ink/50 text-bone/55 hover:border-bone/25 hover:bg-bone/[0.04] hover:text-bone"
+      } ${
+        disabled
+          ? "cursor-not-allowed opacity-40"
+          : "active:scale-[0.97]"
+      }`}
+    >
+      {active && (
+        <span className="mr-1.5">✓</span>
+      )}
+
+      {label}
+    </button>
+  );
 }
