@@ -830,7 +830,12 @@ export default function PicksExperience({
                           player={player}
                           props={playerProps}
                           selection={getPlayerSelection(playerProps)}
-                          onSelect={handleSelect}
+                          onSelect={(prop, selection) =>
+                            handleSelect(
+                              prop,
+                              selection === "over" ? "more" : "less",
+                            )
+                          }
                           onOpenProfile={openProfile}
                         />
                     );
