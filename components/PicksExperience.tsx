@@ -366,10 +366,15 @@ export default function PicksExperience({
       }
 
       next[key] = {
-        key,
-        type: "player",
-        prop,
-        side,
+        kind: "player",
+        propId: prop.id,
+        playerId: prop.player?.id ?? "",
+        playerName: prop.player?.name ?? "",
+        teamName: prop.player?.team?.name ?? "",
+        statType: prop.stat_type,
+        line: prop.line,
+        selection: side === "more" ? "over" : "under",
+        side,
       };
 
       return next;
