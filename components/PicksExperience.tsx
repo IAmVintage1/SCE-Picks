@@ -411,10 +411,19 @@ export default function PicksExperience({
       }
 
       next[key] = {
-        key,
-        type: "team",
-        teamProp,
-        side,
+        kind: "team",
+        teamPropId: teamProp.id,
+        propType: teamProp.prop_type,
+        label:
+          teamProp.prop_type === "winning_team"
+            ? "WINNING TEAM"
+            : "COMBINED POINTS",
+        selection:
+          teamProp.prop_type === "combined_points"
+            ? side
+            : side,
+        line: teamProp.line,
+        side,
       };
 
       return next;
