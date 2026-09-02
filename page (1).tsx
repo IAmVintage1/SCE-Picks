@@ -1,196 +1,146 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
+import { STAT_SHORT, StatType } from "@/lib/types";
 
-interface Team {
+interface Submission {
   id: string;
-  name: string;
-  slug: string;
-}
-interface Player {
-  id: string;
-  name: string;
-  team_id: string;
-  image_url: string | null;
-  active: boolean;
-  team: Team;
+  submission_code: string;
+  submitted_at: string;
+  pick_count: number;
+  prize_tier: number | null;
+  card_status: "pending" | "perfect" | "busted";
+  user: { name: string; instagram_username: string | null; email: string | null } | null;
+  picks: {
+    id: string;
+    selection: "over" | "under";
+    result: string;
+    prop: {
+      line: number;
+      stat_type: StatType;
+      player: { name: string; team: { name: string } };
+    };
+  }[];
+  team_picks: {
+    id: string;
+    selection: string;
+    result: string;
+    team_prop: { prop_type: "winning_team" | "combined_points"; line: number | null };
+  }[];
 }
 
-export default function AdminPlayersPage() {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
+const STATUS_STYLE: Record<string, string> = {
+  perfect: "border-alum bg-alum/15 text-alum-light",
+  busted: "border-young bg-young/15 text-young-light",
+  pending: "border-line text-bone/50",
+};
+
+export default function AdminSubmissionsPage() {
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [newName, setNewName] = useState("");
-  const [newTeam, setNewTeam] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  async function load() {
+  async function load(q?: string) {
     setLoading(true);
-    const [playersRes, teamsRes] = await Promise.all([
-      fetch("/api/admin/players"),
-      fetch("/api/admin/teams"),
-    ]);
-    const playersData = await playersRes.json();
-    const teamsData = await teamsRes.json();
-    setPlayers(playersData.players ?? []);
-    setTeams(teamsData.teams ?? []);
-    if ((teamsData.teams ?? []).length > 0 && !newTeam) {
-      setNewTeam(teamsData.teams[0].id);
-    }
+    const url = q ? `/api/admin/submissions?q=${encodeURIComponent(q)}` : "/api/admin/submissions";
+    const res = await fetch(url);
+    const data = await res.json();
+    setSubmissions(data.submissions ?? []);
     setLoading(false);
   }
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function addPlayer(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!newName.trim() || !newTeam) {
-      setError("Enter a name and choose a team.");
-      return;
-    }
-    const res = await fetch("/api/admin/players", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, team_id: newTeam }),
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error);
-      return;
-    }
-    setNewName("");
-    load();
-  }
-
-  async function toggleActive(player: Player) {
-    await fetch(`/api/admin/players/${player.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: !player.active }),
-    });
-    load();
-  }
-
-  async function handleUpload(playerId: string, file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("playerId", playerId);
-    await fetch("/api/admin/players/upload", { method: "POST", body: formData });
-    load();
-  }
-
-  async function handleDeletePhoto(playerId: string) {
-    await fetch("/api/admin/players/upload", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId }),
-    });
-    load();
-  }
-
   return (
-    <div className="space-y-6">
-      <form
-        onSubmit={addPlayer}
-        className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-panel p-4"
-      >
-        <div>
-          <label className="text-xs font-medium text-bone/50">Player name</label>
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            className="mt-1 block rounded-lg border border-line bg-panelLight px-3 py-2 text-sm text-bone"
-          />
-        </div>
-        <div>
-          <label className="text-xs font-medium text-bone/50">Team</label>
-          <select
-            value={newTeam}
-            onChange={(e) => setNewTeam(e.target.value)}
-            className="mt-1 block rounded-lg border border-line bg-panelLight px-3 py-2 text-sm text-bone"
-          >
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button className="rounded-lg bg-bone px-4 py-2 text-sm font-semibold text-ink">
-          Add player
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load(query)}
+          placeholder="Search by name, Instagram, or submission ID"
+          className="w-full max-w-md rounded-lg border border-line bg-panelLight px-3 py-2 text-sm text-bone"
+        />
+        <button
+          onClick={() => load(query)}
+          className="rounded-lg bg-bone px-4 py-2 text-sm font-semibold text-ink"
+        >
+          Search
         </button>
-        {error && <p className="text-xs text-young-light">{error}</p>}
-      </form>
+      </div>
 
       {loading ? (
-        <p className="text-sm text-bone/40">Loading players...</p>
+        <p className="text-sm text-bone/40">Loading submissions...</p>
+      ) : submissions.length === 0 ? (
+        <p className="text-sm text-bone/40">No submissions yet.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {players.map((player) => (
-            <div
-              key={player.id}
-              className="flex items-center gap-3 rounded-2xl border border-line bg-panel p-3"
-            >
-              <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-panelLight">
-                {player.image_url ? (
-                  <Image
-                    src={player.image_url}
-                    alt={player.name}
-                    fill
-                    sizes="56px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-bone/25">
-                    {player.name.charAt(0)}
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-bone">
-                  {player.name}
-                </p>
-                <p className="text-xs text-bone/40">{player.team.name}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <input
-                    ref={(el) => {
-                      fileInputs.current[player.id] = el;
-                    }}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleUpload(player.id, file);
-                    }}
-                  />
-                  <button
-                    onClick={() => fileInputs.current[player.id]?.click()}
-                    className="text-xs font-medium text-bone/60 underline underline-offset-2"
-                  >
-                    {player.image_url ? "Replace photo" : "Upload photo"}
-                  </button>
-                  {player.image_url && (
-                    <button
-                      onClick={() => handleDeletePhoto(player.id)}
-                      className="text-xs font-medium text-young-light underline underline-offset-2"
-                    >
-                      Delete photo
-                    </button>
-                  )}
-                  <button
-                    onClick={() => toggleActive(player)}
-                    className="text-xs font-medium text-bone/60 underline underline-offset-2"
-                  >
-                    {player.active ? "Deactivate" : "Activate"}
-                  </button>
+        <div className="space-y-3">
+          {submissions.map((s) => (
+            <div key={s.id} className="rounded-2xl border border-line bg-panel p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-display text-sm font-semibold tracking-wide text-bone">
+                    #{s.submission_code} &middot; {s.user?.name ?? "Unknown"}
+                  </p>
+                  <p className="text-xs text-bone/40">
+                    {s.user?.instagram_username ? `@${s.user.instagram_username}` : "No Instagram"}
+                    {" · "}
+                    {new Date(s.submitted_at).toLocaleString()}
+                    {" · "}
+                    {s.pick_count} picks
+                    {s.prize_tier ? ` · ${s.prize_tier}-pick tier` : ""}
+                  </p>
                 </div>
+                <span
+                  className={`rounded-full border px-2 py-1 text-[11px] uppercase ${
+                    STATUS_STYLE[s.card_status] ?? STATUS_STYLE.pending
+                  }`}
+                >
+                  {s.card_status === "perfect"
+                    ? "Perfect Card"
+                    : s.card_status === "busted"
+                    ? "Card Busted"
+                    : "Pending"}
+                </span>
+              </div>
+              <div className="mt-3 space-y-1">
+                {s.picks.map((p) => (
+                  <p key={p.id} className="text-sm text-bone/70">
+                    {p.prop.player.name} ({p.prop.player.team.name}) &mdash;{" "}
+                    {p.selection === "over" ? "MORE" : "LESS"} {p.prop.line}{" "}
+                    {STAT_SHORT[p.prop.stat_type]}
+                    {p.result !== "pending" && (
+                      <span
+                        className={
+                          p.result === "hit" ? "text-alum-light" : "text-young-light"
+                        }
+                      >
+                        {" "}
+                        &middot; {p.result.toUpperCase()}
+                      </span>
+                    )}
+                  </p>
+                ))}
+                {s.team_picks.map((p) => (
+                  <p key={p.id} className="text-sm text-bone/70">
+                    {p.team_prop.prop_type === "winning_team"
+                      ? "Winning Team"
+                      : "Combined Points"}{" "}
+                    &mdash; {p.selection.toUpperCase()}
+                    {p.result !== "pending" && (
+                      <span
+                        className={
+                          p.result === "hit" ? "text-alum-light" : "text-young-light"
+                        }
+                      >
+                        {" "}
+                        &middot; {p.result.toUpperCase()}
+                      </span>
+                    )}
+                  </p>
+                ))}
               </div>
             </div>
           ))}

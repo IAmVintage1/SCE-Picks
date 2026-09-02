@@ -2,94 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
-const BUCKET = "player-photos";
-
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  const playerId = formData.get("playerId") as string | null;
-
-  if (!file || !playerId) {
-    return NextResponse.json(
-      { error: "A file and playerId are required." },
-      { status: 400 }
-    );
-  }
-
+  const search = req.nextUrl.searchParams.get("q")?.trim();
   const supabase = createAdminSupabase();
 
-  const { data: player } = await supabase
-    .from("players")
-    .select("image_url")
-    .eq("id", playerId)
-    .single();
+  let query = supabase
+    .from("submissions")
+    .select(
+      "*, user:app_users(*), picks(*, prop:props(*, player:players(*, team:teams!players_team_id_fkey(*)))), team_picks(*, team_prop:team_props(*))"
+    )
+    .order("submitted_at", { ascending: false });
 
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${playerId}-${Date.now()}.${ext}`;
-  const arrayBuffer = await file.arrayBuffer();
-
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, arrayBuffer, { contentType: file.type, upsert: true });
-
-  if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+  if (search) {
+    query = query.or(`submission_code.ilike.%${search}%`);
   }
 
-  const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
-  const { data: updated, error: updateError } = await supabase
-    .from("players")
-    .update({
-      image_url: publicUrl.publicUrl,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", playerId)
-    .select()
-    .single();
-
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
-  }
-
-  // Clean up the previous photo file if one existed, so storage doesn't
-  // accumulate orphaned images every time a photo is replaced.
-  if (player?.image_url) {
-    const oldPath = player.image_url.split(`${BUCKET}/`)[1];
-    if (oldPath) {
-      await supabase.storage.from(BUCKET).remove([oldPath]);
-    }
-  }
-
-  return NextResponse.json({ player: updated });
-}
-
-export async function DELETE(req: NextRequest) {
-  const auth = await requireAdmin();
-  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
-
-  const { playerId } = await req.json();
-  const supabase = createAdminSupabase();
-
-  const { data: player } = await supabase
-    .from("players")
-    .select("image_url")
-    .eq("id", playerId)
-    .single();
-
-  if (player?.image_url) {
-    const oldPath = player.image_url.split(`${BUCKET}/`)[1];
-    if (oldPath) await supabase.storage.from(BUCKET).remove([oldPath]);
-  }
-
-  const { error } = await supabase
-    .from("players")
-    .update({ image_url: null, updated_at: new Date().toISOString() })
-    .eq("id", playerId);
-
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+
+  // Filter by name/instagram in JS since those live on the joined app_users row.
+  const filtered = search
+    ? data?.filter(
+        (s: any) =>
+          s.submission_code.toLowerCase().includes(search.toLowerCase()) ||
+          s.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
+          s.user?.instagram_username?.toLowerCase().includes(search.toLowerCase())
+      )
+    : data;
+
+  return NextResponse.json({ submissions: filtered });
 }

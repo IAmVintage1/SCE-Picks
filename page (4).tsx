@@ -1,132 +1,203 @@
-import { createAdminSupabase } from "@/lib/supabase/admin";
-import { STAT_SHORT, StatType } from "@/lib/types";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from "react";
+import { STAT_LABELS, StatType } from "@/lib/types";
 
-interface PickRow {
+interface PropRow {
   id: string;
-  selection: "over" | "under";
-  prop: {
-    id: string;
-    stat_type: StatType;
-    line: number;
-    player: { id: string; name: string } | null;
-  } | null;
+  stat_type: StatType;
+  line: number;
+  player: { name: string; team: { name: string } } | null;
+}
+interface TeamPropRow {
+  id: string;
+  prop_type: "winning_team" | "combined_points";
+  line: number | null;
+}
+interface ResultRow {
+  prop_id: string;
+  actual_value: number;
+}
+interface TeamResultRow {
+  team_prop_id: string;
+  actual_value: number | null;
+  winning_team_slug: string | null;
 }
 
-async function getStats() {
-  const supabase = createAdminSupabase();
+export default function AdminResultsPage() {
+  const [props, setProps] = useState<PropRow[]>([]);
+  const [teamProps, setTeamProps] = useState<TeamPropRow[]>([]);
+  const [results, setResults] = useState<ResultRow[]>([]);
+  const [teamResults, setTeamResults] = useState<TeamResultRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  const [{ count: submissionCount }, { data: pickRows, count: pickCount }] =
-    await Promise.all([
-      supabase.from("submissions").select("*", { count: "exact", head: true }),
-      supabase
-        .from("picks")
-        .select(
-          "id, selection, prop:props(id, stat_type, line, player:players(id, name))",
-          { count: "exact" }
-        ),
-    ]);
-
-  const rows = (pickRows as unknown as PickRow[]) ?? [];
-
-  const playerCounts = new Map<string, number>();
-  const propCounts = new Map<
-    string,
-    { label: string; count: number; over: number; under: number }
-  >();
-
-  for (const row of rows) {
-    const playerName = row.prop?.player?.name;
-    if (playerName) {
-      playerCounts.set(playerName, (playerCounts.get(playerName) ?? 0) + 1);
-    }
-    if (row.prop) {
-      const key = row.prop.id;
-      const label = `${row.prop.player?.name ?? "Unknown"} — ${
-        row.prop.line
-      } ${STAT_SHORT[row.prop.stat_type]}`;
-      const current = propCounts.get(key) ?? {
-        label,
-        count: 0,
-        over: 0,
-        under: 0,
-      };
-      current.count += 1;
-      if (row.selection === "over") current.over += 1;
-      else current.under += 1;
-      propCounts.set(key, current);
-    }
+  async function load() {
+    setLoading(true);
+    const res = await fetch("/api/admin/results");
+    const data = await res.json();
+    setProps(data.props ?? []);
+    setTeamProps(data.teamProps ?? []);
+    setResults(data.results ?? []);
+    setTeamResults(data.teamResults ?? []);
+    setLoading(false);
   }
 
-  const topPlayer = [...playerCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-  const topProp = [...propCounts.values()].sort((a, b) => b.count - a.count)[0];
+  useEffect(() => {
+    load();
+  }, []);
 
-  return {
-    submissionCount: submissionCount ?? 0,
-    pickCount: pickCount ?? 0,
-    topPlayer,
-    topProp,
-  };
-}
+  async function submitPlayerResult(propId: string, value: string) {
+    if (!value) return;
+    setSavingId(propId);
+    await fetch("/api/admin/results", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "player", propId, actualValue: Number(value) }),
+    });
+    setSavingId(null);
+    load();
+  }
 
-export default async function AdminDashboardPage() {
-  const stats = await getStats();
+  async function submitTeamResult(
+    teamPropId: string,
+    actualValue?: string,
+    winningTeamSlug?: string
+  ) {
+    setSavingId(teamPropId);
+    await fetch("/api/admin/results", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "team",
+        teamPropId,
+        actualValue: actualValue ? Number(actualValue) : undefined,
+        winningTeamSlug,
+      }),
+    });
+    setSavingId(null);
+    load();
+  }
+
+  const existingResult = (propId: string) =>
+    results.find((r) => r.prop_id === propId);
+  const existingTeamResult = (teamPropId: string) =>
+    teamResults.find((r) => r.team_prop_id === teamPropId);
+
+  if (loading) return <p className="text-sm text-bone/40">Loading...</p>;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Participants" value={stats.submissionCount} />
-        <StatCard label="Total picks" value={stats.pickCount} />
-        <StatCard
-          label="Top player"
-          value={stats.topPlayer ? stats.topPlayer[0] : "—"}
-          sub={stats.topPlayer ? `${stats.topPlayer[1]} picks` : undefined}
-        />
-        <StatCard
-          label="Top prop"
-          value={stats.topProp ? stats.topProp.label : "—"}
-          sub={
-            stats.topProp
-              ? `${stats.topProp.over} over / ${stats.topProp.under} under`
-              : undefined
-          }
-        />
+    <div className="space-y-8">
+      <div className="rounded-2xl border border-line bg-panel p-4">
+        <p className="text-xs text-bone/50">
+          Enter the final stat for each prop once the game is over. Saving a
+          value automatically grades every card that included that pick --
+          you don't need to grade cards individually.
+        </p>
       </div>
 
-      <div className="rounded-2xl border border-line bg-panel p-5">
-        <h2 className="font-display text-sm font-semibold tracking-wide text-bone/70">
-          NEXT STEPS
+      <div>
+        <h2 className="mb-3 font-display text-sm font-semibold tracking-wide text-bone/70">
+          GAME PROPS
         </h2>
-        <ul className="mt-3 space-y-2 text-sm text-bone/60">
-          <li>1. Add players and upload photos under Players.</li>
-          <li>2. Create props (stat + line) for each player under Props.</li>
-          <li>3. Share the site link on Instagram once props are live.</li>
-          <li>4. After the game, enter results — Phase 2 will grade picks automatically.</li>
-        </ul>
+        <div className="space-y-3">
+          {teamProps.map((tp) => {
+            const existing = existingTeamResult(tp.id);
+            return (
+              <div
+                key={tp.id}
+                className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel p-4"
+              >
+                <span className="w-40 text-sm font-semibold text-bone">
+                  {tp.prop_type === "winning_team" ? "Winning Team" : "Combined Points"}
+                </span>
+                {tp.prop_type === "winning_team" ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => submitTeamResult(tp.id, undefined, "youngknights")}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                        existing?.winning_team_slug === "youngknights"
+                          ? "border-young bg-young/20 text-young-light"
+                          : "border-line text-bone/60"
+                      }`}
+                    >
+                      YoungKnights
+                    </button>
+                    <button
+                      onClick={() => submitTeamResult(tp.id, undefined, "alumknights")}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                        existing?.winning_team_slug === "alumknights"
+                          ? "border-alum bg-alum/20 text-alum-light"
+                          : "border-line text-bone/60"
+                      }`}
+                    >
+                      AlumKnights
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    placeholder={`Line: ${tp.line}`}
+                    defaultValue={existing?.actual_value ?? ""}
+                    onBlur={(e) => submitTeamResult(tp.id, e.target.value)}
+                    className="w-24 rounded border border-line bg-panelLight px-2 py-1 text-sm text-bone"
+                  />
+                )}
+                {savingId === tp.id && (
+                  <span className="text-xs text-bone/40">Saving...</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
-}
 
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-line bg-panel p-4">
-      <p className="text-xs font-medium tracking-wide text-bone/40">
-        {label.toUpperCase()}
-      </p>
-      <p className="mt-1 truncate font-display text-xl font-bold text-bone">
-        {value}
-      </p>
-      {sub && <p className="mt-0.5 text-xs text-bone/40">{sub}</p>}
+      <div>
+        <h2 className="mb-3 font-display text-sm font-semibold tracking-wide text-bone/70">
+          PLAYER PROPS
+        </h2>
+        <div className="overflow-hidden rounded-2xl border border-line">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-panel text-xs uppercase tracking-wide text-bone/40">
+              <tr>
+                <th className="px-4 py-3">Player</th>
+                <th className="px-4 py-3">Stat</th>
+                <th className="px-4 py-3">Line</th>
+                <th className="px-4 py-3">Actual</th>
+              </tr>
+            </thead>
+            <tbody>
+              {props.map((prop) => {
+                const existing = existingResult(prop.id);
+                return (
+                  <tr key={prop.id} className="border-t border-line">
+                    <td className="px-4 py-3 text-bone">
+                      {prop.player?.name}
+                      <span className="ml-1 text-xs text-bone/40">
+                        ({prop.player?.team?.name})
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-bone/70">
+                      {STAT_LABELS[prop.stat_type]}
+                    </td>
+                    <td className="px-4 py-3 text-bone/70">{prop.line}</td>
+                    <td className="px-4 py-3">
+                      <input
+                        defaultValue={existing?.actual_value ?? ""}
+                        onBlur={(e) => submitPlayerResult(prop.id, e.target.value)}
+                        placeholder="Enter final stat"
+                        className="w-24 rounded border border-line bg-panelLight px-2 py-1 text-bone"
+                      />
+                      {savingId === prop.id && (
+                        <span className="ml-2 text-xs text-bone/40">Saving...</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,28 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminSessionToken, getAdminCookieName } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 
-export async function POST(req: NextRequest) {
-  const { password } = await req.json();
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
-  if (!process.env.ADMIN_PASSWORD) {
-    return NextResponse.json(
-      { error: "ADMIN_PASSWORD is not configured on the server." },
-      { status: 500 }
-    );
+  const updates = await req.json();
+  const allowed = ["name", "team_id", "active", "image_url", "bio", "bio_tags"];
+  const payload: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in updates) payload[key] = updates[key];
   }
+  payload.updated_at = new Date().toISOString();
 
-  if (password !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
-  }
+  const supabase = createAdminSupabase();
+  const { data, error } = await supabase
+    .from("players")
+    .update(payload)
+    .eq("id", params.id)
+    .select()
+    .single();
 
-  const token = await createAdminSessionToken();
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(getAdminCookieName(), token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 12,
-  });
-  return res;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ player: data });
+}
+
+// Deactivate rather than hard-delete, so existing props/picks tied
+// to this player stay intact for grading and history.
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const auth = await requireAdmin();
+  if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
+
+  const supabase = createAdminSupabase();
+  const { error } = await supabase
+    .from("players")
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq("id", params.id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }

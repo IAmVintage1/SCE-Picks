@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TierInfo } from "@/lib/cardTiers";
 
 export interface SubmitInfo {
   name: string;
@@ -15,6 +16,8 @@ export default function SubmitModal({
   submitting,
   emailRequired,
   instagramRequired,
+  pickCount,
+  tierInfo,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +25,8 @@ export default function SubmitModal({
   submitting: boolean;
   emailRequired: boolean;
   instagramRequired: boolean;
+  pickCount: number;
+  tierInfo: TierInfo;
 }) {
   const [name, setName] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -35,70 +40,106 @@ export default function SubmitModal({
     (!emailRequired || email.trim().length > 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 sm:items-center">
-      <div className="w-full max-w-sm rounded-t-3xl border border-line bg-panel p-6 sm:rounded-3xl">
-        <h2 className="font-display text-xl font-semibold tracking-wide text-bone">
-          ONE LAST STEP
-        </h2>
-        <p className="mt-1 text-sm text-bone/50">
-          Tell us who's calling their shot.
-        </p>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center">
+      <div className="relative w-full max-w-sm overflow-hidden rounded-t-3xl border border-lineBright bg-panel p-6 sm:rounded-3xl">
+        <div className="grain-overlay opacity-20" />
+        <div className="relative">
+          <p className="font-mono text-[10px] font-semibold tracking-[0.25em] text-bone/35">
+            LOCK YOUR CARD?
+          </p>
+          <h2 className="mt-1 font-display text-2xl leading-none tracking-tight text-bone">
+            WHO'S CALLING IT?
+          </h2>
+          <p className="mt-2 text-xs text-bone/45">
+            Once submitted, your picks cannot be changed.
+          </p>
 
-        <div className="mt-5 space-y-3">
-          <div>
-            <label className="text-xs font-semibold tracking-wide text-bone/50">
-              NAME
-            </label>
-            <input
+          <div className="mt-4 rounded-xl border border-line bg-panelLight px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="font-head text-sm font-bold text-bone">
+                {pickCount} PICKS
+              </span>
+              <span className="font-mono text-[10px] font-semibold tracking-[0.1em] text-bone/40">
+                PERFECT CARD REQUIRED
+              </span>
+            </div>
+            {tierInfo.prize && (
+              <p className="mt-1 font-mono text-[11px] font-bold tracking-[0.1em] text-young-light">
+                PRIZE: {tierInfo.prize.toUpperCase()}
+              </p>
+            )}
+          </div>
+
+          <div className="mt-5 space-y-3">
+            <Field
+              label="NAME"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={setName}
               placeholder="Your name"
-              className="mt-1 w-full rounded-lg border border-line bg-panelLight px-3 py-3 text-sm text-bone placeholder:text-bone/30 focus:border-bone/40"
             />
-          </div>
-          <div>
-            <label className="text-xs font-semibold tracking-wide text-bone/50">
-              INSTAGRAM USERNAME {instagramRequired ? "" : "(OPTIONAL)"}
-            </label>
-            <input
+            <Field
+              label={`INSTAGRAM ${instagramRequired ? "" : "(OPTIONAL)"}`}
               value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
+              onChange={setInstagram}
               placeholder="@yourusername"
-              className="mt-1 w-full rounded-lg border border-line bg-panelLight px-3 py-3 text-sm text-bone placeholder:text-bone/30 focus:border-bone/40"
             />
-          </div>
-          <div>
-            <label className="text-xs font-semibold tracking-wide text-bone/50">
-              EMAIL {emailRequired ? "" : "(OPTIONAL)"}
-            </label>
-            <input
+            <Field
+              label={`EMAIL ${emailRequired ? "" : "(OPTIONAL)"}`}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={setEmail}
               placeholder="you@email.com"
               type="email"
-              className="mt-1 w-full rounded-lg border border-line bg-panelLight px-3 py-3 text-sm text-bone placeholder:text-bone/30 focus:border-bone/40"
             />
           </div>
-        </div>
 
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold text-bone/60"
-          >
-            Back
-          </button>
-          <button
-            disabled={!canSubmit || submitting}
-            onClick={() =>
-              onConfirm({ name, instagram_username: instagram, email })
-            }
-            className="flex-1 rounded-xl bg-bone py-3 font-display text-sm font-semibold tracking-wide text-ink disabled:opacity-40"
-          >
-            {submitting ? "SUBMITTING..." : "SUBMIT PICKS"}
-          </button>
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold text-bone/60"
+            >
+              Back
+            </button>
+            <button
+              disabled={!canSubmit || submitting}
+              onClick={() =>
+                onConfirm({ name, instagram_username: instagram, email })
+              }
+              className="flex-1 rounded-xl bg-bone py-3 font-head text-sm font-bold tracking-[0.06em] text-ink shadow-[0_0_30px_-10px_rgba(245,244,241,0.5)] disabled:opacity-30"
+            >
+              {submitting ? "LOCKING..." : "LOCK IN CARD"}
+            </button>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="font-mono text-[10px] font-semibold tracking-[0.15em] text-bone/40">
+        {label}
+      </label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        type={type}
+        className="mt-1.5 w-full rounded-lg border border-line bg-panelLight px-3 py-3 text-sm text-bone placeholder:text-bone/25 focus:border-bone/40"
+      />
     </div>
   );
 }
