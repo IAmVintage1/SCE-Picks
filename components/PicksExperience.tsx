@@ -78,151 +78,153 @@ export default function PicksExperience({
   const [reachedTiers, setReachedTiers] =
     useState<Set<number>>(new Set());
 
-  const minPicks = settings?.min_picks ?? 3;
-  const picksLocked = settings?.picks_locked ?? false;
+  const minPicks =
+    settings?.min_picks ?? 3;
 
-  /*
-   * IMPORTANT:
-   * Explicitly type this as CardLeg[].
-   * This prevents the old PickSlipItem[] type
-   * from being inferred here.
-   */
-  const pickList: CardLeg[] = Object.values(picks);
+  const picksLocked =
+    settings?.picks_locked ?? false;
+
+  const pickList: CardLeg[] =
+    Object.values(picks);
 
   const tierInfo = getTierInfo(
     pickList.length,
     settings
   );
 
-  /*
-   * Available stat filters
-   */
-  const availableStats = useMemo(() => {
-    const set = new Set<StatType>();
+  const availableStats =
+    useMemo(() => {
+      const set =
+        new Set<StatType>();
 
-    props.forEach((p) => {
-      set.add(p.stat_type);
-    });
-
-    return Array.from(set);
-  }, [props]);
-
-  /*
-   * Group all props by player.
-   *
-   * This is what gives us one player card
-   * containing multiple props instead of
-   * repeating the same player over and over.
-   */
-  const groupedPlayers = useMemo(() => {
-    const map = new Map<
-      string,
-      PropWithPlayer[]
-    >();
-
-    props.forEach((prop) => {
-      if (
-        teamFilter !== "all" &&
-        prop.player.team.slug !== teamFilter
-      ) {
-        return;
-      }
-
-      if (
-        boardFilter === "hot" &&
-        !prop.featured
-      ) {
-        return;
-      }
-
-      if (
-        statFilter !== "all" &&
-        prop.stat_type !== statFilter
-      ) {
-        return;
-      }
-
-      const list =
-        map.get(prop.player.id) ?? [];
-
-      list.push(prop);
-
-      map.set(
-        prop.player.id,
-        list
-      );
-    });
-
-    return Array.from(
-      map.values()
-    ).sort((a, b) => {
-      const aFeatured = a.some(
-        (p) => p.featured
+      props.forEach((p) =>
+        set.add(p.stat_type)
       );
 
-      const bFeatured = b.some(
-        (p) => p.featured
-      );
+      return Array.from(set);
+    }, [props]);
 
-      if (
-        aFeatured !== bFeatured
-      ) {
-        return aFeatured ? -1 : 1;
-      }
+  const groupedPlayers =
+    useMemo(() => {
+      const map =
+        new Map<
+          string,
+          PropWithPlayer[]
+        >();
 
-      return a[0].player.name.localeCompare(
-        b[0].player.name
-      );
-    });
-  }, [
-    props,
-    teamFilter,
-    statFilter,
-    boardFilter,
-  ]);
+      props.forEach((prop) => {
+        if (
+          teamFilter !== "all" &&
+          prop.player.team.slug !==
+            teamFilter
+        ) {
+          return;
+        }
 
-  /*
-   * Tier celebration
-   */
+        if (
+          boardFilter === "hot" &&
+          !prop.featured
+        ) {
+          return;
+        }
+
+        if (
+          statFilter !== "all" &&
+          prop.stat_type !==
+            statFilter
+        ) {
+          return;
+        }
+
+        const list =
+          map.get(
+            prop.player.id
+          ) ?? [];
+
+        list.push(prop);
+
+        map.set(
+          prop.player.id,
+          list
+        );
+      });
+
+      return Array.from(
+        map.values()
+      ).sort((a, b) => {
+        const aFeatured =
+          a.some(
+            (p) => p.featured
+          );
+
+        const bFeatured =
+          b.some(
+            (p) => p.featured
+          );
+
+        if (
+          aFeatured !==
+          bFeatured
+        ) {
+          return aFeatured
+            ? -1
+            : 1;
+        }
+
+        return a[0].player.name.localeCompare(
+          b[0].player.name
+        );
+      });
+    }, [
+      props,
+      teamFilter,
+      statFilter,
+      boardFilter,
+    ]);
+
   function maybeTriggerTierCelebration(
     newCount: number
   ) {
-    [3, 5, 10].forEach((tier) => {
-      if (
-        newCount >= tier &&
-        !reachedTiers.has(tier)
-      ) {
-        setReachedTiers(
-          (prev) =>
-            new Set(prev).add(tier)
-        );
+    [3, 5, 10].forEach(
+      (tier) => {
+        if (
+          newCount >= tier &&
+          !reachedTiers.has(tier)
+        ) {
+          setReachedTiers(
+            (prev) =>
+              new Set(prev).add(
+                tier
+              )
+          );
 
-        setConfettiTrigger(
-          (count) => count + 1
-        );
+          setConfettiTrigger(
+            (count) =>
+              count + 1
+          );
+        }
       }
-    });
+    );
   }
 
-  /*
-   * Player prop selection
-   */
   function handleSelect(
     prop: PropWithPlayer,
-    selection: "over" | "under"
+    selection:
+      | "over"
+      | "under"
   ) {
-    const key = `player:${prop.id}`;
+    const key =
+      `player:${prop.id}`;
 
     setPicks((prev) => {
-      const existing = prev[key];
+      const existing =
+        prev[key];
 
-      /*
-       * Clicking the same selection again
-       * removes it.
-       */
       if (
-        existing?.kind === "player" &&
-        existing.selection === selection
+        existing?.kind ===
+          "player" &&
+        existing.selection ===
+          selection
       ) {
         const next = {
           ...prev,
@@ -238,10 +240,14 @@ export default function PicksExperience({
         [key]: {
           kind: "player" as const,
           propId: prop.id,
-          playerId: prop.player.id,
-          playerName: prop.player.name,
-          teamName: prop.player.team.name,
-          statType: prop.stat_type,
+          playerId:
+            prop.player.id,
+          playerName:
+            prop.player.name,
+          teamName:
+            prop.player.team.name,
+          statType:
+            prop.stat_type,
           line: prop.line,
           selection,
         },
@@ -255,21 +261,22 @@ export default function PicksExperience({
     });
   }
 
-  /*
-   * Team/game prop selection
-   */
   function handleSelectTeam(
     prop: TeamProp,
     selection: string
   ) {
-    const key = `team:${prop.id}`;
+    const key =
+      `team:${prop.id}`;
 
     setPicks((prev) => {
-      const existing = prev[key];
+      const existing =
+        prev[key];
 
       if (
-        existing?.kind === "team" &&
-        existing.selection === selection
+        existing?.kind ===
+          "team" &&
+        existing.selection ===
+          selection
       ) {
         const next = {
           ...prev,
@@ -285,7 +292,8 @@ export default function PicksExperience({
         [key]: {
           kind: "team" as const,
           teamPropId: prop.id,
-          propType: prop.prop_type,
+          propType:
+            prop.prop_type,
           label:
             prop.prop_type ===
             "winning_team"
@@ -304,10 +312,9 @@ export default function PicksExperience({
     });
   }
 
-  /*
-   * Remove pick from card
-   */
-  function removeLeg(key: string) {
+  function removeLeg(
+    key: string
+  ) {
     setPicks((prev) => {
       const next = {
         ...prev,
@@ -319,37 +326,36 @@ export default function PicksExperience({
     });
   }
 
-  /*
-   * Find current player selection
-   */
   function getPlayerSelection(
     propId: string
-  ): "over" | "under" | null {
+  ):
+    | "over"
+    | "under"
+    | null {
     const leg =
-      picks[`player:${propId}`];
+      picks[
+        `player:${propId}`
+      ];
 
-    return leg?.kind === "player"
+    return leg?.kind ===
+      "player"
       ? leg.selection
       : null;
   }
 
-  /*
-   * Find current team selection
-   */
   function getTeamSelection(
     teamPropId: string
   ): string | null {
     const leg =
-      picks[`team:${teamPropId}`];
+      picks[
+        `team:${teamPropId}`
+      ];
 
     return leg?.kind === "team"
       ? leg.selection
       : null;
   }
 
-  /*
-   * Display temporary error
-   */
   function flashError(
     message: string
   ) {
@@ -365,14 +371,12 @@ export default function PicksExperience({
     );
   }
 
-  /*
-   * Submit card
-   */
   async function handleConfirmSubmit(
     info: SubmitInfo
   ) {
     if (
-      pickList.length < minPicks
+      pickList.length <
+      minPicks
     ) {
       flashError(
         `You need at least ${minPicks} picks.`
@@ -385,61 +389,66 @@ export default function PicksExperience({
     setError(null);
 
     try {
-      const res = await fetch(
-        "/api/picks/submit",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            ...info,
+      const res =
+        await fetch(
+          "/api/picks/submit",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              ...info,
 
-            playerPicks:
-              pickList
-                .filter(
-                  (
-                    leg
-                  ): leg is Extract<
-                    CardLeg,
-                    {
-                      kind: "player";
-                    }
-                  > =>
-                    leg.kind ===
-                    "player"
-                )
-                .map((leg) => ({
-                  propId:
-                    leg.propId,
-                  selection:
-                    leg.selection,
-                })),
+              playerPicks:
+                pickList
+                  .filter(
+                    (
+                      leg
+                    ): leg is Extract<
+                      CardLeg,
+                      {
+                        kind: "player";
+                      }
+                    > =>
+                      leg.kind ===
+                      "player"
+                  )
+                  .map(
+                    (leg) => ({
+                      propId:
+                        leg.propId,
+                      selection:
+                        leg.selection,
+                    })
+                  ),
 
-            teamPicks:
-              pickList
-                .filter(
-                  (
-                    leg
-                  ): leg is Extract<
-                    CardLeg,
-                    {
-                      kind: "team";
-                    }
-                  > =>
-                    leg.kind ===
-                    "team"
-                )
-                .map((leg) => ({
-                  teamPropId:
-                    leg.teamPropId,
-                  selection:
-                    leg.selection,
-                })),
-          }),
-        }
-      );
+              teamPicks:
+                pickList
+                  .filter(
+                    (
+                      leg
+                    ): leg is Extract<
+                      CardLeg,
+                      {
+                        kind: "team";
+                      }
+                    > =>
+                      leg.kind ===
+                      "team"
+                  )
+                  .map(
+                    (leg) => ({
+                      teamPropId:
+                        leg.teamPropId,
+                      selection:
+                        leg.selection,
+                    })
+                  ),
+            }),
+          }
+        );
 
       const data =
         await res.json();
@@ -475,9 +484,6 @@ export default function PicksExperience({
     }
   }
 
-  /*
-   * Confirmation screen
-   */
   if (confirmation) {
     return (
       <main className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-ink px-6 text-center text-bone">
@@ -532,17 +538,20 @@ export default function PicksExperience({
     );
   }
 
-  /*
-   * Main board
-   */
   return (
     <main className="min-h-[100dvh] bg-ink pb-28 lg:pb-10">
+
+      {/* ====================================================== */}
+      {/* HEADER                                                  */}
+      {/* ====================================================== */}
+
       <header className="sticky top-0 z-30 border-b border-line bg-ink/92 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-5 lg:pt-4">
 
-          {/* Header */}
           <div className="flex items-center justify-between gap-3">
+
             <div className="flex min-w-0 items-center gap-3">
+
               <span className="font-display text-2xl tracking-tight text-bone sm:text-3xl">
                 SCE PICKS
               </span>
@@ -571,15 +580,16 @@ export default function PicksExperience({
               className="border border-line bg-panelLight px-3 py-2 font-head text-[11px] font-bold tracking-[0.08em] text-bone transition active:scale-95"
             >
               MY CARD{" "}
-              {pickList.length > 0 && (
+              {pickList.length >
+                0 && (
                 <span className="ml-1 text-young-light">
                   {pickList.length}
                 </span>
               )}
             </button>
+
           </div>
 
-          {/* Mobile matchup */}
           <div className="mt-2 flex items-center justify-between sm:hidden">
             <p className="font-head text-[11px] font-bold tracking-[0.1em] text-bone/75">
               YOUNGKNIGHTS{" "}
@@ -594,68 +604,85 @@ export default function PicksExperience({
             </p>
           </div>
 
-          {/* Board filters */}
+          {/* CATEGORY NAV */}
           <nav
             className="no-scrollbar -mx-1 mt-3 flex gap-1 overflow-x-auto pb-2"
             aria-label="Board categories"
           >
             <BoardPill
               active={
-                boardFilter === "hot"
+                boardFilter ===
+                "hot"
               }
               onClick={() => {
-                setBoardFilter("hot");
-                setStatFilter("all");
+                setBoardFilter(
+                  "hot"
+                );
+                setStatFilter(
+                  "all"
+                );
               }}
               label="🔥 HOT"
             />
 
             <BoardPill
               active={
-                boardFilter === "all"
+                boardFilter ===
+                "all"
               }
               onClick={() => {
-                setBoardFilter("all");
-                setTeamFilter("all");
-                setStatFilter("all");
+                setBoardFilter(
+                  "all"
+                );
+                setTeamFilter(
+                  "all"
+                );
+                setStatFilter(
+                  "all"
+                );
               }}
               label="ALL"
             />
 
-            {teams.map((team) => (
-              <BoardPill
-                key={team.id}
-                active={
-                  teamFilter ===
-                    team.slug &&
-                  boardFilter !==
-                    "game"
-                }
-                onClick={() => {
-                  setBoardFilter(
-                    "all"
-                  );
+            {teams.map(
+              (team) => (
+                <BoardPill
+                  key={
+                    team.id
+                  }
+                  active={
+                    teamFilter ===
+                      team.slug &&
+                    boardFilter !==
+                      "game"
+                  }
+                  onClick={() => {
+                    setBoardFilter(
+                      "all"
+                    );
 
-                  setTeamFilter(
-                    team.slug
-                  );
-                }}
-                label={
-                  team.slug ===
-                  "youngknights"
-                    ? "YOUNG"
-                    : "ALUM"
-                }
-                team={
-                  team.slug ===
-                  "youngknights"
-                    ? "young"
-                    : "alum"
-                }
-              />
-            ))}
+                    setTeamFilter(
+                      team.slug
+                    );
+                  }}
+                  label={
+                    team.slug ===
+                    "youngknights"
+                      ? "YOUNG"
+                      : "ALUM"
+                  }
+                  team={
+                    team.slug ===
+                    "youngknights"
+                      ? "young"
+                      : "alum"
+                  }
+                />
+              )
+            )}
 
-            {teamProps.length > 0 && (
+            {teamProps.length >
+              0 && (
               <BoardPill
                 active={
                   boardFilter ===
@@ -671,17 +698,20 @@ export default function PicksExperience({
             )}
           </nav>
 
-          {/* Stat filters */}
+          {/* STAT NAV */}
           <nav
             className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto pb-3"
             aria-label="Stat filters"
           >
             <StatPill
               active={
-                statFilter === "all"
+                statFilter ===
+                "all"
               }
               onClick={() =>
-                setStatFilter("all")
+                setStatFilter(
+                  "all"
+                )
               }
               label="ALL"
             />
@@ -704,7 +734,9 @@ export default function PicksExperience({
                     );
                   }}
                   label={
-                    STAT_LABELS[stat]
+                    STAT_LABELS[
+                      stat
+                    ]
                   }
                 />
               )
@@ -713,11 +745,14 @@ export default function PicksExperience({
         </div>
       </header>
 
-      {/* Board content */}
+      {/* ====================================================== */}
+      {/* BOARD                                                    */}
+      {/* ====================================================== */}
+
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-5 lg:py-6">
 
-        {/* GAME PROPS */}
-        {boardFilter === "game" ? (
+        {boardFilter ===
+        "game" ? (
           <section>
             <BoardTitle
               eyebrow="THE MATCHUP"
@@ -728,8 +763,12 @@ export default function PicksExperience({
               {teamProps.map(
                 (teamProp) => (
                   <TeamPropCard
-                    key={teamProp.id}
-                    prop={teamProp}
+                    key={
+                      teamProp.id
+                    }
+                    prop={
+                      teamProp
+                    }
                     teams={teams}
                     selection={getTeamSelection(
                       teamProp.id
@@ -748,9 +787,10 @@ export default function PicksExperience({
             </div>
           </section>
         ) : (
-          /* PLAYER PROPS */
           <section>
-            <div className="mb-3 flex items-end justify-between gap-3">
+
+            <div className="mb-4 flex items-end justify-between gap-3">
+
               <div>
                 <p className="font-mono text-[9px] font-bold tracking-[0.24em] text-bone/35">
                   CALL YOUR SHOT
@@ -765,52 +805,51 @@ export default function PicksExperience({
                 {groupedPlayers.length}{" "}
                 PLAYERS
               </p>
+
             </div>
 
             {groupedPlayers.length ===
             0 ? (
               <EmptyState
                 hasAnyProps={
-                  props.length > 0
+                  props.length >
+                  0
                 }
               />
             ) : (
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
 
                 {groupedPlayers.map(
-                  (playerProps) => (
+                  (
+                    playerProps
+                  ) => (
                     <PlayerCard
                       key={
                         playerProps[0]
                           .player.id
                       }
-
                       props={
                         playerProps
                       }
-
                       primaryPropId={
                         playerProps.find(
-                          (prop) =>
-                            prop.featured
+                          (p) =>
+                            p.featured
                         )?.id ??
                         playerProps[0]
                           .id
                       }
-
                       getSelection={
                         getPlayerSelection
                       }
-
                       onSelect={
                         handleSelect
                       }
-
                       onOpenProfile={() =>
                         setSelectedPlayer(
                           props.filter(
-                            (prop) =>
-                              prop.player
+                            (p) =>
+                              p.player
                                 .id ===
                               playerProps[0]
                                 .player.id
@@ -827,58 +866,101 @@ export default function PicksExperience({
         )}
       </div>
 
-      {/* Desktop pick card */}
+      {/* ====================================================== */}
+      {/* DESKTOP PICK SLIP                                        */}
+      {/* ====================================================== */}
+
       <PickSidePanel
-        items={pickList}
-        onRemove={removeLeg}
+        items={
+          pickList
+        }
+        onRemove={
+          removeLeg
+        }
         onSubmit={() =>
           setSubmitModalOpen(
             true
           )
         }
-        submitting={submitting}
-        locked={picksLocked}
-        minPicks={minPicks}
-        settings={settings}
+        submitting={
+          submitting
+        }
+        locked={
+          picksLocked
+        }
+        minPicks={
+          minPicks
+        }
+        settings={
+          settings
+        }
         confettiTrigger={
           confettiTrigger
         }
       />
 
-      {/* Mobile pick card */}
+      {/* ====================================================== */}
+      {/* MOBILE PICK SLIP                                         */}
+      {/* ====================================================== */}
+
       <div className="lg:hidden">
         <PickSlipBar
-          count={pickList.length}
+          count={
+            pickList.length
+          }
           onOpen={() =>
-            setSlipOpen(true)
+            setSlipOpen(
+              true
+            )
           }
         />
 
         <PickSlipDrawer
-          items={pickList}
-          open={slipOpen}
-          onClose={() =>
-            setSlipOpen(false)
+          items={
+            pickList
           }
-          onRemove={removeLeg}
+          open={
+            slipOpen
+          }
+          onClose={() =>
+            setSlipOpen(
+              false
+            )
+          }
+          onRemove={
+            removeLeg
+          }
           onSubmit={() =>
             setSubmitModalOpen(
               true
             )
           }
-          submitting={submitting}
-          locked={picksLocked}
-          minPicks={minPicks}
-          settings={settings}
+          submitting={
+            submitting
+          }
+          locked={
+            picksLocked
+          }
+          minPicks={
+            minPicks
+          }
+          settings={
+            settings
+          }
           confettiTrigger={
             confettiTrigger
           }
         />
       </div>
 
-      {/* Submit modal */}
+      {/* ====================================================== */}
+      {/* SUBMIT MODAL                                             */}
+      {/* ====================================================== */}
+
       <SubmitModal
-        open={submitModalOpen}
+        open={
+          submitModalOpen
+        }
         onClose={() =>
           setSubmitModalOpen(
             false
@@ -887,7 +969,9 @@ export default function PicksExperience({
         onConfirm={
           handleConfirmSubmit
         }
-        submitting={submitting}
+        submitting={
+          submitting
+        }
         emailRequired={
           settings?.email_required ??
           true
@@ -899,10 +983,15 @@ export default function PicksExperience({
         pickCount={
           pickList.length
         }
-        tierInfo={tierInfo}
+        tierInfo={
+          tierInfo
+        }
       />
 
-      {/* Player profile */}
+      {/* ====================================================== */}
+      {/* PLAYER PROFILE                                           */}
+      {/* ====================================================== */}
+
       {selectedPlayer && (
         <PlayerProfile
           props={
@@ -922,10 +1011,15 @@ export default function PicksExperience({
         />
       )}
 
-      {/* Error */}
+      {/* ====================================================== */}
+      {/* ERROR                                                    */}
+      {/* ====================================================== */}
+
       {error && (
         <div
-          key={errorShake}
+          key={
+            errorShake
+          }
           className="fixed inset-x-4 bottom-24 z-50 animate-shake border border-bone/10 bg-young px-4 py-3 text-center text-sm font-semibold text-white shadow-glowRed lg:bottom-6"
         >
           {error}
@@ -935,9 +1029,10 @@ export default function PicksExperience({
   );
 }
 
-/*
- * Board category pill
- */
+/* ============================================================= */
+/* CATEGORY PILL                                                 */
+/* ============================================================= */
+
 function BoardPill({
   active,
   onClick,
@@ -958,7 +1053,9 @@ function BoardPill({
 
   return (
     <button
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className={`shrink-0 border px-3 py-2 font-head text-[10px] font-bold tracking-[0.1em] transition ${
         active
           ? activeClass
@@ -970,9 +1067,10 @@ function BoardPill({
   );
 }
 
-/*
- * Stat filter pill
- */
+/* ============================================================= */
+/* STAT PILL                                                      */
+/* ============================================================= */
+
 function StatPill({
   active,
   onClick,
@@ -984,7 +1082,9 @@ function StatPill({
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className={`shrink-0 border px-2.5 py-1.5 font-mono text-[8px] font-bold tracking-[0.1em] transition ${
         active
           ? "border-bone/45 bg-panelLight text-bone"
@@ -996,9 +1096,10 @@ function StatPill({
   );
 }
 
-/*
- * Section title
- */
+/* ============================================================= */
+/* BOARD TITLE                                                    */
+/* ============================================================= */
+
 function BoardTitle({
   eyebrow,
   title,
@@ -1019,9 +1120,10 @@ function BoardTitle({
   );
 }
 
-/*
- * Empty state
- */
+/* ============================================================= */
+/* EMPTY STATE                                                     */
+/* ============================================================= */
+
 function EmptyState({
   hasAnyProps,
 }: {
@@ -1044,9 +1146,10 @@ function EmptyState({
   );
 }
 
-/*
- * Player profile modal
- */
+/* ============================================================= */
+/* PLAYER PROFILE                                                 */
+/* ============================================================= */
+
 function PlayerProfile({
   props,
   getSelection,
@@ -1057,200 +1160,661 @@ function PlayerProfile({
 
   getSelection: (
     id: string
-  ) => "over" | "under" | null;
+  ) =>
+    | "over"
+    | "under"
+    | null;
 
   onSelect: (
     prop: PropWithPlayer,
-    selection: "over" | "under"
+    selection:
+      | "over"
+      | "under"
   ) => void;
 
   onClose: () => void;
 }) {
   const player =
-    props[0].player;
+    props[0]?.player;
+
+  if (!player) {
+    return null;
+  }
 
   const isYoung =
     player.team.slug ===
     "youngknights";
 
-  const accent = isYoung
-    ? "text-young-light"
-    : "text-alum-light";
+  const teamClass =
+    isYoung
+      ? {
+          main: "bg-young",
+          soft: "bg-young/10",
+          border:
+            "border-young/40",
+          text:
+            "text-young-light",
+          glow:
+            "shadow-glowRed",
+        }
+      : {
+          main: "bg-alum",
+          soft: "bg-alum/10",
+          border:
+            "border-alum/40",
+          text:
+            "text-alum-light",
+          glow:
+            "shadow-glowBlue",
+        };
+
+  const selectedCount =
+    props.reduce(
+      (count, prop) =>
+        count +
+        (getSelection(
+          prop.id
+        )
+          ? 1
+          : 0),
+      0
+    );
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
-      aria-label={`${player.name} profile`}
+      aria-label={`${player.name} player profile`}
     >
-      {/* Backdrop */}
+
+      {/* BACKDROP */}
       <button
-        className="absolute inset-0"
-        onClick={onClose}
-        aria-label="Close profile"
+        type="button"
+        onClick={
+          onClose
+        }
+        className="absolute inset-0 cursor-default"
+        aria-label="Close player profile"
       />
 
-      {/* Modal */}
-      <div className="absolute inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto border-t border-lineBright bg-panel sm:inset-6 sm:bottom-6 sm:mx-auto sm:max-w-2xl sm:border">
+      {/* ===================================================== */}
+      {/* PROFILE SHEET                                          */}
+      {/* ===================================================== */}
 
-        {/* Player image */}
-        <div className="relative h-52 overflow-hidden sm:h-64">
-          {player.image_url && (
+      <div
+        className="
+          relative
+          flex
+          max-h-[94dvh]
+          w-full
+          flex-col
+          overflow-hidden
+          rounded-t-[18px]
+          border
+          border-lineBright
+          bg-panel
+          shadow-2xl
+          animate-in
+          sm:max-w-2xl
+          sm:rounded-[14px]
+        "
+      >
+
+        {/* TOP HANDLE — MOBILE */}
+        <div className="flex justify-center pt-2 sm:hidden">
+          <span className="h-1 w-10 rounded-full bg-bone/15" />
+        </div>
+
+        {/* ================================================= */}
+        {/* HERO                                                */}
+        {/* ================================================= */}
+
+        <div className="relative h-[250px] shrink-0 overflow-hidden sm:h-[310px]">
+
+          {player.image_url ? (
             <img
               src={
                 player.image_url
               }
-              alt=""
-              className="h-full w-full object-cover object-top"
+              alt={
+                player.name
+              }
+              className="
+                absolute
+                inset-0
+                h-full
+                w-full
+                object-cover
+                object-top
+              "
             />
+          ) : (
+            <div
+              className={`
+                absolute
+                inset-0
+                ${teamClass.soft}
+                flex
+                items-center
+                justify-center
+              `}
+            >
+              <span
+                className={`
+                  font-display
+                  text-[150px]
+                  leading-none
+                  ${teamClass.text}
+                  opacity-20
+                `}
+              >
+                {player.name.charAt(
+                  0
+                )}
+              </span>
+            </div>
           )}
 
+          {/* HERO GRADIENT */}
           <div
-            className={`absolute inset-0 bg-gradient-to-t ${
-              isYoung
-                ? "from-young-dark"
-                : "from-alum-dark"
-            } via-black/25 to-transparent`}
+            className="
+              pointer-events-none
+              absolute
+              inset-0
+              bg-gradient-to-t
+              from-panel
+              via-black/25
+              to-black/5
+            "
           />
 
+          {/* TEAM COLOR GLOW */}
+          <div
+            className={`
+              pointer-events-none
+              absolute
+              inset-x-0
+              bottom-0
+              h-1
+              ${teamClass.main}
+            `}
+          />
+
+          {/* CLOSE */}
           <button
-            onClick={onClose}
-            className="absolute right-3 top-3 border border-white/15 bg-black/50 px-3 py-2 font-mono text-[9px] font-bold text-white backdrop-blur"
+            type="button"
+            onClick={
+              onClose
+            }
+            className="
+              absolute
+              right-3
+              top-3
+              z-20
+              flex
+              h-9
+              w-9
+              items-center
+              justify-center
+              rounded-full
+              border
+              border-white/15
+              bg-black/55
+              text-lg
+              text-white/80
+              backdrop-blur-md
+              transition
+              hover:bg-black/80
+              hover:text-white
+              active:scale-95
+            "
+            aria-label="Close"
           >
-            CLOSE ×
+            ×
           </button>
 
-          <div className="absolute bottom-4 left-4">
-            <p className="font-display text-4xl leading-none text-white">
-              {player.name}
-            </p>
-
-            <p
-              className={`mt-1 font-mono text-[9px] font-bold tracking-[0.18em] ${accent}`}
+          {/* TEAM BADGE */}
+          <div
+            className="
+              absolute
+              left-4
+              top-4
+              z-20
+            "
+          >
+            <span
+              className="
+                border
+                border-white/15
+                bg-black/55
+                px-2.5
+                py-1.5
+                font-mono
+                text-[8px]
+                font-bold
+                tracking-[0.18em]
+                text-white
+                backdrop-blur-md
+              "
             >
               {player.team.name.toUpperCase()}
-            </p>
-          </div>
-        </div>
-
-        {/* Player information */}
-        <div className="p-4 sm:p-6">
-
-          <div className="mb-5">
-            <p className="font-mono text-[9px] font-bold tracking-[0.2em] text-bone/35">
-              PLAYER RESEARCH
-            </p>
-
-            <p className="mt-1 text-sm leading-6 text-bone/55">
-              {player.bio_tags?.length
-                ? player.bio_tags.join(
-                    " · "
-                  )
-                : "Player notes and scouting information will appear here as they are added."}
-            </p>
-          </div>
-
-          {/* Props */}
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-head text-lg font-bold tracking-wide text-bone">
-              ALL PROPS
-            </h3>
-
-            <span className="font-mono text-[9px] text-bone/30">
-              {props.length}{" "}
-              AVAILABLE
             </span>
           </div>
 
-          <div className="space-y-2">
-            {props.map(
-              (prop) => {
-                const selection =
-                  getSelection(
-                    prop.id
-                  );
+          {/* PLAYER NAME */}
+          <div className="absolute bottom-5 left-4 right-4 z-20 sm:left-6 sm:right-6">
 
-                return (
-                  <div
-                    key={prop.id}
-                    className="border border-line bg-ink2 p-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
+            <p className="font-mono text-[8px] font-bold tracking-[0.25em] text-white/45">
+              PLAYER PROFILE
+            </p>
 
-                      <div>
-                        <p className="font-mono text-[9px] font-bold tracking-[0.12em] text-bone/40">
-                          {
-                            STAT_LABELS[
-                              prop.stat_type
-                            ]
-                          }
-                        </p>
+            <h2 className="mt-1 font-display text-[42px] leading-[0.86] tracking-tight text-white sm:text-5xl">
+              {player.name}
+            </h2>
 
-                        <p className="font-display text-3xl leading-none text-bone">
-                          {prop.line}
-                        </p>
-                      </div>
+            <div className="mt-2 flex items-center gap-2">
 
-                      <div className="grid w-44 grid-cols-2 gap-1.5">
+              <span
+                className={`
+                  h-2
+                  w-2
+                  rounded-full
+                  ${teamClass.main}
+                `}
+              />
 
-                        <button
-                          disabled={
-                            prop.locked
-                          }
-                          onClick={() =>
-                            onSelect(
-                              prop,
-                              "over"
-                            )
-                          }
-                          className={`min-h-10 font-head text-xs font-bold ${
-                            selection ===
-                            "over"
-                              ? `${
-                                  isYoung
-                                    ? "bg-young"
-                                    : "bg-alum"
-                                } text-white`
-                              : "bg-panelLight text-bone/55"
-                          }`}
-                        >
-                          MORE
-                        </button>
+              <span
+                className={`
+                  font-mono
+                  text-[9px]
+                  font-bold
+                  tracking-[0.18em]
+                  ${teamClass.text}
+                `}
+              >
+                {player.team.name.toUpperCase()}
+              </span>
 
-                        <button
-                          disabled={
-                            prop.locked
-                          }
-                          onClick={() =>
-                            onSelect(
-                              prop,
-                              "under"
-                            )
-                          }
-                          className={`min-h-10 font-head text-xs font-bold ${
-                            selection ===
-                            "under"
-                              ? `${
-                                  isYoung
-                                    ? "bg-young"
-                                    : "bg-alum"
-                                } text-white`
-                              : "bg-panelLight text-bone/55"
-                          }`}
-                        >
-                          LESS
-                        </button>
-
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-            )}
+            </div>
           </div>
         </div>
+
+        {/* ================================================= */}
+        {/* SCROLLABLE CONTENT                                  */}
+        {/* ================================================= */}
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+
+          {/* PLAYER INFO */}
+          <div className="border-b border-line px-4 py-4 sm:px-6">
+
+            <div className="flex items-center justify-between">
+
+              <div>
+                <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
+                  AVAILABLE PROPS
+                </p>
+
+                <p className="mt-0.5 font-display text-3xl leading-none text-bone">
+                  {props.length}
+                </p>
+              </div>
+
+              {selectedCount >
+                0 && (
+                <div
+                  className={`
+                    border
+                    ${teamClass.border}
+                    ${teamClass.soft}
+                    px-3
+                    py-2
+                    text-right
+                  `}
+                >
+                  <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/35">
+                    ON YOUR CARD
+                  </p>
+
+                  <p
+                    className={`
+                      font-display
+                      text-2xl
+                      leading-none
+                      ${teamClass.text}
+                    `}
+                  >
+                    {selectedCount}
+                  </p>
+                </div>
+              )}
+
+            </div>
+
+            {/* BIO */}
+            {player.bio_tags &&
+              player.bio_tags.length >
+                0 && (
+                <div className="mt-4">
+
+                  <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
+                    PLAYER NOTES
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {player.bio_tags.map(
+                      (
+                        tag,
+                        index
+                      ) => (
+                        <span
+                          key={`${tag}-${index}`}
+                          className="
+                            border
+                            border-line
+                            bg-ink2
+                            px-2.5
+                            py-1.5
+                            font-mono
+                            text-[8px]
+                            font-bold
+                            tracking-[0.06em]
+                            text-bone/55
+                          "
+                        >
+                          {tag}
+                        </span>
+                      )
+                    )}
+                  </div>
+
+                </div>
+              )}
+          </div>
+
+          {/* PROPS */}
+          <div className="px-4 py-4 sm:px-6">
+
+            <div className="mb-3 flex items-center justify-between">
+
+              <div>
+                <p className="font-mono text-[8px] font-bold tracking-[0.2em] text-bone/30">
+                  MAKE YOUR CALL
+                </p>
+
+                <h3 className="font-display text-2xl leading-none text-bone">
+                  PLAYER PROPS
+                </h3>
+              </div>
+
+              <span
+                className={`
+                  font-mono
+                  text-[8px]
+                  font-bold
+                  tracking-[0.1em]
+                  ${teamClass.text}
+                `}
+              >
+                MORE / LESS
+              </span>
+
+            </div>
+
+            <div className="space-y-2">
+
+              {props.map(
+                (prop) => {
+                  const selection =
+                    getSelection(
+                      prop.id
+                    );
+
+                  return (
+                    <ProfileProp
+                      key={
+                        prop.id
+                      }
+                      prop={
+                        prop
+                      }
+                      selection={
+                        selection
+                      }
+                      teamClass={
+                        teamClass
+                      }
+                      onSelect={
+                        onSelect
+                      }
+                    />
+                  );
+                }
+              )}
+
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================= */}
+        {/* MOBILE PROFILE FOOTER                              */}
+        {/* ================================================= */}
+
+        <div className="shrink-0 border-t border-line bg-panel/95 p-3 backdrop-blur-xl sm:hidden">
+
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="
+              w-full
+              border
+              border-lineBright
+              bg-panelLight
+              py-3
+              font-head
+              text-xs
+              font-bold
+              tracking-[0.12em]
+              text-bone/75
+              transition
+              active:scale-[0.99]
+            "
+          >
+            BACK TO PLAYERS
+          </button>
+
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================= */
+/* PROFILE PROP                                                   */
+/* ============================================================= */
+
+function ProfileProp({
+  prop,
+  selection,
+  teamClass,
+  onSelect,
+}: {
+  prop: PropWithPlayer;
+
+  selection:
+    | "over"
+    | "under"
+    | null;
+
+  teamClass: {
+    main: string;
+    soft: string;
+    border: string;
+    text: string;
+    glow: string;
+  };
+
+  onSelect: (
+    prop: PropWithPlayer,
+    selection:
+      | "over"
+      | "under"
+  ) => void;
+}) {
+  const isSelected =
+    selection !== null;
+
+  return (
+    <div
+      className={`
+        relative
+        overflow-hidden
+        border
+        transition-all
+        duration-200
+        ${
+          isSelected
+            ? `${teamClass.border} ${teamClass.soft}`
+            : "border-line bg-ink2"
+        }
+      `}
+    >
+
+      {/* SELECTED INDICATOR */}
+      {isSelected && (
+        <div
+          className={`
+            absolute
+            inset-y-0
+            left-0
+            w-1
+            ${teamClass.main}
+          `}
+        />
+      )}
+
+      <div className="flex items-center gap-3 p-3">
+
+        {/* STAT */}
+        <div className="min-w-0 flex-1">
+
+          <p className="truncate font-mono text-[8px] font-bold tracking-[0.13em] text-bone/35">
+            {STAT_LABELS[
+              prop.stat_type
+            ]}
+          </p>
+
+          <div className="mt-0.5 flex items-baseline gap-2">
+
+            <span className="font-display text-[34px] leading-none tracking-tight text-bone">
+              {prop.line}
+            </span>
+
+            {prop.featured && (
+              <span className="text-[11px]">
+                🔥
+              </span>
+            )}
+
+          </div>
+
+        </div>
+
+        {/* BUTTONS */}
+        <div className="grid w-[128px] shrink-0 grid-cols-2 gap-1.5">
+
+          <button
+            type="button"
+            disabled={
+              prop.locked
+            }
+            onClick={() =>
+              onSelect(
+                prop,
+                "over"
+              )
+            }
+            className={`
+              min-h-12
+              font-head
+              text-[10px]
+              font-bold
+              tracking-[0.07em]
+              transition-all
+              active:scale-95
+              disabled:cursor-not-allowed
+              disabled:opacity-25
+              ${
+                selection ===
+                "over"
+                  ? `${teamClass.main} text-white shadow-lg`
+                  : "bg-panelLight text-bone/55 hover:bg-line hover:text-bone"
+              }
+            `}
+          >
+            {selection ===
+            "over" ? (
+              <span>
+                ✓ MORE
+              </span>
+            ) : (
+              "MORE"
+            )}
+          </button>
+
+          <button
+            type="button"
+            disabled={
+              prop.locked
+            }
+            onClick={() =>
+              onSelect(
+                prop,
+                "under"
+              )
+            }
+            className={`
+              min-h-12
+              font-head
+              text-[10px]
+              font-bold
+              tracking-[0.07em]
+              transition-all
+              active:scale-95
+              disabled:cursor-not-allowed
+              disabled:opacity-25
+              ${
+                selection ===
+                "under"
+                  ? `${teamClass.main} text-white shadow-lg`
+                  : "bg-panelLight text-bone/55 hover:bg-line hover:text-bone"
+              }
+            `}
+          >
+            {selection ===
+            "under" ? (
+              <span>
+                ✓ LESS
+              </span>
+            ) : (
+              "LESS"
+            )}
+          </button>
+
+        </div>
+      </div>
+
+      {/* LOCKED */}
+      {prop.locked && (
+        <div className="border-t border-line px-3 py-1.5">
+          <p className="font-mono text-[7px] font-bold tracking-[0.15em] text-bone/25">
+            🔒 LOCKED
+          </p>
+        </div>
+      )}
     </div>
   );
 }
