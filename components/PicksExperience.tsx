@@ -177,6 +177,19 @@ function getAutoBio(
   return `Every card needs a number to beat. For ${playerName}, it's ${headline.line} ${statLabel}. ${teamName || "Their squad"} is counting on it.`;
 }
 
+function getSortValue(
+  playerProps: PropWithPlayer[],
+  statFilter: StatFilter,
+): number {
+  if (statFilter === "HOT") return 0;
+
+  const match = playerProps.find((prop) =>
+    statMatches(prop.stat_type, statFilter),
+  );
+
+  return match ? match.line : 0;
+}
+
 function legIsYoung(leg: LegWithSide): boolean {
   if (leg.kind === "player") {
     return (
@@ -253,6 +266,24 @@ export default function PicksExperience({
   // down can look like nothing happened.
   const resultsAnchorRef = useRef<HTMLDivElement>(null);
   const didMountRef = useRef(false);
+
+  // Random tiebreaker per player, assigned once and cached for
+  // the lifetime of this page load. Used so multiple HOT picks
+  // shuffle their order each time the page loads, instead of
+  // always showing in the same order.
+  const shuffleWeightsRef = useRef<Map<string, number>>(
+    new Map(),
+  );
+
+  const getShuffleWeight = (playerId: string): number => {
+    const cache = shuffleWeightsRef.current;
+
+    if (!cache.has(playerId)) {
+      cache.set(playerId, Math.random());
+    }
+
+    return cache.get(playerId)!;
+  };
 
   useEffect(() => {
     if (!didMountRef.current) {
@@ -397,8 +428,10 @@ const isAlum =
     );
 
     /*
-     * HOT picks float to the top no matter which
-     * category tab is active.
+     * HOT picks float to the top no matter which tab is active.
+     * If there are several, their order shuffles each time the
+     * page loads. Everyone else is sorted by the active stat,
+     * highest to lowest.
      */
     return [...filtered].sort((a, b) => {
       const aHot = a.props.some((p) => Boolean(p.featured))
@@ -408,7 +441,23 @@ const isAlum =
         ? 0
         : 1;
 
-      return aHot - bHot;
+      if (aHot !== bHot) {
+        return aHot - bHot;
+      }
+
+      if (aHot === 0) {
+        // Both HOT -- shuffled order.
+        return (
+          getShuffleWeight(a.playerId) -
+          getShuffleWeight(b.playerId)
+        );
+      }
+
+      // Both not HOT -- highest to lowest on the active stat.
+      return (
+        getSortValue(b.props, statFilter) -
+        getSortValue(a.props, statFilter)
+      );
     });
   }, [
     groupedPlayers,
