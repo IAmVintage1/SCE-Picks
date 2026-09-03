@@ -51,6 +51,12 @@ export default function AdminTrackerPage() {
   );
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(
+    null,
+  );
+  const [bumpError, setBumpError] = useState<string | null>(
+    null,
+  );
 
   const [resetOpen, setResetOpen] = useState(false);
   const [resetInput, setResetInput] = useState("");
@@ -66,6 +72,12 @@ export default function AdminTrackerPage() {
       const res = await fetch("/api/admin/live-stats");
       const data = await res.json();
 
+      if (!res.ok) {
+        setLoadError(data?.error ?? "Couldn't load players.");
+        return;
+      }
+
+      setLoadError(data.statsError ?? null);
       setPlayers(data.players ?? []);
 
       const next: StatMap = {};
@@ -77,6 +89,10 @@ export default function AdminTrackerPage() {
         next[row.player_id][row.stat_type as RawStat] = row.value;
       }
       setStats(next);
+    } catch {
+      setLoadError(
+        "Couldn't reach the server. Check your connection and try again.",
+      );
     } finally {
       if (isFirstLoad.current) {
         setLoading(false);
@@ -123,6 +139,7 @@ export default function AdminTrackerPage() {
     });
 
     setPending(true);
+    setBumpError(null);
     try {
       const res = await fetch("/api/admin/live-stats", {
         method: "POST",
@@ -130,6 +147,15 @@ export default function AdminTrackerPage() {
         body: JSON.stringify({ playerId, statType, delta }),
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        setBumpError(data?.error ?? "That tap didn't save.");
+        // Resync with the server since the optimistic update
+        // above didn't actually take, so it would otherwise
+        // silently drift out of sync.
+        await load();
+        return;
+      }
 
       if (data.stats) {
         setStats((current) => {
@@ -140,6 +166,11 @@ export default function AdminTrackerPage() {
           return { ...current, [playerId]: merged };
         });
       }
+    } catch {
+      setBumpError(
+        "Couldn't reach the server, that tap didn't save.",
+      );
+      await load();
     } finally {
       setPending(false);
     }
@@ -210,6 +241,18 @@ export default function AdminTrackerPage() {
           everyone tracking sees roughly-live totals within a
           few seconds.
         </p>
+
+        {loadError && (
+          <div className="rounded-xl border border-young/40 bg-young/10 p-3 text-sm text-young-light">
+            {loadError}
+          </div>
+        )}
+
+        {players.length === 0 && !loadError && (
+          <div className="rounded-xl border border-line bg-panel p-3 text-sm text-bone/40">
+            No active players found. Add players under Players first.
+          </div>
+        )}
 
         <TeamColumn
           label="YOUNGKNIGHTS"
@@ -374,8 +417,12 @@ export default function AdminTrackerPage() {
         />
       </div>
 
-      <p className="text-center text-xs text-bone/25">
-        {pending ? "Saving..." : "3-PT MADE tracked automatically off the 3PT button."}
+      <p
+        className={`text-center text-xs ${
+          bumpError ? "text-young-light" : "text-bone/25"
+        }`}
+      >
+        {pending ? "Saving..." : bumpError ?? "3-PT MADE tracked automatically off the 3PT button."}
       </p>
     </div>
   );

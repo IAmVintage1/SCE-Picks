@@ -23,20 +23,34 @@ export async function GET() {
       .select("player_id, stat_type, value"),
   ]);
 
-  if (playersRes.error)
+  if (playersRes.error) {
+    console.error(
+      "[LIVE STATS] players error:",
+      playersRes.error,
+    );
     return NextResponse.json(
       { error: playersRes.error.message },
       { status: 500 },
     );
-  if (statsRes.error)
-    return NextResponse.json(
-      { error: statsRes.error.message },
-      { status: 500 },
+  }
+
+  // Don't let a missing `live_box_score` table (the migration
+  // hasn't been run yet) blank out the whole player picker --
+  // log it and just return everyone at 0, so the picker still
+  // works and it's obvious from the logs what's actually wrong.
+  if (statsRes.error) {
+    console.error(
+      "[LIVE STATS] stats error (migration 10 may not be run yet):",
+      statsRes.error,
     );
+  }
 
   return NextResponse.json({
     players: playersRes.data ?? [],
     stats: statsRes.data ?? [],
+    statsError: statsRes.error
+      ? "Live stat tracking isn't set up yet in the database (run migration 10-live-stat-tracking.sql in Supabase)."
+      : null,
   });
 }
 
@@ -71,8 +85,11 @@ export async function POST(req: NextRequest) {
   });
 
   if (rpcError) {
+    console.error("[LIVE STATS] bump_live_stat error:", rpcError);
     return NextResponse.json(
-      { error: rpcError.message },
+      {
+        error: `${rpcError.message} (if this mentions a missing function or table, run migration 10-live-stat-tracking.sql in Supabase first)`,
+      },
       { status: 500 },
     );
   }
