@@ -190,6 +190,26 @@ function getSortValue(
   return match ? match.line : 0;
 }
 
+// Whether a player counts as HOT for whichever tab is active.
+// On the HOT tab itself, that's anyone with a featured prop
+// (that's the whole point of the tab). On a specific stat tab
+// (PTS, AST, etc), it's only true if THAT stat's own prop is
+// the featured one, not just any prop somewhere on the player.
+function isHotForTab(
+  playerProps: PropWithPlayer[],
+  statFilter: StatFilter,
+): boolean {
+  if (statFilter === "HOT") {
+    return playerProps.some((prop) => Boolean(prop.featured));
+  }
+
+  const match = playerProps.find((prop) =>
+    statMatches(prop.stat_type, statFilter),
+  );
+
+  return Boolean(match?.featured);
+}
+
 function legIsYoung(leg: LegWithSide): boolean {
   if (leg.kind === "player") {
     return (
@@ -267,22 +287,27 @@ export default function PicksExperience({
   const resultsAnchorRef = useRef<HTMLDivElement>(null);
   const didMountRef = useRef(false);
 
-  // Random tiebreaker per player, assigned once and cached for
-  // the lifetime of this page load. Used so multiple HOT picks
-  // shuffle their order each time the page loads, instead of
-  // always showing in the same order.
+  // Random tiebreaker per (tab, player), assigned once and
+  // cached for the lifetime of this page load. Keying by tab
+  // too means each stat tab gets its own shuffle among whoever
+  // is HOT on that specific tab, instead of one fixed order
+  // that follows the same players everywhere.
   const shuffleWeightsRef = useRef<Map<string, number>>(
     new Map(),
   );
 
-  const getShuffleWeight = (playerId: string): number => {
+  const getShuffleWeight = (
+    tabKey: string,
+    playerId: string,
+  ): number => {
     const cache = shuffleWeightsRef.current;
+    const key = `${tabKey}:${playerId}`;
 
-    if (!cache.has(playerId)) {
-      cache.set(playerId, Math.random());
+    if (!cache.has(key)) {
+      cache.set(key, Math.random());
     }
 
-    return cache.get(playerId)!;
+    return cache.get(key)!;
   };
 
   useEffect(() => {
@@ -449,32 +474,28 @@ const isAlum =
     );
 
     /*
-     * HOT picks float to the top no matter which tab is active.
-     * If there are several, their order shuffles each time the
-     * page loads. Everyone else is sorted by the active stat,
-     * highest to lowest.
+     * Whoever is HOT on THIS tab floats to the top, in a
+     * shuffled order scoped to this specific tab. Everyone
+     * else is sorted by the active stat, highest to lowest.
      */
     return [...filtered].sort((a, b) => {
-      const aHot = a.props.some((p) => Boolean(p.featured))
-        ? 0
-        : 1;
-      const bHot = b.props.some((p) => Boolean(p.featured))
-        ? 0
-        : 1;
+      const aHot = isHotForTab(a.props, statFilter) ? 0 : 1;
+      const bHot = isHotForTab(b.props, statFilter) ? 0 : 1;
 
       if (aHot !== bHot) {
         return aHot - bHot;
       }
 
       if (aHot === 0) {
-        // Both HOT -- shuffled order.
+        // Both HOT on this tab -- shuffled order, scoped to
+        // this tab so a different tab can look different.
         return (
-          getShuffleWeight(a.playerId) -
-          getShuffleWeight(b.playerId)
+          getShuffleWeight(statFilter, a.playerId) -
+          getShuffleWeight(statFilter, b.playerId)
         );
       }
 
-      // Both not HOT -- highest to lowest on the active stat.
+      // Both not HOT here -- highest to lowest on the active stat.
       return (
         getSortValue(b.props, statFilter) -
         getSortValue(a.props, statFilter)
