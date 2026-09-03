@@ -52,7 +52,7 @@ export default function PlayerCard({
     ? "shadow-[0_0_30px_-10px_rgba(220,38,38,0.65)]"
     : "shadow-[0_0_30px_-10px_rgba(37,99,235,0.65)]";
 
-  const isHot = props.some((p) => Boolean(p.featured));
+  const isHot = Boolean(primary.featured);
 
   const teamGradient = isYoung
     ? "from-young/45 via-young-dark/25 to-ink"
