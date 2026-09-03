@@ -39,6 +39,7 @@ export default function AdminSubmissionsPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load(q?: string) {
     setLoading(true);
@@ -52,6 +53,27 @@ export default function AdminSubmissionsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function handleDelete(submission: Submission) {
+    const confirmed = window.confirm(
+      `Delete card #${submission.submission_code} (${
+        submission.user?.name ?? "Unknown"
+      })? This can't be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(submission.id);
+    try {
+      await fetch(`/api/admin/submissions/${submission.id}`, {
+        method: "DELETE",
+      });
+      setSubmissions((current) =>
+        current.filter((s) => s.id !== submission.id),
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -93,17 +115,27 @@ export default function AdminSubmissionsPage() {
                     {s.prize_tier ? ` · ${s.prize_tier}-pick tier` : ""}
                   </p>
                 </div>
-                <span
-                  className={`rounded-full border px-2 py-1 text-[11px] uppercase ${
-                    STATUS_STYLE[s.card_status] ?? STATUS_STYLE.pending
-                  }`}
-                >
-                  {s.card_status === "perfect"
-                    ? "Perfect Card"
-                    : s.card_status === "busted"
-                    ? "Card Busted"
-                    : "Pending"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full border px-2 py-1 text-[11px] uppercase ${
+                      STATUS_STYLE[s.card_status] ?? STATUS_STYLE.pending
+                    }`}
+                  >
+                    {s.card_status === "perfect"
+                      ? "Perfect Card"
+                      : s.card_status === "busted"
+                      ? "Card Busted"
+                      : "Pending"}
+                  </span>
+
+                  <button
+                    onClick={() => handleDelete(s)}
+                    disabled={deletingId === s.id}
+                    className="rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-bone/40 transition hover:border-young/50 hover:text-young-light disabled:opacity-40"
+                  >
+                    {deletingId === s.id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </div>
               <div className="mt-3 space-y-1">
                 {s.picks.map((p) => (

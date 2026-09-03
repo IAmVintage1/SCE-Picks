@@ -303,6 +303,9 @@ export default function PicksExperience({
 
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submissionCode, setSubmissionCode] = useState<
+    string | null
+  >(null);
   const [submitting, setSubmitting] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [mobileSlipOpen, setMobileSlipOpen] = useState(false);
@@ -314,7 +317,25 @@ export default function PicksExperience({
 
   const pickCount = pickList.length;
   const minPicks = settings?.min_picks ?? 3;
-  const locked = Boolean(settings?.picks_locked);
+
+  // Ticks every 15s so the auto-lock time (if the admin set one)
+  // takes effect live without needing a page refresh.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const pastLockTime = Boolean(
+    settings?.pick_lock_time &&
+      now >= new Date(settings.pick_lock_time).getTime(),
+  );
+
+  const locked = Boolean(settings?.picks_locked) || pastLockTime;
 
   const tierInfo = useMemo(
     () => getTierInfo(pickCount, settings),
@@ -750,6 +771,7 @@ const isAlum =
 
     setSubmitOpen(false);
     setSubmitted(true);
+    setSubmissionCode(result?.submissionCode ?? null);
 
     try {
       window.localStorage.removeItem(PICKS_DRAFT_KEY);
@@ -781,7 +803,7 @@ const isAlum =
   const handleShareCard = async () => {
     const lines = pickList.map((leg) => {
       const { title, subtitle } = legLabel(leg);
-      return `${title} — ${subtitle}`;
+      return `${title} : ${subtitle}`;
     });
 
     const shareText = [
@@ -790,6 +812,7 @@ const isAlum =
       "",
       ...lines,
       "",
+      submissionCode ? `Card code: ${submissionCode}` : "",
       "Make your own free card:",
       typeof window !== "undefined"
         ? `${window.location.origin}/picks`
@@ -844,6 +867,17 @@ const isAlum =
                 {settings?.event_name ?? "SCE PICKS"} &middot;{" "}
                 YOUNGKNIGHTS VS ALUMKNIGHTS
               </p>
+
+              {submissionCode && (
+                <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-bone/20 bg-ink/60 px-4 py-1.5">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-bone/40">
+                    YOUR CODE
+                  </span>
+                  <span className="font-mono text-xs font-black tracking-[0.1em] text-bone">
+                    {submissionCode}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Tier / stakes */}
@@ -997,6 +1031,24 @@ const isAlum =
               {pickCount}
             </span>
           </button>
+        </div>
+
+        <div className="border-t border-line/60">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-center gap-4 px-4 py-1.5 sm:px-6 lg:px-8">
+            <Link
+              href="/leaderboard"
+              className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-bone/35 hover:text-bone/70"
+            >
+              🏆 LEADERBOARD
+            </Link>
+            <span className="text-bone/15">&middot;</span>
+            <Link
+              href="/lookup"
+              className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-bone/35 hover:text-bone/70"
+            >
+              🔍 LOOK UP MY CARD
+            </Link>
+          </div>
         </div>
       </header>
 

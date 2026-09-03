@@ -94,6 +94,18 @@ export default function AdminSettingsPage() {
             checked={settings.picks_locked}
             onChange={(v) => save({ picks_locked: v })}
           />
+          <Field
+            label="Auto-lock picks at (optional, leave blank to only use the manual switch above)"
+            type="datetime-local"
+            value={toDatetimeLocal(settings.pick_lock_time)}
+            onSave={(v) =>
+              save({
+                pick_lock_time: v
+                  ? new Date(v).toISOString()
+                  : null,
+              })
+            }
+          />
           <Toggle
             label="Require Instagram username"
             checked={settings.instagram_required}
@@ -150,6 +162,19 @@ export default function AdminSettingsPage() {
       </p>
     </div>
   );
+}
+
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+    d.getDate(),
+  )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function Field({

@@ -43,7 +43,7 @@ async function getStats() {
     }
     if (row.prop) {
       const key = row.prop.id;
-      const label = `${row.prop.player?.name ?? "Unknown"} — ${
+      const label = `${row.prop.player?.name ?? "Unknown"} · ${
         row.prop.line
       } ${STAT_SHORT[row.prop.stat_type]}`;
       const current = propCounts.get(key) ?? {
@@ -80,12 +80,12 @@ export default async function AdminDashboardPage() {
         <StatCard label="Total picks" value={stats.pickCount} />
         <StatCard
           label="Top player"
-          value={stats.topPlayer ? stats.topPlayer[0] : "—"}
+          value={stats.topPlayer ? stats.topPlayer[0] : "N/A"}
           sub={stats.topPlayer ? `${stats.topPlayer[1]} picks` : undefined}
         />
         <StatCard
           label="Top prop"
-          value={stats.topProp ? stats.topProp.label : "—"}
+          value={stats.topProp ? stats.topProp.label : "N/A"}
           sub={
             stats.topProp
               ? `${stats.topProp.over} over / ${stats.topProp.under} under`
@@ -102,7 +102,10 @@ export default async function AdminDashboardPage() {
           <li>1. Add players and upload photos under Players.</li>
           <li>2. Create props (stat + line) for each player under Props.</li>
           <li>3. Share the site link on Instagram once props are live.</li>
-          <li>4. After the game, enter results — Phase 2 will grade picks automatically.</li>
+          <li>
+            4. After the game, enter results under Results, it
+            grades every submitted card automatically.
+          </li>
         </ul>
       </div>
     </div>
