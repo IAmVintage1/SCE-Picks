@@ -20,10 +20,10 @@ import {
   TeamProp,
 } from "@/lib/types";
 
-type Filter = "HOT" | "ALL" | "YOUNG" | "ALUM" | "GAME";
+type Filter = "ALL" | "YOUNG" | "ALUM" | "GAME";
 
 type StatFilter =
-  | "ALL"
+  | "HOT"
   | "PTS"
   | "REB"
   | "AST"
@@ -35,11 +35,15 @@ type StatFilter =
   | "PTS+AST"
   | "REB+BLK";
 
-const STAT_FILTERS: { label: string; value: StatFilter }[] = [
-  { label: "ALL", value: "ALL" },
+const STAT_FILTERS: {
+  label: string;
+  value: StatFilter;
+  icon?: string;
+}[] = [
+  { label: "HOT", value: "HOT", icon: "🔥" },
   { label: "PTS", value: "PTS" },
-  { label: "REB", value: "REB" },
   { label: "AST", value: "AST" },
+  { label: "REB", value: "REB" },
   { label: "3PT", value: "3PT" },
   { label: "STL", value: "STL" },
   { label: "BLK", value: "BLK" },
@@ -52,9 +56,7 @@ const STAT_FILTERS: { label: string; value: StatFilter }[] = [
 const CATEGORY_FILTERS: {
   label: string;
   value: Filter;
-  icon?: string;
 }[] = [
-  { label: "HOT", value: "HOT", icon: "🔥" },
   { label: "ALL", value: "ALL" },
   { label: "YOUNG", value: "YOUNG" },
   { label: "ALUM", value: "ALUM" },
@@ -72,19 +74,15 @@ function statMatches(
   statType: string | undefined,
   filter: StatFilter,
 ): boolean {
-  if (filter === "ALL") return true;
-
-  const statMap: Record<string, StatFilter> = {
+  const statMap: Record<string, StatFilter | undefined> = {
     points: "PTS",
     rebounds: "REB",
     assists: "AST",
     three_pt_made: "3PT",
     steals: "STL",
     blocks: "BLK",
-    turnovers: "ALL",
     points_rebounds: "PTS+REB",
     points_assists: "PTS+AST",
-    rebounds_assists: "ALL",
     rebounds_blocks: "REB+BLK",
     pra: "PRA",
   };
@@ -212,9 +210,9 @@ export default function PicksExperience({
   teamProps,
   settings,
 }: PicksExperienceProps) {
-  const [filter, setFilter] = useState<Filter>("HOT");
+  const [filter, setFilter] = useState<Filter>("ALL");
   const [statFilter, setStatFilter] =
-    useState<StatFilter>("ALL");
+    useState<StatFilter>("HOT");
   const [searchTerm, setSearchTerm] = useState("");
 
   const [picks, setPicks] = useState<
@@ -361,12 +359,15 @@ const isAlum =
           (prop) => Boolean(prop.featured),
         );
 
-        const hasStat = playerProps.some((prop) =>
-          statMatches(
-            prop.stat_type,
-            statFilter,
-          ),
-        );
+        const hasStat =
+          statFilter === "HOT"
+            ? hasFeatured
+            : playerProps.some((prop) =>
+                statMatches(
+                  prop.stat_type,
+                  statFilter,
+                ),
+              );
 
         if (!hasStat) {
           return false;
@@ -382,9 +383,6 @@ const isAlum =
         }
 
         switch (filter) {
-          case "HOT":
-            return hasFeatured;
-
           case "YOUNG":
             return isYoung;
 
@@ -1035,23 +1033,12 @@ const isAlum =
                       setFilter(item.value)
                     }
                     className={[
-                      "flex items-center gap-1.5 rounded-full border px-5 py-2.5 font-head text-sm font-bold uppercase tracking-[0.06em] transition active:scale-[0.96]",
+                      "rounded-full border px-5 py-2.5 font-head text-sm font-bold uppercase tracking-[0.06em] transition active:scale-[0.96]",
                       active
                         ? "border-bone bg-bone text-ink shadow-md"
                         : "border-line text-bone/45 hover:border-bone/30 hover:bg-panel hover:text-bone",
                     ].join(" ")}
                   >
-                    {item.icon && (
-                      <span
-                        className={
-                          active
-                            ? "hot-badge-flame text-sm leading-none"
-                            : "text-sm leading-none"
-                        }
-                      >
-                        {item.icon}
-                      </span>
-                    )}
                     {item.label}
                   </button>
                 );
@@ -1082,12 +1069,23 @@ const isAlum =
                         )
                       }
                       className={[
-                        "rounded-full border px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] transition active:scale-[0.95]",
+                        "flex items-center gap-1 rounded-full border px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] transition active:scale-[0.95]",
                         active
                           ? "border-bone/70 bg-bone/10 text-bone"
                           : "border-line/70 text-bone/40 hover:border-bone/25 hover:text-bone/70",
                       ].join(" ")}
                     >
+                      {item.icon && (
+                        <span
+                          className={
+                            active
+                              ? "hot-badge-flame text-[11px] leading-none"
+                              : "text-[11px] leading-none"
+                          }
+                        >
+                          {item.icon}
+                        </span>
+                      )}
                       {item.label}
                     </button>
                   );
