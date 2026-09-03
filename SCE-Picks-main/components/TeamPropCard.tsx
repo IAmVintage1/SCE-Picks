@@ -1,0 +1,119 @@
+"use client";
+
+import { Team, TeamProp } from "@/lib/types";
+
+export default function TeamPropCard({
+  prop,
+  teams,
+  selection,
+  onSelect,
+}: {
+  prop: TeamProp;
+  teams: Team[];
+  selection: string | null;
+  onSelect: (selection: string) => void;
+}) {
+  const young = teams.find((t) => t.slug === "youngknights");
+  const alum = teams.find((t) => t.slug === "alumknights");
+
+  if (prop.prop_type === "winning_team") {
+    return (
+      <div className="relative overflow-hidden rounded-2xl border border-bone/40 bg-panel shadow-card">
+        <div className="absolute left-3 top-3 z-10 rounded-full bg-bone px-2 py-0.5 font-mono text-[9px] font-bold tracking-[0.1em] text-ink">
+          FEATURED
+        </div>
+        <div className="p-4 pt-9 text-center">
+          <p className="font-mono text-[10px] font-semibold tracking-[0.2em] text-bone/40">
+            GAME PROP
+          </p>
+          <p className="mt-1 font-head text-lg font-bold tracking-wide text-bone">
+            WINNING TEAM
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-px border-t border-line bg-line">
+          <button
+            disabled={prop.locked}
+            onClick={() => onSelect("youngknights")}
+            className={`flex flex-col items-center gap-1 bg-panel py-4 font-head text-sm font-bold tracking-[0.06em] transition disabled:opacity-30 ${
+              selection === "youngknights"
+                ? "bg-young text-white shadow-glowRed"
+                : "text-young-light active:bg-panelLight"
+            }`}
+          >
+            {selection === "youngknights" && (
+              <span className="animate-pop text-xs">&#10003;</span>
+            )}
+            {young?.name.toUpperCase() ?? "YOUNGKNIGHTS"}
+          </button>
+          <button
+            disabled={prop.locked}
+            onClick={() => onSelect("alumknights")}
+            className={`flex flex-col items-center gap-1 bg-panel py-4 font-head text-sm font-bold tracking-[0.06em] transition disabled:opacity-30 ${
+              selection === "alumknights"
+                ? "bg-alum text-white shadow-glowBlue"
+                : "text-alum-light active:bg-panelLight"
+            }`}
+          >
+            {selection === "alumknights" && (
+              <span className="animate-pop text-xs">&#10003;</span>
+            )}
+            {alum?.name.toUpperCase() ?? "ALUMKNIGHTS"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // combined_points
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-bone/40 bg-panel shadow-card">
+      <div className="absolute left-3 top-3 z-10 rounded-full bg-bone px-2 py-0.5 font-mono text-[9px] font-bold tracking-[0.1em] text-ink">
+        FEATURED
+      </div>
+      <div className="p-4 pt-9 text-center">
+        <p className="font-mono text-[10px] font-semibold tracking-[0.2em] text-bone/40">
+          GAME PROP
+        </p>
+        <p className="mt-1 font-head text-lg font-bold tracking-wide text-bone">
+          COMBINED POINTS
+        </p>
+        <p className="tabular mt-2 font-display text-5xl leading-none text-bone">
+          {prop.line}
+        </p>
+        <p className="mt-2 font-mono text-[10px] tracking-[0.1em] text-bone/35">
+          PREVIOUS SCE GAME: 128 TOTAL POINTS
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-px border-t border-line bg-line">
+        <button
+          disabled={prop.locked}
+          onClick={() => onSelect("more")}
+          className={`flex items-center justify-center gap-1.5 bg-panel py-3.5 font-head text-sm font-bold tracking-[0.08em] transition disabled:opacity-30 ${
+            selection === "more"
+              ? "bg-bone text-ink"
+              : "text-bone/60 active:bg-panelLight"
+          }`}
+        >
+          {selection === "more" && (
+            <span className="animate-pop text-xs">&#10003;</span>
+          )}
+          MORE
+        </button>
+        <button
+          disabled={prop.locked}
+          onClick={() => onSelect("less")}
+          className={`flex items-center justify-center gap-1.5 bg-panel py-3.5 font-head text-sm font-bold tracking-[0.08em] transition disabled:opacity-30 ${
+            selection === "less"
+              ? "bg-bone text-ink"
+              : "text-bone/60 active:bg-panelLight"
+          }`}
+        >
+          {selection === "less" && (
+            <span className="animate-pop text-xs">&#10003;</span>
+          )}
+          LESS
+        </button>
+      </div>
+    </div>
+  );
+}

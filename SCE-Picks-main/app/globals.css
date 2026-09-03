@@ -1,0 +1,366 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0A0A0C;
+  color: #F4F3F0;
+}
+
+::selection {
+  background-color: #E23428;
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid #F4F3F0;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Hide scrollbars while keeping horizontal scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ---------------------------------
+   SCE PICKS MICRO-INTERACTIONS
+---------------------------------- */
+
+@keyframes pop {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pop {
+  animation: pop 220ms ease-out;
+}
+
+@keyframes pickPulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.015);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-pick-pulse {
+  animation: pickPulse 260ms ease-out;
+}
+
+@keyframes tierShine {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.tier-shine {
+  background-image: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.22) 45%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: tierShine 1.8s ease-in-out;
+}
+
+/* ---------------------------------
+   PICKED CARD
+---------------------------------- */
+
+@keyframes selectedGlow {
+  0% {
+    box-shadow: 0 0 0 rgba(226, 52, 40, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 28px rgba(226, 52, 40, 0.16);
+  }
+
+  100% {
+    box-shadow: 0 0 18px rgba(226, 52, 40, 0.08);
+  }
+}
+
+.pick-selected {
+  animation: selectedGlow 320ms ease-out;
+}
+
+/* ---------------------------------
+   MODAL
+---------------------------------- */
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-modal-in {
+  animation: modalIn 220ms ease-out;
+}
+
+/* ---------------------------------
+   TIER CELEBRATION
+---------------------------------- */
+
+@keyframes tierCelebrate {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+
+  20% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+
+  70% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.tier-celebrate {
+  animation: tierCelebrate 450ms ease-out;
+}
+
+/* ---------------------------------
+   SPLASH SCREEN
+---------------------------------- */
+
+@keyframes splashSlideLeft {
+  0% {
+    transform: translateX(-120%) rotate(-4deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes splashSlideRight {
+  0% {
+    transform: translateX(120%) rotate(4deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes splashVsPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes splashFlash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes splashShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes splashFadeOut {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+  99% {
+    opacity: 0;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.splash-slide-left {
+  animation: splashSlideLeft 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.splash-slide-right {
+  animation: splashSlideRight 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.splash-vs-pop {
+  animation: splashVsPop 500ms 550ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+.splash-flash {
+  animation: splashFlash 500ms 550ms ease-out forwards;
+}
+
+.splash-shake {
+  animation: splashShake 400ms 600ms ease-out;
+}
+
+.splash-fade-out {
+  animation: splashFadeOut 500ms ease-in forwards;
+}
+
+/* ---------------------------------
+   HOT PICK BADGE
+---------------------------------- */
+
+@keyframes hotFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.08) rotate(-4deg);
+  }
+  50% {
+    transform: scale(0.97) rotate(3deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(-2deg);
+  }
+}
+
+@keyframes hotGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px 0 rgba(255, 122, 24, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 18px 4px rgba(255, 122, 24, 0.85);
+  }
+}
+
+.hot-badge {
+  animation: hotGlow 1.6s ease-in-out infinite;
+}
+
+.hot-badge-flame {
+  display: inline-block;
+  animation: hotFlicker 900ms ease-in-out infinite;
+}
+
+/* ---------------------------------
+   FLEX CARD (Card Locked screen)
+---------------------------------- */
+
+@keyframes flexCardIn {
+  0% {
+    transform: scale(0.94) translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.flex-card-in {
+  animation: flexCardIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------
+   CATEGORY / STAT TAB SWITCH
+---------------------------------- */
+
+@keyframes categoryCardIn {
+  0% {
+    transform: translateY(8px) scale(0.97);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.category-card-in {
+  animation: categoryCardIn 320ms cubic-bezier(0.22, 1, 0.36, 1)
+    backwards;
+}
