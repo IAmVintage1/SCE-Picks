@@ -8,6 +8,7 @@ const NAV = [
   { href: "/admin/players", label: "Players" },
   { href: "/admin/props", label: "Props" },
   { href: "/admin/tracker", label: "Live Tracker" },
+  { href: "/admin/boxscore", label: "Box Score" },
   { href: "/admin/submissions", label: "Submissions" },
   { href: "/admin/results", label: "Results" },
   { href: "/admin/settings", label: "Settings" },

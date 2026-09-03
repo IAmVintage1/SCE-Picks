@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 interface Player {
   id: string;
   name: string;
+  image_url: string | null;
   team: { id: string; name: string; slug: string } | null;
 }
 
@@ -13,33 +15,86 @@ type RawStat =
   | "rebounds"
   | "assists"
   | "three_pt_made"
+  | "three_pt_attempted"
   | "steals"
   | "blocks"
-  | "turnovers";
+  | "turnovers"
+  | "fouls"
+  | "field_goals_made"
+  | "field_goals_attempted"
+  | "ft_made"
+  | "ft_attempted";
 
-const RAW_STATS: RawStat[] = [
+type StatMap = Record<string, Partial<Record<RawStat, number>>>;
+
+const ALL_RAW_STATS: RawStat[] = [
   "points",
   "rebounds",
   "assists",
   "three_pt_made",
+  "three_pt_attempted",
   "steals",
   "blocks",
   "turnovers",
+  "fouls",
+  "field_goals_made",
+  "field_goals_attempted",
+  "ft_made",
+  "ft_attempted",
 ];
 
-type StatMap = Record<string, Partial<Record<RawStat, number>>>;
-
 function emptyStats(): Partial<Record<RawStat, number>> {
-  return {
-    points: 0,
-    rebounds: 0,
-    assists: 0,
-    three_pt_made: 0,
-    steals: 0,
-    blocks: 0,
-    turnovers: 0,
-  };
+  const obj: Partial<Record<RawStat, number>> = {};
+  for (const s of ALL_RAW_STATS) obj[s] = 0;
+  return obj;
 }
+
+// A "shot type" bundles everything one tap of MAKE or MISS
+// should update. Kept here as data rather than duplicated
+// button logic, since these are the same numbers the box
+// score sheet (End Game) reads back out later.
+const SHOT_TYPES: {
+  key: string;
+  label: string;
+  make: [RawStat, number][];
+  miss: [RawStat, number][];
+}[] = [
+  {
+    key: "ft",
+    label: "FT",
+    make: [
+      ["points", 1],
+      ["ft_made", 1],
+      ["ft_attempted", 1],
+    ],
+    miss: [["ft_attempted", 1]],
+  },
+  {
+    key: "2pt",
+    label: "2PT",
+    make: [
+      ["points", 2],
+      ["field_goals_made", 1],
+      ["field_goals_attempted", 1],
+    ],
+    miss: [["field_goals_attempted", 1]],
+  },
+  {
+    key: "3pt",
+    label: "3PT",
+    make: [
+      ["points", 3],
+      ["field_goals_made", 1],
+      ["field_goals_attempted", 1],
+      ["three_pt_made", 1],
+      ["three_pt_attempted", 1],
+    ],
+    miss: [
+      ["field_goals_attempted", 1],
+      ["three_pt_attempted", 1],
+    ],
+  },
+];
 
 const RESET_PHRASE = "RESET GAME";
 
@@ -125,7 +180,6 @@ export default function AdminTrackerPage() {
     statType: RawStat,
     delta: number,
   ) {
-    // Optimistic update so it feels instant courtside.
     setStats((current) => {
       const playerStats = current[playerId] ?? emptyStats();
       const nextVal = Math.max(
@@ -138,8 +192,6 @@ export default function AdminTrackerPage() {
       };
     });
 
-    setPending(true);
-    setBumpError(null);
     try {
       const res = await fetch("/api/admin/live-stats", {
         method: "POST",
@@ -150,11 +202,8 @@ export default function AdminTrackerPage() {
 
       if (!res.ok) {
         setBumpError(data?.error ?? "That tap didn't save.");
-        // Resync with the server since the optimistic update
-        // above didn't actually take, so it would otherwise
-        // silently drift out of sync.
         await load();
-        return;
+        return false;
       }
 
       if (data.stats) {
@@ -166,24 +215,33 @@ export default function AdminTrackerPage() {
           return { ...current, [playerId]: merged };
         });
       }
+      return true;
     } catch {
       setBumpError(
         "Couldn't reach the server, that tap didn't save.",
       );
       await load();
-    } finally {
-      setPending(false);
+      return false;
     }
   }
 
-  async function bumpPoints(
+  // Applies every (stat, delta) pair in one logical action, e.g.
+  // a made 3 bumps points, field_goals_made/attempted, AND
+  // three_pt_made/attempted together. Pass negative deltas to
+  // undo the same action.
+  async function bumpMulti(
     playerId: string,
-    points: number,
-    isThree: boolean,
+    entries: [RawStat, number][],
   ) {
-    await bump(playerId, "points", points);
-    if (isThree) {
-      await bump(playerId, "three_pt_made", points > 0 ? 1 : -1);
+    setPending(true);
+    setBumpError(null);
+    try {
+      for (const [statType, delta] of entries) {
+        const ok = await bump(playerId, statType, delta);
+        if (!ok) return;
+      }
+    } finally {
+      setPending(false);
     }
   }
 
@@ -236,11 +294,20 @@ export default function AdminTrackerPage() {
   if (!selected) {
     return (
       <div className="max-w-2xl space-y-6">
-        <p className="text-sm text-bone/50">
-          Pick the player you're watching. Taps save instantly,
-          everyone tracking sees roughly-live totals within a
-          few seconds.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="max-w-md text-sm text-bone/50">
+            Pick the player you're watching. Taps save instantly,
+            everyone tracking sees roughly-live totals within a
+            few seconds.
+          </p>
+
+          <Link
+            href="/admin/boxscore"
+            className="shrink-0 rounded-xl bg-bone px-4 py-2.5 text-center font-head text-xs font-black uppercase tracking-wider text-ink"
+          >
+            🏁 END GAME → BOX SCORE
+          </Link>
+        </div>
 
         {loadError && (
           <div className="rounded-xl border border-young/40 bg-young/10 p-3 text-sm text-young-light">
@@ -341,13 +408,20 @@ export default function AdminTrackerPage() {
         ← Change player
       </button>
 
-      <div className="rounded-2xl border border-line bg-panel p-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-bone/40">
-          {selected.team?.name ?? ""}
-        </p>
-        <h1 className="font-display text-2xl font-black text-bone">
-          {selected.name}
-        </h1>
+      <div className="flex items-center gap-3 rounded-2xl border border-line bg-panel p-4">
+        <PlayerPhoto
+          url={selected.image_url}
+          name={selected.name}
+          size={56}
+        />
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-bone/40">
+            {selected.team?.name ?? ""}
+          </p>
+          <h1 className="font-display text-2xl font-black text-bone">
+            {selected.name}
+          </h1>
+        </div>
       </div>
 
       {/* Scoring */}
@@ -362,25 +436,33 @@ export default function AdminTrackerPage() {
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <ScoreButton
-            label="FT"
-            sub="+1"
-            onClick={() => bumpPoints(selected.id, 1, false)}
-            onUndo={() => bumpPoints(selected.id, -1, false)}
-          />
-          <ScoreButton
-            label="2PT"
-            sub="+2"
-            onClick={() => bumpPoints(selected.id, 2, false)}
-            onUndo={() => bumpPoints(selected.id, -2, false)}
-          />
-          <ScoreButton
-            label="3PT"
-            sub="+3"
-            onClick={() => bumpPoints(selected.id, 3, true)}
-            onUndo={() => bumpPoints(selected.id, -3, true)}
-          />
+          {SHOT_TYPES.map((shot) => (
+            <ShotButtons
+              key={shot.key}
+              label={shot.label}
+              onMake={() => bumpMulti(selected.id, shot.make)}
+              onMiss={() => bumpMulti(selected.id, shot.miss)}
+              onUndoMake={() =>
+                bumpMulti(
+                  selected.id,
+                  shot.make.map(([s2, d]) => [s2, -d]),
+                )
+              }
+              onUndoMiss={() =>
+                bumpMulti(
+                  selected.id,
+                  shot.miss.map(([s2, d]) => [s2, -d]),
+                )
+              }
+            />
+          ))}
         </div>
+
+        <p className="mt-2 text-center text-[10px] text-bone/30">
+          FG {s.field_goals_made ?? 0}-{s.field_goals_attempted ?? 0}
+          {"  ·  "}3PT {s.three_pt_made ?? 0}-{s.three_pt_attempted ?? 0}
+          {"  ·  "}FT {s.ft_made ?? 0}-{s.ft_attempted ?? 0}
+        </p>
       </div>
 
       {/* Other raw stats */}
@@ -415,6 +497,12 @@ export default function AdminTrackerPage() {
           onInc={() => bump(selected.id, "turnovers", 1)}
           onDec={() => bump(selected.id, "turnovers", -1)}
         />
+        <StatRow
+          label="FOULS"
+          value={s.fouls ?? 0}
+          onInc={() => bump(selected.id, "fouls", 1)}
+          onDec={() => bump(selected.id, "fouls", -1)}
+        />
       </div>
 
       <p
@@ -422,9 +510,43 @@ export default function AdminTrackerPage() {
           bumpError ? "text-young-light" : "text-bone/25"
         }`}
       >
-        {pending ? "Saving..." : bumpError ?? "3-PT MADE tracked automatically off the 3PT button."}
+        {pending
+          ? "Saving..."
+          : bumpError ??
+            "Turnovers and fouls are tracked for the box score, they aren't bettable in the app."}
       </p>
     </div>
+  );
+}
+
+function PlayerPhoto({
+  url,
+  name,
+  size,
+}: {
+  url: string | null;
+  name: string;
+  size: number;
+}) {
+  if (!url) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="flex shrink-0 items-center justify-center rounded-full border border-line bg-panelLight font-head text-sm font-bold text-bone/40"
+      >
+        {name.charAt(0)}
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={name}
+      style={{ width: size, height: size }}
+      className="shrink-0 rounded-full border border-line object-cover"
+    />
   );
 }
 
@@ -453,14 +575,17 @@ function TeamColumn({
           <button
             key={p.id}
             onClick={() => onSelect(p.id)}
-            className="rounded-xl border border-line bg-panel px-3 py-3 text-left transition hover:border-bone/30"
+            className="flex items-center gap-2.5 rounded-xl border border-line bg-panel px-3 py-2.5 text-left transition hover:border-bone/30"
           >
-            <p className="truncate text-sm font-semibold text-bone">
-              {p.name}
-            </p>
-            <p className="text-xs text-bone/35">
-              {stats[p.id]?.points ?? 0} pts
-            </p>
+            <PlayerPhoto url={p.image_url} name={p.name} size={36} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-bone">
+                {p.name}
+              </p>
+              <p className="text-xs text-bone/35">
+                {stats[p.id]?.points ?? 0} pts
+              </p>
+            </div>
           </button>
         ))}
       </div>
@@ -468,32 +593,50 @@ function TeamColumn({
   );
 }
 
-function ScoreButton({
+function ShotButtons({
   label,
-  sub,
-  onClick,
-  onUndo,
+  onMake,
+  onMiss,
+  onUndoMake,
+  onUndoMiss,
 }: {
   label: string;
-  sub: string;
-  onClick: () => void;
-  onUndo: () => void;
+  onMake: () => void;
+  onMiss: () => void;
+  onUndoMake: () => void;
+  onUndoMiss: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <button
-        onClick={onClick}
-        className="flex h-16 w-full flex-col items-center justify-center rounded-xl bg-bone font-head text-sm font-black text-ink active:scale-95"
-      >
+      <p className="font-mono text-[10px] font-bold text-bone/40">
         {label}
-        <span className="text-xs font-bold opacity-60">{sub}</span>
+      </p>
+      <button
+        onClick={onMake}
+        className="flex h-12 w-full items-center justify-center rounded-lg bg-bone font-head text-xs font-black text-ink active:scale-95"
+      >
+        MAKE
       </button>
       <button
-        onClick={onUndo}
-        className="text-[10px] font-medium text-bone/30 underline underline-offset-2 hover:text-bone/60"
+        onClick={onMiss}
+        className="flex h-9 w-full items-center justify-center rounded-lg border border-line text-xs font-bold text-bone/50 active:scale-95"
       >
-        undo
+        MISS
       </button>
+      <div className="flex gap-2 pt-0.5">
+        <button
+          onClick={onUndoMake}
+          className="text-[9px] font-medium text-bone/25 underline underline-offset-2 hover:text-bone/60"
+        >
+          undo make
+        </button>
+        <button
+          onClick={onUndoMiss}
+          className="text-[9px] font-medium text-bone/25 underline underline-offset-2 hover:text-bone/60"
+        >
+          undo miss
+        </button>
+      </div>
     </div>
   );
 }

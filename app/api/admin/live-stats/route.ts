@@ -15,7 +15,9 @@ export async function GET() {
   const [playersRes, statsRes] = await Promise.all([
     supabase
       .from("players")
-      .select("id, name, team:teams!players_team_id_fkey(id, name, slug)")
+      .select(
+        "id, name, image_url, team:teams!players_team_id_fkey(id, name, slug)",
+      )
       .eq("active", true)
       .order("name"),
     supabase
