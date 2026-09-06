@@ -20,21 +20,14 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
               background: rgb(5,5,7);
             }
             .sce-picks-centered-logo img {
-              display: block; width: 188px !important; max-width: none !important; height: auto !important;
-              object-fit: contain; object-position: center;
-              clip-path: inset(8% 12% 13% 10%);
-              transform: scale(1.22) translateX(-3px);
-            }
-            .sce-picks-centered-logo::after {
-              content: "";
-              position: absolute;
-              top: 0;
-              right: 0;
-              bottom: 0;
-              width: 6px;
-              z-index: 3;
-              pointer-events: none;
-              background: rgb(5,5,7);
+              display: block;
+              width: 154px !important;
+              max-width: none !important;
+              height: auto !important;
+              object-fit: contain;
+              object-position: center;
+              clip-path: inset(0 3% 0 0);
+              transform: translateX(-2px);
             }
 
             .sce-picks-layout main > header {
@@ -102,11 +95,10 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
             @media (max-width: 639px) {
               .sce-picks-centered-logo { top: 9px; width: 132px; height: 45px; background: rgb(5,5,7); }
               .sce-picks-centered-logo img {
-                width: 172px !important;
-                clip-path: inset(8% 12% 13% 10%);
-                transform: scale(1.22) translateX(-3px);
+                width: 136px !important;
+                clip-path: inset(0 3% 0 0);
+                transform: translateX(-2px);
               }
-              .sce-picks-centered-logo::after { width: 5px; }
               .sce-picks-layout main > header + section::before,
               .sce-picks-layout main > header + section::after { width: 105px; filter: blur(14px); }
               .sce-picks-layout main > header + section::before { left: -52px; }
