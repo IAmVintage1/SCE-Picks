@@ -21,6 +21,41 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
       <style
         dangerouslySetInnerHTML={{
           __html: `
+            .sce-picks-layout {
+              position: relative;
+              isolation: isolate;
+              min-height: 100vh;
+            }
+
+            /* Matchup atmosphere: Alum blue on the left, Young red on the right.
+               These are intentionally soft edge glows rather than hard bars. */
+            .sce-picks-layout::before,
+            .sce-picks-layout::after {
+              content: "";
+              position: fixed;
+              top: 185px;
+              bottom: 0;
+              width: 86px;
+              z-index: 12;
+              pointer-events: none;
+              opacity: .9;
+              filter: blur(10px);
+            }
+
+            .sce-picks-layout::before {
+              left: -18px;
+              background:
+                radial-gradient(circle at 0% 45%, rgba(37, 99, 235, .24) 0%, rgba(37, 99, 235, .10) 40%, rgba(37, 99, 235, 0) 72%),
+                linear-gradient(90deg, rgba(37, 99, 235, .16) 0%, rgba(37, 99, 235, .06) 48%, rgba(37, 99, 235, 0) 100%);
+            }
+
+            .sce-picks-layout::after {
+              right: -18px;
+              background:
+                radial-gradient(circle at 100% 45%, rgba(220, 38, 38, .24) 0%, rgba(220, 38, 38, .10) 40%, rgba(220, 38, 38, 0) 72%),
+                linear-gradient(270deg, rgba(220, 38, 38, .16) 0%, rgba(220, 38, 38, .06) 48%, rgba(220, 38, 38, 0) 100%);
+            }
+
             .sce-picks-centered-logo {
               position: fixed;
               top: 8px;
@@ -161,6 +196,22 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
             }
 
             @media (max-width: 639px) {
+              .sce-picks-layout::before,
+              .sce-picks-layout::after {
+                top: 205px;
+                width: 58px;
+                filter: blur(8px);
+                opacity: .95;
+              }
+
+              .sce-picks-layout::before {
+                left: -16px;
+              }
+
+              .sce-picks-layout::after {
+                right: -16px;
+              }
+
               .sce-picks-centered-logo {
                 top: 9px;
                 width: 132px;
