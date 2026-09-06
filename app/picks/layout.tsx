@@ -17,24 +17,25 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
               position: fixed; top: 8px; left: 50%; z-index: 60;
               transform: translateX(-50%); display: flex; height: 48px; width: 150px;
               align-items: center; justify-content: center; overflow: hidden; pointer-events: auto;
+              background: rgb(5,5,7);
             }
             .sce-picks-centered-logo img {
-              display: block; width: 166px !important; max-width: none !important; height: auto !important;
-              object-fit: contain; clip-path: inset(5.2% 5.2% 8.4% 5.2%); transform: scale(1.12);
+              display: block; width: 188px !important; max-width: none !important; height: auto !important;
+              object-fit: contain; object-position: center;
+              clip-path: inset(8% 12% 13% 10%);
+              transform: scale(1.22) translateX(-1px);
             }
 
             .sce-picks-layout main > header {
               backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
-              background: rgba(5,5,7,.97) !important;
+              background: rgb(5,5,7) !important;
             }
             .sce-picks-layout main > header > div:first-child > div:first-child,
             .sce-picks-layout main > header > div:first-child > div:nth-child(2) { visibility: hidden !important; }
 
-            /* Remove Leaderboard + separator; keep Look Up My Card centered. */
             .sce-picks-layout main > header > div:nth-child(2) > div > a:first-child,
             .sce-picks-layout main > header > div:nth-child(2) > div > span { display: none !important; }
 
-            /* Floating My Card button, no emoji. */
             .sce-picks-layout main > header > div:first-child > button {
               position: fixed !important; left: 50% !important; right: auto !important; top: auto !important;
               bottom: calc(18px + env(safe-area-inset-bottom)) !important; z-index: 90 !important;
@@ -52,7 +53,6 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
               padding-right: 8px !important; font-size: 11px !important;
             }
 
-            /* Blue/red accents live ONLY on Build Your Card. */
             .sce-picks-layout main > header + section { position: relative !important; isolation: isolate; overflow: hidden; }
             .sce-picks-layout main > header + section::before,
             .sce-picks-layout main > header + section::after {
@@ -89,8 +89,12 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
             .sce-picks-layout main > section + div.hidden + div.lg\\:hidden > :first-child { display: none !important; }
 
             @media (max-width: 639px) {
-              .sce-picks-centered-logo { top: 9px; width: 132px; height: 45px; }
-              .sce-picks-centered-logo img { width: 148px !important; clip-path: inset(5.2% 5.2% 8.4% 5.2%); }
+              .sce-picks-centered-logo { top: 9px; width: 132px; height: 45px; background: rgb(5,5,7); }
+              .sce-picks-centered-logo img {
+                width: 172px !important;
+                clip-path: inset(8% 12% 13% 10%);
+                transform: scale(1.22) translateX(-1px);
+              }
               .sce-picks-layout main > header + section::before,
               .sce-picks-layout main > header + section::after { width: 105px; filter: blur(14px); }
               .sce-picks-layout main > header + section::before { left: -52px; }
