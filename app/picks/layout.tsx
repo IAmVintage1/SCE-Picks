@@ -15,19 +15,17 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
 
             .sce-picks-centered-logo {
               position: fixed; top: 8px; left: 50%; z-index: 60;
-              transform: translateX(-50%); display: flex; height: 48px; width: 150px;
-              align-items: center; justify-content: center; overflow: hidden; pointer-events: auto;
-              background: rgb(5,5,7);
+              transform: translateX(-50%); display: flex; height: 56px; width: 170px;
+              align-items: center; justify-content: center; overflow: visible; pointer-events: auto;
+              background: transparent;
             }
             .sce-picks-centered-logo img {
               display: block;
-              width: 154px !important;
+              width: 170px !important;
               max-width: none !important;
               height: auto !important;
               object-fit: contain;
               object-position: center;
-              clip-path: inset(0 3% 0 0);
-              transform: translateX(-2px);
             }
 
             .sce-picks-layout main > header {
@@ -93,12 +91,8 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
             .sce-picks-layout main > section + div.hidden + div.lg\\:hidden > :first-child { display: none !important; }
 
             @media (max-width: 639px) {
-              .sce-picks-centered-logo { top: 9px; width: 132px; height: 45px; background: rgb(5,5,7); }
-              .sce-picks-centered-logo img {
-                width: 136px !important;
-                clip-path: inset(0 3% 0 0);
-                transform: translateX(-2px);
-              }
+              .sce-picks-centered-logo { top: 8px; width: 150px; height: 50px; background: transparent; }
+              .sce-picks-centered-logo img { width: 150px !important; }
               .sce-picks-layout main > header + section::before,
               .sce-picks-layout main > header + section::after { width: 105px; filter: blur(14px); }
               .sce-picks-layout main > header + section::before { left: -52px; }
