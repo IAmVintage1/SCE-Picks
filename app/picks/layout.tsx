@@ -5,7 +5,7 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
   return (
     <div className="sce-picks-layout">
       <a href="/picks" className="sce-picks-centered-logo" aria-label="SCE Picks">
-        <Image src="/sce-picks-logo.webp" alt="SCE Picks" width={240} height={80} priority />
+        <Image src="/scepickslogo-final.webp" alt="SCE Picks" width={400} height={134} priority />
       </a>
 
       <style
