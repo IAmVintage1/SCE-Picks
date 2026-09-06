@@ -23,48 +23,73 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
           __html: `
             .sce-picks-centered-logo {
               position: fixed;
-              top: 9px;
+              top: 8px;
               left: 50%;
               z-index: 60;
               transform: translateX(-50%);
               display: flex;
-              height: 46px;
-              width: 154px;
+              height: 48px;
+              width: 150px;
               align-items: center;
               justify-content: center;
+              overflow: hidden;
               pointer-events: auto;
             }
 
             .sce-picks-centered-logo img {
-              width: 100%;
-              height: auto;
+              width: 164px !important;
+              max-width: none !important;
+              height: auto !important;
               object-fit: contain;
+              clip-path: inset(4% 4% 7% 4%);
+              transform: scale(1.08);
             }
 
-            /* Hide the old left-side wordmark and the centered event copy.
-               The supplied SCE Picks logo now owns the middle of the header. */
+            /* Keep the sticky header, but remove backdrop-filter because Safari
+               otherwise treats it as the containing block for fixed children. */
+            .sce-picks-layout main > header {
+              backdrop-filter: none !important;
+              -webkit-backdrop-filter: none !important;
+              background: rgba(5, 5, 7, 0.97) !important;
+            }
+
+            /* Hide the old left-side wordmark and centered event copy.
+               The supplied SCE Picks logo owns the middle of the header. */
             .sce-picks-layout main > header > div:first-child > div:first-child,
             .sce-picks-layout main > header > div:first-child > div:nth-child(2) {
               visibility: hidden !important;
             }
 
-            /* The existing MY CARD button keeps all of its real app behavior,
-               but now acts like a persistent floating cart button. */
+            /* Convert the real MY CARD control into a persistent cart button. */
             .sce-picks-layout main > header > div:first-child > button {
               position: fixed !important;
               left: 50% !important;
               right: auto !important;
-              bottom: calc(18px + env(safe-area-inset-bottom)) !important;
               top: auto !important;
-              z-index: 70 !important;
+              bottom: calc(18px + env(safe-area-inset-bottom)) !important;
+              z-index: 90 !important;
               transform: translateX(-50%) !important;
-              min-height: 52px !important;
+              display: flex !important;
+              min-height: 56px !important;
+              min-width: 190px !important;
+              justify-content: center !important;
+              gap: 12px !important;
               padding: 0 18px !important;
-              border-color: rgba(255,255,255,.18) !important;
-              background: rgba(18,18,22,.94) !important;
-              box-shadow: 0 16px 42px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.03) !important;
+              border: 1px solid rgba(255,255,255,.22) !important;
+              border-radius: 9999px !important;
+              background: rgba(16,16,20,.96) !important;
+              box-shadow: 0 18px 48px rgba(0,0,0,.58), 0 0 0 1px rgba(255,255,255,.03) !important;
               backdrop-filter: blur(18px) !important;
               -webkit-backdrop-filter: blur(18px) !important;
+            }
+
+            .sce-picks-layout main > header > div:first-child > button::before {
+              content: "🛒";
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 18px;
+              line-height: 1;
             }
 
             .sce-picks-layout main > header > div:first-child > button > span:first-child {
@@ -73,8 +98,10 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
             }
 
             .sce-picks-layout main > header > div:first-child > button > span:last-child {
-              height: 30px !important;
-              min-width: 30px !important;
+              height: 32px !important;
+              min-width: 32px !important;
+              padding-left: 8px !important;
+              padding-right: 8px !important;
               font-size: 11px !important;
             }
 
@@ -127,17 +154,21 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
               text-align: center !important;
             }
 
-            /* Remove the old mobile PickSlipBar; the floating MY CARD button
-               above opens the exact same drawer instead. */
+            /* Hide the separate old mobile PickSlipBar. The floating cart opens
+               the same PickSlipDrawer, so there should only be one bottom CTA. */
             .sce-picks-layout main > section + div.hidden + div.lg\\:hidden > :first-child {
               display: none !important;
             }
 
             @media (max-width: 639px) {
               .sce-picks-centered-logo {
-                top: 10px;
-                width: 136px;
-                height: 44px;
+                top: 9px;
+                width: 132px;
+                height: 45px;
+              }
+
+              .sce-picks-centered-logo img {
+                width: 146px !important;
               }
 
               .sce-picks-layout main > header + section > div {
@@ -161,6 +192,12 @@ export default function PicksLayout({ children }: { children: ReactNode }) {
                 width: 100% !important;
                 padding: 11px 8px !important;
                 font-size: 12px !important;
+              }
+
+              .sce-picks-layout main > header > div:first-child > button {
+                bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+                min-width: 176px !important;
+                min-height: 54px !important;
               }
             }
           `,
