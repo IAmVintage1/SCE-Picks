@@ -415,7 +415,7 @@ async function cardToPng(card: HTMLElement): Promise<Blob> {
   const visible = picks.slice(0, 10);
   const { columns, rows } = getGrid(visible.length);
   const contentX = 34;
-  const contentY = 318;
+  const contentY = visible.length === 3 ? 430 : 318;
   const contentW = 1012;
   const gapX = columns >= 5 ? 10 : 14;
   const gapY = rows > 1 ? 16 : 0;
@@ -461,23 +461,27 @@ async function cardToPng(card: HTMLElement): Promise<Blob> {
     context.fillText(`CARD CODE: ${code}`, 540, footerY + 42);
   }
 
+  const useJpeg = visible.length >= 7;
+  const mimeType = useJpeg ? "image/jpeg" : "image/png";
+  const quality = useJpeg ? 0.9 : 1;
+
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (value) =>
         value
           ? resolve(value)
           : reject(new Error("Could not create share image.")),
-      "image/png",
-      1,
+      mimeType,
+      quality,
     );
   });
 }
 
-function downloadBlob(blob: Blob) {
+function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "sce-picks-my-card.png";
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -507,15 +511,18 @@ export default function ShareCardEnhancer() {
 
       try {
         const blob = await cardToPng(card);
-        const file = new File([blob], "sce-picks-my-card.png", {
-          type: "image/png",
+        const isJpeg = blob.type === "image/jpeg";
+        const fileName = isJpeg ? "sce-picks-my-card.jpg" : "sce-picks-my-card.png";
+        const file = new File([blob], fileName, {
+          type: blob.type || (isJpeg ? "image/jpeg" : "image/png"),
         });
 
-        if (
+        const canNativeShare =
           typeof navigator !== "undefined" &&
-          navigator.share &&
-          navigator.canShare?.({ files: [file] })
-        ) {
+          typeof navigator.share === "function" &&
+          (typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] }));
+
+        if (canNativeShare) {
           try {
             await navigator.share({
               files: [file],
@@ -530,7 +537,7 @@ export default function ShareCardEnhancer() {
           }
         }
 
-        downloadBlob(blob);
+        downloadBlob(blob, fileName);
       } catch (error) {
         console.error("Share image generation failed:", error);
         alert("Could not create your share image. Please try again.");
