@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { PropWithPlayer, STAT_LABELS } from "@/lib/types";
-import { getPlayerSpriteStyle } from "@/lib/playerSprite";
 
 type Selection = "over" | "under" | null;
 
@@ -30,7 +29,6 @@ export default function PlayerCard({
   if (!primary) return null;
 
   const player = primary.player;
-  const spriteStyle = getPlayerSpriteStyle(player.name);
   const isYoung = player.team.slug === "youngknights";
 
   const accentText = isYoung ? "text-young-light" : "text-alum-light";
@@ -109,14 +107,7 @@ export default function PlayerCard({
       <div className="relative aspect-[3/4] overflow-hidden bg-black">
         <div className={`absolute inset-0 bg-gradient-to-b ${teamGradient}`} />
 
-        {spriteStyle ? (
-          <div
-            role="img"
-            aria-label={player.name}
-            className={`absolute inset-0 bg-no-repeat transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
-            style={spriteStyle}
-          />
-        ) : player.image_url ? (
+        {player.image_url ? (
           <Image
             src={player.image_url}
             alt={player.name}
