@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import {
+  PLAYER_SPRITE_URL,
+  getPlayerSpriteRect,
+} from "@/lib/playerSprite";
 
 const SHARE_BUTTON_TEXT = "SHARE MY CARD";
 
@@ -172,6 +176,39 @@ function drawCoverImage(
   );
 }
 
+function drawSpriteCover(
+  context: CanvasRenderingContext2D,
+  sprite: HTMLImageElement,
+  playerName: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const rect = getPlayerSpriteRect(playerName);
+  if (!rect) return false;
+
+  const scale = Math.max(width / rect.sw, height / rect.sh);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = rect.sx + (rect.sw - sourceWidth) / 2;
+  const sourceY = rect.sy + Math.max(0, (rect.sh - sourceHeight) * 0.12);
+
+  context.drawImage(
+    sprite,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    x,
+    y,
+    width,
+    height,
+  );
+
+  return true;
+}
+
 async function getSharePlayers(picks: ParsedPick[]) {
   const names = picks
     .map((pick) => pick.title)
@@ -220,6 +257,7 @@ async function drawSelectedCard(
   context: CanvasRenderingContext2D,
   pick: ParsedPick,
   player: SharePlayer | undefined,
+  sprite: HTMLImageElement | null,
   x: number,
   y: number,
   width: number,
@@ -254,7 +292,11 @@ async function drawSelectedCard(
   context.fillStyle = gradient;
   context.fillRect(x, y, width, imageHeight);
 
-  if (player?.image_url) {
+  const drewSprite = sprite
+    ? drawSpriteCover(context, sprite, pick.title, x, y, width, imageHeight)
+    : false;
+
+  if (!drewSprite && player?.image_url) {
     const image = await loadImage(player.image_url);
     if (image) {
       drawCoverImage(context, image, x, y, width, imageHeight);
@@ -367,7 +409,10 @@ async function cardToPng(card: HTMLElement): Promise<Blob> {
 
   const fonts = getCanvasFonts();
   const playerMap = await getSharePlayers(picks);
-  const logo = await loadImage("/scepickslogo-final.webp");
+  const [logo, sprite] = await Promise.all([
+    loadImage("/scepickslogo-final.webp"),
+    loadImage(PLAYER_SPRITE_URL),
+  ]);
 
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
@@ -439,6 +484,7 @@ async function cardToPng(card: HTMLElement): Promise<Blob> {
       context,
       pick,
       playerMap.get(pick.title.toLowerCase()),
+      sprite,
       x,
       y,
       cardW,
