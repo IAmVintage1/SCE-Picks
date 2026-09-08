@@ -13,7 +13,6 @@ const PLAYER_INDEX: Record<string, number> = {
   "bao nguyen": 1,
   dajuan: 2,
   "da juan": 2,
-  "da juan": 2,
   donavon: 3,
   donavan: 3,
   "donavan richardson": 3,
