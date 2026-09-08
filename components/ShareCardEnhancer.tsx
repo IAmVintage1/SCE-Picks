@@ -8,12 +8,16 @@ import {
 
 const SHARE_BUTTON_TEXT = "SHARE MY CARD";
 
+type PickKind = "player" | "winning_team" | "combined_points";
+
 type ParsedPick = {
+  kind: PickKind;
   title: string;
   subtitle: string;
   selection: "MORE" | "LESS" | null;
   line: string;
   stat: string;
+  teamSelection?: "YOUNGKNIGHTS" | "ALUMKNIGHTS";
 };
 
 type SharePlayer = {
@@ -85,15 +89,58 @@ function fitText(
   return size;
 }
 
-function parseSubtitle(value: string): Pick<ParsedPick, "selection" | "line" | "stat"> {
-  const normalized = value.trim().replace(/\s+/g, " ").toUpperCase();
-  const match = normalized.match(/^(MORE|LESS)\s+([0-9.]+)\s+(.+)$/);
+function parsePick(titleValue: string, subtitleValue: string): ParsedPick {
+  const title = titleValue.trim();
+  const subtitle = subtitleValue.trim().replace(/\s+/g, " ");
+  const upperTitle = title.toUpperCase();
+  const upperSubtitle = subtitle.toUpperCase();
+
+  if (upperTitle === "WINNING TEAM") {
+    const teamSelection = upperSubtitle.includes("YOUNG")
+      ? "YOUNGKNIGHTS"
+      : "ALUMKNIGHTS";
+
+    return {
+      kind: "winning_team",
+      title,
+      subtitle,
+      selection: null,
+      line: "",
+      stat: "GAME PICK",
+      teamSelection,
+    };
+  }
+
+  if (upperTitle === "COMBINED POINTS") {
+    const match = upperSubtitle.match(/^(MORE|LESS)\s+([0-9.]+)/);
+
+    return {
+      kind: "combined_points",
+      title,
+      subtitle,
+      selection: (match?.[1] as "MORE" | "LESS" | undefined) ?? null,
+      line: match?.[2] ?? "",
+      stat: "TOTAL POINTS",
+    };
+  }
+
+  const match = upperSubtitle.match(/^(MORE|LESS)\s+([0-9.]+)\s+(.+)$/);
 
   if (!match) {
-    return { selection: null, line: "", stat: normalized };
+    return {
+      kind: "player",
+      title,
+      subtitle,
+      selection: null,
+      line: "",
+      stat: upperSubtitle,
+    };
   }
 
   return {
+    kind: "player",
+    title,
+    subtitle,
     selection: match[1] as "MORE" | "LESS",
     line: match[2],
     stat: match[3],
@@ -114,11 +161,7 @@ function getCardData(card: HTMLElement) {
       if (!title || !subtitle) return null;
       if (title.length > 70 || subtitle.length > 70) return null;
 
-      return {
-        title,
-        subtitle,
-        ...parseSubtitle(subtitle),
-      } satisfies ParsedPick;
+      return parsePick(title, subtitle);
     })
     .filter((row): row is ParsedPick => Boolean(row));
 
@@ -211,9 +254,8 @@ function drawSpriteCover(
 
 async function getSharePlayers(picks: ParsedPick[]) {
   const names = picks
-    .map((pick) => pick.title)
-    .filter((name) => !name.toLowerCase().includes("winning team"))
-    .filter((name) => !name.toLowerCase().includes("combined points"));
+    .filter((pick) => pick.kind === "player")
+    .map((pick) => pick.title);
 
   try {
     const response = await fetch("/api/picks/share-players", {
@@ -253,6 +295,292 @@ function getCardHeight(count: number) {
   return 575;
 }
 
+function drawChoiceButtons(
+  context: CanvasRenderingContext2D,
+  selection: "MORE" | "LESS" | null,
+  accent: string,
+  x: number,
+  y: number,
+  width: number,
+  compact: boolean,
+  fonts: CanvasFonts,
+) {
+  const gap = compact ? 6 : 10;
+  const sidePad = compact ? 10 : 16;
+  const buttonH = compact ? 46 : 58;
+  const buttonW = (width - sidePad * 2 - gap) / 2;
+  const buttonX = x + sidePad;
+
+  const drawChoice = (label: "MORE" | "LESS", bx: number) => {
+    const active = selection === label;
+    context.fillStyle = active ? accent : "rgba(255,255,255,.025)";
+    context.strokeStyle = active ? accent : "rgba(255,255,255,.18)";
+    context.lineWidth = active ? 2 : 1;
+    context.fillRect(bx, y, buttonW, buttonH);
+    context.strokeRect(bx, y, buttonW, buttonH);
+
+    context.textAlign = "center";
+    context.fillStyle = active ? "#ffffff" : "rgba(255,255,255,.58)";
+    context.font = `800 ${compact ? 14 : 18}px ${fonts.mono}`;
+    context.fillText(
+      active ? `✓ ${label}` : label,
+      bx + buttonW / 2,
+      y + buttonH * 0.64,
+    );
+  };
+
+  drawChoice("MORE", buttonX);
+  drawChoice("LESS", buttonX + buttonW + gap);
+
+  return { buttonX, buttonH, sidePad };
+}
+
+function drawPickBar(
+  context: CanvasRenderingContext2D,
+  value: string,
+  accent: string,
+  accentSoft: string,
+  accentBorder: string,
+  x: number,
+  y: number,
+  width: number,
+  compact: boolean,
+  fonts: CanvasFonts,
+) {
+  const sidePad = compact ? 10 : 16;
+  const barH = compact ? 32 : 40;
+  const barX = x + sidePad;
+  const barW = width - sidePad * 2;
+
+  context.fillStyle = accentSoft;
+  context.strokeStyle = accentBorder;
+  context.lineWidth = 1;
+  context.fillRect(barX, y, barW, barH);
+  context.strokeRect(barX, y, barW, barH);
+
+  context.textAlign = "left";
+  context.fillStyle = "rgba(255,255,255,.48)";
+  context.font = `700 ${compact ? 10 : 13}px ${fonts.mono}`;
+  context.fillText("YOUR PICK", barX + 10, y + barH * 0.66);
+
+  context.textAlign = "right";
+  context.fillStyle = accent;
+  context.font = `800 ${compact ? 10 : 14}px ${fonts.mono}`;
+  const valueSize = fitText(
+    context,
+    value,
+    barW * 0.62,
+    compact ? 11 : 14,
+    fonts.mono,
+    800,
+    compact ? 8 : 10,
+  );
+  context.font = `800 ${valueSize}px ${fonts.mono}`;
+  context.fillText(`${value} ✓`, barX + barW - 10, y + barH * 0.66);
+}
+
+function drawGameCard(
+  context: CanvasRenderingContext2D,
+  pick: ParsedPick,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fonts: CanvasFonts,
+) {
+  const compact = width < 235 || height < 650;
+  const isWinner = pick.kind === "winning_team";
+  const winnerIsYoung = pick.teamSelection === "YOUNGKNIGHTS";
+  const accent = isWinner
+    ? winnerIsYoung
+      ? "#ff3b44"
+      : "#2f82ff"
+    : "#f4f0e8";
+  const accentSoft = isWinner
+    ? winnerIsYoung
+      ? "rgba(255,59,68,.18)"
+      : "rgba(47,130,255,.18)"
+    : "rgba(244,240,232,.10)";
+  const accentBorder = isWinner
+    ? winnerIsYoung
+      ? "rgba(255,59,68,.45)"
+      : "rgba(47,130,255,.45)"
+    : "rgba(244,240,232,.28)";
+
+  roundedRect(context, x, y, width, height, compact ? 14 : 22);
+  context.fillStyle = "#050914";
+  context.fill();
+  context.strokeStyle = accent;
+  context.globalAlpha = isWinner ? 0.9 : 0.55;
+  context.lineWidth = compact ? 2 : 3;
+  context.stroke();
+  context.globalAlpha = 1;
+
+  context.save();
+  roundedRect(context, x, y, width, height, compact ? 14 : 22);
+  context.clip();
+
+  const heroH = compact ? height * 0.48 : height * 0.56;
+  const split = context.createLinearGradient(x, y, x + width, y);
+  split.addColorStop(0, "#4d1017");
+  split.addColorStop(0.49, "#160b12");
+  split.addColorStop(0.51, "#071127");
+  split.addColorStop(1, "#0f3479");
+  context.fillStyle = split;
+  context.fillRect(x, y, width, heroH);
+
+  const glow = context.createRadialGradient(
+    x + width / 2,
+    y + heroH * 0.44,
+    0,
+    x + width / 2,
+    y + heroH * 0.44,
+    width * 0.7,
+  );
+  glow.addColorStop(0, "rgba(255,255,255,.12)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = glow;
+  context.fillRect(x, y, width, heroH);
+
+  context.textAlign = "center";
+  context.fillStyle = "rgba(255,255,255,.42)";
+  context.font = `800 ${compact ? 10 : 14}px ${fonts.mono}`;
+  context.fillText("GAME PROP", x + width / 2, y + (compact ? 32 : 44));
+
+  context.fillStyle = "rgba(255,59,68,.95)";
+  context.font = `900 ${compact ? 28 : 44}px ${fonts.display}`;
+  context.fillText("YOUNG", x + width * 0.27, y + heroH * 0.48);
+
+  context.fillStyle = "rgba(255,255,255,.42)";
+  context.font = `900 ${compact ? 20 : 32}px ${fonts.display}`;
+  context.fillText("VS", x + width / 2, y + heroH * 0.48);
+
+  context.fillStyle = "rgba(47,130,255,.95)";
+  context.font = `900 ${compact ? 28 : 44}px ${fonts.display}`;
+  context.fillText("ALUM", x + width * 0.73, y + heroH * 0.48);
+
+  if (isWinner) {
+    const selected = pick.teamSelection ?? "TEAM";
+    const selectedSize = fitText(
+      context,
+      selected,
+      width - (compact ? 20 : 34),
+      compact ? 30 : 46,
+      fonts.display,
+      900,
+      compact ? 17 : 24,
+    );
+    context.fillStyle = accent;
+    context.font = `900 ${selectedSize}px ${fonts.display}`;
+    context.fillText(`✓ ${selected}`, x + width / 2, y + heroH * 0.72);
+  } else {
+    context.fillStyle = "rgba(255,255,255,.82)";
+    context.font = `900 ${compact ? 28 : 46}px ${fonts.display}`;
+    context.fillText("TOTAL", x + width / 2, y + heroH * 0.72);
+  }
+
+  const fade = context.createLinearGradient(x, y + heroH * 0.62, x, y + heroH);
+  fade.addColorStop(0, "rgba(5,9,20,0)");
+  fade.addColorStop(1, "rgba(5,9,20,.96)");
+  context.fillStyle = fade;
+  context.fillRect(x, y + heroH * 0.6, width, heroH * 0.4);
+
+  context.restore();
+
+  const contentTop = y + heroH + (compact ? 13 : 18);
+  const centerX = x + width / 2;
+  context.textAlign = "center";
+
+  context.fillStyle = accent;
+  context.font = `800 ${compact ? 11 : 16}px ${fonts.mono}`;
+  context.fillText("GAME", centerX, contentTop);
+
+  const name = pick.title.toUpperCase();
+  const nameSize = fitText(
+    context,
+    name,
+    width - (compact ? 14 : 28),
+    compact ? 27 : 38,
+    fonts.display,
+    900,
+    compact ? 15 : 22,
+  );
+  context.fillStyle = "#f7f4ee";
+  context.font = `900 ${nameSize}px ${fonts.display}`;
+  context.fillText(name, centerX, contentTop + (compact ? 34 : 48));
+
+  if (isWinner) {
+    const selected = pick.teamSelection ?? "TEAM";
+    const selectionSize = fitText(
+      context,
+      selected,
+      width - 20,
+      compact ? 19 : 28,
+      fonts.mono,
+      800,
+      compact ? 11 : 15,
+    );
+    context.fillStyle = accent;
+    context.font = `800 ${selectionSize}px ${fonts.mono}`;
+    context.fillText(selected, centerX, contentTop + (compact ? 66 : 88));
+
+    const pickBarY = contentTop + (compact ? 116 : 160);
+    drawPickBar(
+      context,
+      selected,
+      accent,
+      accentSoft,
+      accentBorder,
+      x,
+      pickBarY,
+      width,
+      compact,
+      fonts,
+    );
+  } else {
+    context.fillStyle = "rgba(255,255,255,.65)";
+    context.font = `800 ${compact ? 12 : 17}px ${fonts.mono}`;
+    context.fillText("TOTAL POINTS", centerX, contentTop + (compact ? 58 : 78));
+
+    context.fillStyle = "#ffffff";
+    context.font = `900 ${compact ? 42 : 62}px ${fonts.display}`;
+    context.fillText(pick.line || "—", centerX, contentTop + (compact ? 102 : 142));
+
+    const buttonY = contentTop + (compact ? 116 : 160);
+    const { buttonH } = drawChoiceButtons(
+      context,
+      pick.selection,
+      pick.selection === "MORE" ? "#ff3b44" : "#2f82ff",
+      x,
+      buttonY,
+      width,
+      compact,
+      fonts,
+    );
+
+    const activeAccent = pick.selection === "MORE" ? "#ff3b44" : "#2f82ff";
+    const activeSoft = pick.selection === "MORE"
+      ? "rgba(255,59,68,.18)"
+      : "rgba(47,130,255,.18)";
+    const activeBorder = pick.selection === "MORE"
+      ? "rgba(255,59,68,.34)"
+      : "rgba(47,130,255,.34)";
+
+    drawPickBar(
+      context,
+      pick.selection ?? "PICK",
+      activeAccent,
+      activeSoft,
+      activeBorder,
+      x,
+      buttonY + buttonH + (compact ? 8 : 10),
+      width,
+      compact,
+      fonts,
+    );
+  }
+}
+
 async function drawSelectedCard(
   context: CanvasRenderingContext2D,
   pick: ParsedPick,
@@ -264,6 +592,11 @@ async function drawSelectedCard(
   height: number,
   fonts: CanvasFonts,
 ) {
+  if (pick.kind !== "player") {
+    drawGameCard(context, pick, x, y, width, height, fonts);
+    return;
+  }
+
   const isYoung =
     player?.team?.slug === "youngknights" ||
     player?.team?.name?.toLowerCase().includes("young") ||
@@ -341,59 +674,33 @@ async function drawSelectedCard(
   context.font = `800 ${compact ? 13 : 18}px ${fonts.mono}`;
   context.fillText(pick.stat || "PROP", centerX, contentTop + (compact ? 58 : 78));
 
-  const lineSize = compact ? 42 : 62;
   context.fillStyle = "#ffffff";
-  context.font = `900 ${lineSize}px ${fonts.display}`;
+  context.font = `900 ${compact ? 42 : 62}px ${fonts.display}`;
   context.fillText(pick.line || "—", centerX, contentTop + (compact ? 102 : 142));
 
-  const buttonGap = compact ? 6 : 10;
-  const sidePad = compact ? 10 : 16;
-  const buttonX = x + sidePad;
   const buttonY = contentTop + (compact ? 116 : 160);
-  const buttonH = compact ? 46 : 58;
-  const buttonW = (width - sidePad * 2 - buttonGap) / 2;
+  const { buttonH } = drawChoiceButtons(
+    context,
+    pick.selection,
+    accent,
+    x,
+    buttonY,
+    width,
+    compact,
+    fonts,
+  );
 
-  const drawChoice = (label: "MORE" | "LESS", bx: number) => {
-    const active = pick.selection === label;
-    context.fillStyle = active ? accent : "rgba(255,255,255,.025)";
-    context.strokeStyle = active ? accent : "rgba(255,255,255,.18)";
-    context.lineWidth = active ? 2 : 1;
-    context.fillRect(bx, buttonY, buttonW, buttonH);
-    context.strokeRect(bx, buttonY, buttonW, buttonH);
-
-    context.fillStyle = active ? "#ffffff" : "rgba(255,255,255,.58)";
-    context.font = `800 ${compact ? 14 : 18}px ${fonts.mono}`;
-    context.fillText(
-      active ? `✓ ${label}` : label,
-      bx + buttonW / 2,
-      buttonY + buttonH * 0.64,
-    );
-  };
-
-  drawChoice("MORE", buttonX);
-  drawChoice("LESS", buttonX + buttonW + buttonGap);
-
-  const pickBarY = buttonY + buttonH + (compact ? 8 : 10);
-  const pickBarH = compact ? 32 : 40;
-
-  context.fillStyle = accentSoft;
-  context.strokeStyle = isYoung ? "rgba(255,59,68,.34)" : "rgba(47,130,255,.34)";
-  context.lineWidth = 1;
-  context.fillRect(buttonX, pickBarY, width - sidePad * 2, pickBarH);
-  context.strokeRect(buttonX, pickBarY, width - sidePad * 2, pickBarH);
-
-  context.textAlign = "left";
-  context.fillStyle = "rgba(255,255,255,.48)";
-  context.font = `700 ${compact ? 10 : 13}px ${fonts.mono}`;
-  context.fillText("YOUR PICK", buttonX + 10, pickBarY + pickBarH * 0.66);
-
-  context.textAlign = "right";
-  context.fillStyle = accent;
-  context.font = `800 ${compact ? 11 : 14}px ${fonts.mono}`;
-  context.fillText(
-    `${pick.selection ?? "PICK"} ✓`,
-    x + width - sidePad - 10,
-    pickBarY + pickBarH * 0.66,
+  drawPickBar(
+    context,
+    pick.selection ?? "PICK",
+    accent,
+    accentSoft,
+    isYoung ? "rgba(255,59,68,.34)" : "rgba(47,130,255,.34)",
+    x,
+    buttonY + buttonH + (compact ? 8 : 10),
+    width,
+    compact,
+    fonts,
   );
 }
 
