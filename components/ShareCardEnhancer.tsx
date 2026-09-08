@@ -18,6 +18,33 @@ type SharePlayer = {
   team?: { name?: string | null; slug?: string | null } | null;
 };
 
+type CanvasFonts = {
+  display: string;
+  head: string;
+  mono: string;
+};
+
+function getCanvasFonts(): CanvasFonts {
+  if (typeof window === "undefined") {
+    return {
+      display: "Anton, Arial Narrow, sans-serif",
+      head: "Oswald, Arial Narrow, sans-serif",
+      mono: "JetBrains Mono, monospace",
+    };
+  }
+
+  const styles = getComputedStyle(document.documentElement);
+  const anton = styles.getPropertyValue("--font-anton").trim();
+  const oswald = styles.getPropertyValue("--font-oswald").trim();
+  const jetbrains = styles.getPropertyValue("--font-jetbrains").trim();
+
+  return {
+    display: `${anton || "Anton"}, Arial Narrow, sans-serif`,
+    head: `${oswald || "Oswald"}, Arial Narrow, sans-serif`,
+    mono: `${jetbrains || "JetBrains Mono"}, monospace`,
+  };
+}
+
 function roundedRect(
   context: CanvasRenderingContext2D,
   x: number,
@@ -41,12 +68,13 @@ function fitText(
   value: string,
   maxWidth: number,
   fontSize: number,
+  fontFamily: string,
   weight = 900,
-  minSize = 14,
+  minSize = 16,
 ) {
   let size = fontSize;
   while (size > minSize) {
-    context.font = `${weight} ${size}px Arial, sans-serif`;
+    context.font = `${weight} ${size}px ${fontFamily}`;
     if (context.measureText(value).width <= maxWidth) break;
     size -= 2;
   }
@@ -82,11 +110,10 @@ function getCardData(card: HTMLElement) {
       if (!title || !subtitle) return null;
       if (title.length > 70 || subtitle.length > 70) return null;
 
-      const parsed = parseSubtitle(subtitle);
       return {
         title,
         subtitle,
-        ...parsed,
+        ...parseSubtitle(subtitle),
       } satisfies ParsedPick;
     })
     .filter((row): row is ParsedPick => Boolean(row));
@@ -181,6 +208,14 @@ function getGrid(count: number) {
   return { columns: 5, rows: 2 };
 }
 
+function getCardHeight(count: number) {
+  if (count <= 1) return 1080;
+  if (count === 2) return 1020;
+  if (count === 3) return 970;
+  if (count <= 6) return 650;
+  return 575;
+}
+
 async function drawSelectedCard(
   context: CanvasRenderingContext2D,
   pick: ParsedPick,
@@ -189,6 +224,7 @@ async function drawSelectedCard(
   y: number,
   width: number,
   height: number,
+  fonts: CanvasFonts,
 ) {
   const isYoung =
     player?.team?.slug === "youngknights" ||
@@ -197,24 +233,24 @@ async function drawSelectedCard(
 
   const accent = isYoung ? "#ff3b44" : "#2f82ff";
   const accentSoft = isYoung ? "rgba(255,59,68,.18)" : "rgba(47,130,255,.18)";
-  const accentStroke = isYoung ? "rgba(255,59,68,.82)" : "rgba(47,130,255,.82)";
-  const compact = height < 500 || width < 260;
+  const accentStroke = isYoung ? "rgba(255,59,68,.9)" : "rgba(47,130,255,.9)";
+  const compact = width < 235 || height < 650;
 
-  roundedRect(context, x, y, width, height, compact ? 16 : 24);
-  context.fillStyle = "#060b16";
+  roundedRect(context, x, y, width, height, compact ? 14 : 22);
+  context.fillStyle = "#050914";
   context.fill();
   context.strokeStyle = accentStroke;
   context.lineWidth = compact ? 2 : 3;
   context.stroke();
 
   context.save();
-  roundedRect(context, x, y, width, height, compact ? 16 : 24);
+  roundedRect(context, x, y, width, height, compact ? 14 : 22);
   context.clip();
 
-  const imageHeight = compact ? height * 0.46 : height * 0.54;
+  const imageHeight = compact ? height * 0.48 : height * 0.56;
   const gradient = context.createLinearGradient(x, y, x, y + imageHeight);
-  gradient.addColorStop(0, isYoung ? "#4f1117" : "#102866");
-  gradient.addColorStop(1, "#050813");
+  gradient.addColorStop(0, isYoung ? "#61131c" : "#12337b");
+  gradient.addColorStop(1, "#050914");
   context.fillStyle = gradient;
   context.fillRect(x, y, width, imageHeight);
 
@@ -225,36 +261,23 @@ async function drawSelectedCard(
     }
   }
 
-  const fade = context.createLinearGradient(x, y + imageHeight * 0.6, x, y + imageHeight);
-  fade.addColorStop(0, "rgba(5,8,19,0)");
-  fade.addColorStop(1, "rgba(5,8,19,.92)");
+  const fade = context.createLinearGradient(x, y + imageHeight * 0.58, x, y + imageHeight);
+  fade.addColorStop(0, "rgba(5,9,20,0)");
+  fade.addColorStop(1, "rgba(5,9,20,.96)");
   context.fillStyle = fade;
   context.fillRect(x, y + imageHeight * 0.55, width, imageHeight * 0.45);
 
   context.restore();
 
-  // Picked badge, matching the in-app selected treatment.
-  const badgeW = compact ? 72 : 96;
-  const badgeH = compact ? 26 : 34;
-  roundedRect(context, x + width - badgeW - 12, y + 12, badgeW, badgeH, 4);
-  context.fillStyle = "rgba(5,8,19,.92)";
-  context.fill();
-  context.strokeStyle = "rgba(255,255,255,.18)";
-  context.lineWidth = 1;
-  context.stroke();
-  context.fillStyle = accent;
-  context.font = `800 ${compact ? 11 : 13}px monospace`;
-  context.textAlign = "center";
-  context.fillText("✓ PICKED", x + width - badgeW / 2 - 12, y + 12 + badgeH * 0.66);
-
-  const contentTop = y + imageHeight + (compact ? 10 : 16);
+  const contentTop = y + imageHeight + (compact ? 13 : 18);
+  const centerX = x + width / 2;
   context.textAlign = "center";
 
   context.fillStyle = accent;
-  context.font = `800 ${compact ? 10 : 14}px monospace`;
+  context.font = `800 ${compact ? 12 : 17}px ${fonts.mono}`;
   context.fillText(
     isYoung ? "YOUNGKNIGHTS" : "ALUMKNIGHTS",
-    x + width / 2,
+    centerX,
     contentTop,
   );
 
@@ -262,43 +285,46 @@ async function drawSelectedCard(
   const nameSize = fitText(
     context,
     name,
-    width - 28,
-    compact ? 22 : 30,
+    width - (compact ? 16 : 28),
+    compact ? 28 : 38,
+    fonts.display,
     900,
-    compact ? 12 : 16,
+    compact ? 18 : 24,
   );
   context.fillStyle = "#f7f4ee";
-  context.font = `900 ${nameSize}px Arial, sans-serif`;
-  context.fillText(name, x + width / 2, contentTop + (compact ? 28 : 38));
+  context.font = `900 ${nameSize}px ${fonts.display}`;
+  context.fillText(name, centerX, contentTop + (compact ? 34 : 48));
 
   context.fillStyle = accent;
-  context.font = `800 ${compact ? 10 : 13}px monospace`;
-  context.fillText(pick.stat || "PROP", x + width / 2, contentTop + (compact ? 48 : 62));
+  context.font = `800 ${compact ? 13 : 18}px ${fonts.mono}`;
+  context.fillText(pick.stat || "PROP", centerX, contentTop + (compact ? 58 : 78));
 
-  const lineSize = compact ? 34 : 48;
+  const lineSize = compact ? 42 : 62;
   context.fillStyle = "#ffffff";
-  context.font = `900 ${lineSize}px Arial, sans-serif`;
-  context.fillText(pick.line || "—", x + width / 2, contentTop + (compact ? 82 : 112));
+  context.font = `900 ${lineSize}px ${fonts.display}`;
+  context.fillText(pick.line || "—", centerX, contentTop + (compact ? 102 : 142));
 
-  const buttonGap = compact ? 6 : 8;
-  const buttonX = x + (compact ? 10 : 14);
-  const buttonY = contentTop + (compact ? 96 : 128);
-  const buttonH = compact ? 38 : 48;
-  const buttonW = (width - (compact ? 20 : 28) - buttonGap) / 2;
+  const buttonGap = compact ? 6 : 10;
+  const sidePad = compact ? 10 : 16;
+  const buttonX = x + sidePad;
+  const buttonY = contentTop + (compact ? 116 : 160);
+  const buttonH = compact ? 46 : 58;
+  const buttonW = (width - sidePad * 2 - buttonGap) / 2;
 
   const drawChoice = (label: "MORE" | "LESS", bx: number) => {
     const active = pick.selection === label;
     context.fillStyle = active ? accent : "rgba(255,255,255,.025)";
-    context.strokeStyle = active ? accent : "rgba(255,255,255,.16)";
+    context.strokeStyle = active ? accent : "rgba(255,255,255,.18)";
     context.lineWidth = active ? 2 : 1;
     context.fillRect(bx, buttonY, buttonW, buttonH);
     context.strokeRect(bx, buttonY, buttonW, buttonH);
-    context.fillStyle = active ? "#ffffff" : "rgba(255,255,255,.5)";
-    context.font = `800 ${compact ? 12 : 15}px monospace`;
+
+    context.fillStyle = active ? "#ffffff" : "rgba(255,255,255,.58)";
+    context.font = `800 ${compact ? 14 : 18}px ${fonts.mono}`;
     context.fillText(
       active ? `✓ ${label}` : label,
       bx + buttonW / 2,
-      buttonY + buttonH * 0.63,
+      buttonY + buttonH * 0.64,
     );
   };
 
@@ -306,31 +332,40 @@ async function drawSelectedCard(
   drawChoice("LESS", buttonX + buttonW + buttonGap);
 
   const pickBarY = buttonY + buttonH + (compact ? 8 : 10);
-  if (pickBarY + (compact ? 28 : 34) < y + height - 6) {
-    context.fillStyle = accentSoft;
-    context.strokeStyle = isYoung ? "rgba(255,59,68,.28)" : "rgba(47,130,255,.28)";
-    context.lineWidth = 1;
-    context.fillRect(buttonX, pickBarY, width - (compact ? 20 : 28), compact ? 28 : 34);
-    context.strokeRect(buttonX, pickBarY, width - (compact ? 20 : 28), compact ? 28 : 34);
-    context.textAlign = "left";
-    context.fillStyle = "rgba(255,255,255,.42)";
-    context.font = `700 ${compact ? 9 : 11}px monospace`;
-    context.fillText("YOUR PICK", buttonX + 10, pickBarY + (compact ? 19 : 22));
-    context.textAlign = "right";
-    context.fillStyle = accent;
-    context.font = `800 ${compact ? 10 : 12}px monospace`;
-    context.fillText(
-      `${pick.selection ?? "PICK"} ✓`,
-      x + width - (compact ? 20 : 24),
-      pickBarY + (compact ? 19 : 22),
-    );
-  }
+  const pickBarH = compact ? 32 : 40;
+
+  context.fillStyle = accentSoft;
+  context.strokeStyle = isYoung ? "rgba(255,59,68,.34)" : "rgba(47,130,255,.34)";
+  context.lineWidth = 1;
+  context.fillRect(buttonX, pickBarY, width - sidePad * 2, pickBarH);
+  context.strokeRect(buttonX, pickBarY, width - sidePad * 2, pickBarH);
+
+  context.textAlign = "left";
+  context.fillStyle = "rgba(255,255,255,.48)";
+  context.font = `700 ${compact ? 10 : 13}px ${fonts.mono}`;
+  context.fillText("YOUR PICK", buttonX + 10, pickBarY + pickBarH * 0.66);
+
+  context.textAlign = "right";
+  context.fillStyle = accent;
+  context.font = `800 ${compact ? 11 : 14}px ${fonts.mono}`;
+  context.fillText(
+    `${pick.selection ?? "PICK"} ✓`,
+    x + width - sidePad - 10,
+    pickBarY + pickBarH * 0.66,
+  );
 }
 
 async function cardToPng(card: HTMLElement): Promise<Blob> {
   const { code, picks } = getCardData(card);
   if (!picks.length) throw new Error("No picks found for share card.");
 
+  if (typeof document !== "undefined" && "fonts" in document) {
+    try {
+      await document.fonts.ready;
+    } catch {}
+  }
+
+  const fonts = getCanvasFonts();
   const playerMap = await getSharePlayers(picks);
   const logo = await loadImage("/scepickslogo-final.webp");
 
@@ -340,60 +375,54 @@ async function cardToPng(card: HTMLElement): Promise<Blob> {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas is unavailable.");
 
-  // Clean SCE Picks background, close to the app rather than a poster.
   context.fillStyle = "#020306";
   context.fillRect(0, 0, 1080, 1920);
 
-  const topGlow = context.createRadialGradient(540, 120, 20, 540, 120, 780);
-  topGlow.addColorStop(0, "rgba(28,74,190,.22)");
+  const topGlow = context.createRadialGradient(540, 110, 20, 540, 110, 760);
+  topGlow.addColorStop(0, "rgba(28,74,190,.24)");
   topGlow.addColorStop(1, "rgba(0,0,0,0)");
   context.fillStyle = topGlow;
-  context.fillRect(0, 0, 1080, 780);
+  context.fillRect(0, 0, 1080, 760);
 
-  const redGlow = context.createRadialGradient(0, 900, 0, 0, 900, 600);
-  redGlow.addColorStop(0, "rgba(220,38,38,.12)");
+  const redGlow = context.createRadialGradient(0, 960, 0, 0, 960, 620);
+  redGlow.addColorStop(0, "rgba(220,38,38,.11)");
   redGlow.addColorStop(1, "rgba(0,0,0,0)");
   context.fillStyle = redGlow;
-  context.fillRect(0, 420, 560, 1100);
+  context.fillRect(0, 380, 560, 1150);
 
-  const blueGlow = context.createRadialGradient(1080, 900, 0, 1080, 900, 600);
-  blueGlow.addColorStop(0, "rgba(37,99,235,.16)");
+  const blueGlow = context.createRadialGradient(1080, 960, 0, 1080, 960, 620);
+  blueGlow.addColorStop(0, "rgba(37,99,235,.15)");
   blueGlow.addColorStop(1, "rgba(0,0,0,0)");
   context.fillStyle = blueGlow;
-  context.fillRect(520, 420, 560, 1100);
+  context.fillRect(520, 380, 560, 1150);
 
-  // Header
   if (logo) {
-    const logoWidth = 430;
+    const logoWidth = 440;
     const logoHeight = logoWidth * (logo.naturalHeight / logo.naturalWidth);
     context.drawImage(logo, (1080 - logoWidth) / 2, 48, logoWidth, logoHeight);
   } else {
     context.textAlign = "center";
     context.fillStyle = "#ffffff";
-    context.font = "900 64px Arial, sans-serif";
-    context.fillText("SCE PICKS", 540, 120);
+    context.font = `900 66px ${fonts.head}`;
+    context.fillText("SCE PICKS", 540, 128);
   }
 
   context.textAlign = "center";
-  context.fillStyle = "#ffffff";
-  context.font = "900 44px Arial, sans-serif";
-  context.fillText("MY CARD", 540, 210);
+  context.fillStyle = "rgba(255,255,255,.5)";
+  context.font = `700 22px ${fonts.mono}`;
+  context.fillText(`${picks.length} PICK${picks.length === 1 ? "" : "S"} LOCKED`, 540, 238);
 
-  context.fillStyle = "rgba(255,255,255,.42)";
-  context.font = "700 20px monospace";
-  context.fillText(`${picks.length} PICK${picks.length === 1 ? "" : "S"} LOCKED`, 540, 244);
-
-  // Adaptive grid of the actual selected prop cards.
-  const { columns, rows } = getGrid(Math.min(picks.length, 10));
-  const contentX = 42;
-  const contentY = 290;
-  const contentW = 996;
-  const contentH = 1440;
-  const gapX = columns >= 5 ? 10 : 16;
-  const gapY = rows >= 5 ? 10 : 18;
-  const cardW = (contentW - gapX * (columns - 1)) / columns;
-  const cardH = (contentH - gapY * (rows - 1)) / rows;
   const visible = picks.slice(0, 10);
+  const { columns, rows } = getGrid(visible.length);
+  const contentX = 34;
+  const contentY = 318;
+  const contentW = 1012;
+  const gapX = columns >= 5 ? 10 : 14;
+  const gapY = rows > 1 ? 16 : 0;
+  const cardW = (contentW - gapX * (columns - 1)) / columns;
+  const cardH = getCardHeight(visible.length);
+
+  let cardBottom = contentY;
 
   for (let index = 0; index < visible.length; index += 1) {
     const pick = visible[index];
@@ -414,23 +443,22 @@ async function cardToPng(card: HTMLElement): Promise<Blob> {
       y,
       cardW,
       cardH,
+      fonts,
     );
+
+    cardBottom = Math.max(cardBottom, y + cardH);
   }
 
-  // Footer
+  const footerY = Math.min(1810, cardBottom + 64);
   context.textAlign = "center";
-  context.fillStyle = "rgba(255,255,255,.5)";
-  context.font = "700 18px monospace";
-  context.fillText("YOUNGKNIGHTS VS ALUMKNIGHTS • OCT 9 • UCF", 540, 1780);
-
-  context.fillStyle = "#ffffff";
-  context.font = "900 34px Arial, sans-serif";
-  context.fillText("CALL YOUR SHOT", 540, 1830);
+  context.fillStyle = "rgba(255,255,255,.52)";
+  context.font = `700 19px ${fonts.mono}`;
+  context.fillText("YOUNGKNIGHTS VS ALUMKNIGHTS • OCT 9 • UCF", 540, footerY);
 
   if (code) {
-    context.fillStyle = "rgba(255,255,255,.36)";
-    context.font = "700 16px monospace";
-    context.fillText(`CARD CODE: ${code}`, 540, 1864);
+    context.fillStyle = "rgba(255,255,255,.34)";
+    context.font = `700 17px ${fonts.mono}`;
+    context.fillText(`CARD CODE: ${code}`, 540, footerY + 42);
   }
 
   return await new Promise<Blob>((resolve, reject) => {
@@ -491,8 +519,8 @@ export default function ShareCardEnhancer() {
           try {
             await navigator.share({
               files: [file],
-              title: "My SCE Picks Card",
-              text: "My SCE Picks card is locked. Call your shot.",
+              title: "SCE Picks",
+              text: "My SCE Picks card is locked.",
             });
             return;
           } catch (error) {
