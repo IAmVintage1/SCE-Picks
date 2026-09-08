@@ -45,7 +45,10 @@ async function sendSubmissionNotification({
     return;
   }
 
-  const to = process.env.PICKS_NOTIFICATION_EMAIL || "stopcappininc@gmail.com";
+  // Resend testing mode can only deliver to the email address that owns the
+  // Resend account. Keep this overrideable so production can switch back to
+  // the SCE inbox later after a custom sending domain is verified.
+  const to = process.env.PICKS_NOTIFICATION_EMAIL || "eazyee543@gmail.com";
   const from = process.env.PICKS_FROM_EMAIL || "SCE Picks <onboarding@resend.dev>";
   const submittedAt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -106,6 +109,8 @@ async function sendSubmissionNotification({
     if (!response.ok) {
       const errorText = await response.text();
       console.error("[SCE Picks] Submission email failed:", response.status, errorText);
+    } else {
+      console.info(`[SCE Picks] Submission email sent to ${to}.`);
     }
   } catch (error) {
     console.error("[SCE Picks] Submission email failed:", error);
