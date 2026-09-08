@@ -30,18 +30,19 @@ const PLAYER_INDEX: Record<string, number> = {
   "kai mattox": 10,
   mia: 11,
   "michael cunningham": 12,
+  michael: 12,
   mikey: 12,
   nohl: 13,
   robert: 14,
   "robert wardell": 14,
-  stephen: 15,
-  tay: 16,
-  "tay destave": 16,
-  tawana: 16,
-  "tawana destave": 16,
-  toom: 17,
-  vanessa: 18,
-  shemar: 19,
+  shemar: 15,
+  stephen: 16,
+  tay: 17,
+  "tay destave": 17,
+  tawana: 17,
+  "tawana destave": 17,
+  toom: 18,
+  vanessa: 19,
 };
 
 function normalizePlayerName(value: string) {
@@ -69,6 +70,23 @@ export function getPlayerSpriteStyle(name: string): CSSProperties | undefined {
     backgroundImage: `url(${PLAYER_SPRITE_URL})`,
     backgroundSize: `${PLAYER_SPRITE_COLUMNS * 100}% ${PLAYER_SPRITE_ROWS * 100}%`,
     backgroundPosition: `${(column / (PLAYER_SPRITE_COLUMNS - 1)) * 100}% ${(row / (PLAYER_SPRITE_ROWS - 1)) * 100}%`,
+  };
+}
+
+export function getPlayerSpriteImageStyle(name: string): CSSProperties | undefined {
+  const index = getPlayerSpriteIndex(name);
+  if (index === null) return undefined;
+
+  const column = index % PLAYER_SPRITE_COLUMNS;
+  const row = Math.floor(index / PLAYER_SPRITE_COLUMNS);
+
+  return {
+    position: "absolute",
+    width: `${PLAYER_SPRITE_COLUMNS * 100}%`,
+    height: `${PLAYER_SPRITE_ROWS * 100}%`,
+    maxWidth: "none",
+    left: `${column * -100}%`,
+    top: `${row * -100}%`,
   };
 }
 
