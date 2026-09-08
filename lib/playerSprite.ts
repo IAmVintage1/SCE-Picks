@@ -72,16 +72,10 @@ export function getPlayerSpriteStyle(name: string): CSSProperties | undefined {
   };
 }
 
-export function getPlayerSpriteRect(name: string) {
-  const index = getPlayerSpriteIndex(name);
-  if (index === null) return null;
-
-  return {
-    sx: (index % PLAYER_SPRITE_COLUMNS) * PLAYER_SPRITE_CELL_WIDTH,
-    sy:
-      Math.floor(index / PLAYER_SPRITE_COLUMNS) *
-      PLAYER_SPRITE_CELL_HEIGHT,
-    sw: PLAYER_SPRITE_CELL_WIDTH,
-    sh: PLAYER_SPRITE_CELL_HEIGHT,
-  };
+// The sprite is no longer used by the production share renderer. Returning
+// null forces ShareCardEnhancer to use the per-player locally cached image
+// returned by /api/picks/share-players, with the original Supabase URL only
+// as a final fallback.
+export function getPlayerSpriteRect(_name: string) {
+  return null;
 }
