@@ -4,10 +4,18 @@ import { useEffect } from "react";
 
 const SHARE_BUTTON_TEXT = "SHARE MY CARD";
 
-type SharePick = {
+type ParsedPick = {
   title: string;
   subtitle: string;
-  young: boolean;
+  selection: "MORE" | "LESS" | null;
+  line: string;
+  stat: string;
+};
+
+type SharePlayer = {
+  name: string;
+  image_url: string | null;
+  team?: { name?: string | null; slug?: string | null } | null;
 };
 
 function roundedRect(
@@ -33,10 +41,11 @@ function fitText(
   value: string,
   maxWidth: number,
   fontSize: number,
-  weight = 800,
+  weight = 900,
+  minSize = 14,
 ) {
   let size = fontSize;
-  while (size > 20) {
+  while (size > minSize) {
     context.font = `${weight} ${size}px Arial, sans-serif`;
     if (context.measureText(value).width <= maxWidth) break;
     size -= 2;
@@ -44,17 +53,24 @@ function fitText(
   return size;
 }
 
-function getTierLabel(pickCount: number) {
-  if (pickCount >= 10) return "GIFT CARD";
-  if (pickCount >= 5) return "FREE T-SHIRT";
-  if (pickCount >= 3) return "IG SHOUTOUT";
-  return "LOCKED IN";
+function parseSubtitle(value: string): Pick<ParsedPick, "selection" | "line" | "stat"> {
+  const normalized = value.trim().replace(/\s+/g, " ").toUpperCase();
+  const match = normalized.match(/^(MORE|LESS)\s+([0-9.]+)\s+(.+)$/);
+
+  if (!match) {
+    return { selection: null, line: "", stat: normalized };
+  }
+
+  return {
+    selection: match[1] as "MORE" | "LESS",
+    line: match[2],
+    stat: match[3],
+  };
 }
 
 function getCardData(card: HTMLElement) {
   const rawText = card.textContent ?? "";
   const codeMatch = rawText.match(/SCE-[A-Z0-9-]+/i);
-  const countMatch = rawText.match(/PICKS ON THE CARD\s*(\d+)/i);
 
   const candidates = Array.from(card.querySelectorAll("div"))
     .map((element) => {
@@ -66,20 +82,18 @@ function getCardData(card: HTMLElement) {
       if (!title || !subtitle) return null;
       if (title.length > 70 || subtitle.length > 70) return null;
 
-      const combinedClass = `${className} ${element.parentElement?.getAttribute("class") ?? ""}`;
+      const parsed = parseSubtitle(subtitle);
       return {
         title,
         subtitle,
-        young:
-          combinedClass.includes("young") ||
-          combinedClass.includes("red") ||
-          title.toLowerCase().includes("young"),
-      } satisfies SharePick;
+        ...parsed,
+      } satisfies ParsedPick;
     })
-    .filter((row): row is SharePick => Boolean(row));
+    .filter((row): row is ParsedPick => Boolean(row));
 
   const seen = new Set<string>();
-  const picks: SharePick[] = [];
+  const picks: ParsedPick[] = [];
+
   for (const pick of candidates) {
     const key = `${pick.title}|${pick.subtitle}`;
     if (seen.has(key)) continue;
@@ -87,263 +101,344 @@ function getCardData(card: HTMLElement) {
     picks.push(pick);
   }
 
-  const pickCount = Number(countMatch?.[1] ?? picks.length);
-
   return {
     code: codeMatch?.[0]?.toUpperCase() ?? null,
-    pickCount,
     picks,
-    tier: getTierLabel(pickCount),
   };
 }
 
-function loadLogo(): Promise<HTMLImageElement | null> {
+function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const image = new Image();
     image.decoding = "async";
+    image.crossOrigin = "anonymous";
     image.onload = () => resolve(image);
     image.onerror = () => resolve(null);
-    image.src = "/scepickslogo-final.webp";
+    image.src = src;
   });
 }
 
-function drawPill(
+function drawCoverImage(
   context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
   x: number,
   y: number,
   width: number,
   height: number,
-  stroke: string,
-  fill: string,
 ) {
-  roundedRect(context, x, y, width, height, height / 2);
-  context.fillStyle = fill;
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = (image.naturalWidth - sourceWidth) / 2;
+  const sourceY = Math.max(0, (image.naturalHeight - sourceHeight) * 0.12);
+
+  context.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    x,
+    y,
+    width,
+    height,
+  );
+}
+
+async function getSharePlayers(picks: ParsedPick[]) {
+  const names = picks
+    .map((pick) => pick.title)
+    .filter((name) => !name.toLowerCase().includes("winning team"))
+    .filter((name) => !name.toLowerCase().includes("combined points"));
+
+  try {
+    const response = await fetch("/api/picks/share-players", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ names }),
+    });
+
+    if (!response.ok) return new Map<string, SharePlayer>();
+
+    const result = await response.json();
+    const players = Array.isArray(result?.players)
+      ? (result.players as SharePlayer[])
+      : [];
+
+    return new Map(
+      players.map((player) => [player.name.toLowerCase(), player]),
+    );
+  } catch {
+    return new Map<string, SharePlayer>();
+  }
+}
+
+function getGrid(count: number) {
+  if (count <= 1) return { columns: 1, rows: 1 };
+  if (count === 2) return { columns: 2, rows: 1 };
+  if (count === 3) return { columns: 3, rows: 1 };
+  if (count <= 6) return { columns: 3, rows: 2 };
+  return { columns: 5, rows: 2 };
+}
+
+async function drawSelectedCard(
+  context: CanvasRenderingContext2D,
+  pick: ParsedPick,
+  player: SharePlayer | undefined,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const isYoung =
+    player?.team?.slug === "youngknights" ||
+    player?.team?.name?.toLowerCase().includes("young") ||
+    false;
+
+  const accent = isYoung ? "#ff3b44" : "#2f82ff";
+  const accentSoft = isYoung ? "rgba(255,59,68,.18)" : "rgba(47,130,255,.18)";
+  const accentStroke = isYoung ? "rgba(255,59,68,.82)" : "rgba(47,130,255,.82)";
+  const compact = height < 500 || width < 260;
+
+  roundedRect(context, x, y, width, height, compact ? 16 : 24);
+  context.fillStyle = "#060b16";
   context.fill();
-  context.strokeStyle = stroke;
-  context.lineWidth = 2;
+  context.strokeStyle = accentStroke;
+  context.lineWidth = compact ? 2 : 3;
   context.stroke();
+
+  context.save();
+  roundedRect(context, x, y, width, height, compact ? 16 : 24);
+  context.clip();
+
+  const imageHeight = compact ? height * 0.46 : height * 0.54;
+  const gradient = context.createLinearGradient(x, y, x, y + imageHeight);
+  gradient.addColorStop(0, isYoung ? "#4f1117" : "#102866");
+  gradient.addColorStop(1, "#050813");
+  context.fillStyle = gradient;
+  context.fillRect(x, y, width, imageHeight);
+
+  if (player?.image_url) {
+    const image = await loadImage(player.image_url);
+    if (image) {
+      drawCoverImage(context, image, x, y, width, imageHeight);
+    }
+  }
+
+  const fade = context.createLinearGradient(x, y + imageHeight * 0.6, x, y + imageHeight);
+  fade.addColorStop(0, "rgba(5,8,19,0)");
+  fade.addColorStop(1, "rgba(5,8,19,.92)");
+  context.fillStyle = fade;
+  context.fillRect(x, y + imageHeight * 0.55, width, imageHeight * 0.45);
+
+  context.restore();
+
+  // Picked badge, matching the in-app selected treatment.
+  const badgeW = compact ? 72 : 96;
+  const badgeH = compact ? 26 : 34;
+  roundedRect(context, x + width - badgeW - 12, y + 12, badgeW, badgeH, 4);
+  context.fillStyle = "rgba(5,8,19,.92)";
+  context.fill();
+  context.strokeStyle = "rgba(255,255,255,.18)";
+  context.lineWidth = 1;
+  context.stroke();
+  context.fillStyle = accent;
+  context.font = `800 ${compact ? 11 : 13}px monospace`;
+  context.textAlign = "center";
+  context.fillText("✓ PICKED", x + width - badgeW / 2 - 12, y + 12 + badgeH * 0.66);
+
+  const contentTop = y + imageHeight + (compact ? 10 : 16);
+  context.textAlign = "center";
+
+  context.fillStyle = accent;
+  context.font = `800 ${compact ? 10 : 14}px monospace`;
+  context.fillText(
+    isYoung ? "YOUNGKNIGHTS" : "ALUMKNIGHTS",
+    x + width / 2,
+    contentTop,
+  );
+
+  const name = pick.title.toUpperCase();
+  const nameSize = fitText(
+    context,
+    name,
+    width - 28,
+    compact ? 22 : 30,
+    900,
+    compact ? 12 : 16,
+  );
+  context.fillStyle = "#f7f4ee";
+  context.font = `900 ${nameSize}px Arial, sans-serif`;
+  context.fillText(name, x + width / 2, contentTop + (compact ? 28 : 38));
+
+  context.fillStyle = accent;
+  context.font = `800 ${compact ? 10 : 13}px monospace`;
+  context.fillText(pick.stat || "PROP", x + width / 2, contentTop + (compact ? 48 : 62));
+
+  const lineSize = compact ? 34 : 48;
+  context.fillStyle = "#ffffff";
+  context.font = `900 ${lineSize}px Arial, sans-serif`;
+  context.fillText(pick.line || "—", x + width / 2, contentTop + (compact ? 82 : 112));
+
+  const buttonGap = compact ? 6 : 8;
+  const buttonX = x + (compact ? 10 : 14);
+  const buttonY = contentTop + (compact ? 96 : 128);
+  const buttonH = compact ? 38 : 48;
+  const buttonW = (width - (compact ? 20 : 28) - buttonGap) / 2;
+
+  const drawChoice = (label: "MORE" | "LESS", bx: number) => {
+    const active = pick.selection === label;
+    context.fillStyle = active ? accent : "rgba(255,255,255,.025)";
+    context.strokeStyle = active ? accent : "rgba(255,255,255,.16)";
+    context.lineWidth = active ? 2 : 1;
+    context.fillRect(bx, buttonY, buttonW, buttonH);
+    context.strokeRect(bx, buttonY, buttonW, buttonH);
+    context.fillStyle = active ? "#ffffff" : "rgba(255,255,255,.5)";
+    context.font = `800 ${compact ? 12 : 15}px monospace`;
+    context.fillText(
+      active ? `✓ ${label}` : label,
+      bx + buttonW / 2,
+      buttonY + buttonH * 0.63,
+    );
+  };
+
+  drawChoice("MORE", buttonX);
+  drawChoice("LESS", buttonX + buttonW + buttonGap);
+
+  const pickBarY = buttonY + buttonH + (compact ? 8 : 10);
+  if (pickBarY + (compact ? 28 : 34) < y + height - 6) {
+    context.fillStyle = accentSoft;
+    context.strokeStyle = isYoung ? "rgba(255,59,68,.28)" : "rgba(47,130,255,.28)";
+    context.lineWidth = 1;
+    context.fillRect(buttonX, pickBarY, width - (compact ? 20 : 28), compact ? 28 : 34);
+    context.strokeRect(buttonX, pickBarY, width - (compact ? 20 : 28), compact ? 28 : 34);
+    context.textAlign = "left";
+    context.fillStyle = "rgba(255,255,255,.42)";
+    context.font = `700 ${compact ? 9 : 11}px monospace`;
+    context.fillText("YOUR PICK", buttonX + 10, pickBarY + (compact ? 19 : 22));
+    context.textAlign = "right";
+    context.fillStyle = accent;
+    context.font = `800 ${compact ? 10 : 12}px monospace`;
+    context.fillText(
+      `${pick.selection ?? "PICK"} ✓`,
+      x + width - (compact ? 20 : 24),
+      pickBarY + (compact ? 19 : 22),
+    );
+  }
 }
 
 async function cardToPng(card: HTMLElement): Promise<Blob> {
-  const { code, pickCount, tier, picks } = getCardData(card);
-  const logo = await loadLogo();
+  const { code, picks } = getCardData(card);
+  if (!picks.length) throw new Error("No picks found for share card.");
 
-  if (!picks.length) {
-    throw new Error("No picks found for share card.");
-  }
+  const playerMap = await getSharePlayers(picks);
+  const logo = await loadImage("/scepickslogo-final.webp");
 
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1920;
-
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas is unavailable.");
 
-  // Background
-  const background = context.createLinearGradient(0, 0, 1080, 1920);
-  background.addColorStop(0, "#07080d");
-  background.addColorStop(0.55, "#050507");
-  background.addColorStop(1, "#020203");
-  context.fillStyle = background;
+  // Clean SCE Picks background, close to the app rather than a poster.
+  context.fillStyle = "#020306";
   context.fillRect(0, 0, 1080, 1920);
 
-  const redGlow = context.createRadialGradient(0, 210, 10, 0, 210, 690);
-  redGlow.addColorStop(0, "rgba(255,45,55,0.28)");
-  redGlow.addColorStop(1, "rgba(255,45,55,0)");
+  const topGlow = context.createRadialGradient(540, 120, 20, 540, 120, 780);
+  topGlow.addColorStop(0, "rgba(28,74,190,.22)");
+  topGlow.addColorStop(1, "rgba(0,0,0,0)");
+  context.fillStyle = topGlow;
+  context.fillRect(0, 0, 1080, 780);
+
+  const redGlow = context.createRadialGradient(0, 900, 0, 0, 900, 600);
+  redGlow.addColorStop(0, "rgba(220,38,38,.12)");
+  redGlow.addColorStop(1, "rgba(0,0,0,0)");
   context.fillStyle = redGlow;
-  context.fillRect(0, 0, 1080, 1000);
+  context.fillRect(0, 420, 560, 1100);
 
-  const blueGlow = context.createRadialGradient(1080, 420, 10, 1080, 420, 720);
-  blueGlow.addColorStop(0, "rgba(30,135,255,0.26)");
-  blueGlow.addColorStop(1, "rgba(30,135,255,0)");
+  const blueGlow = context.createRadialGradient(1080, 900, 0, 1080, 900, 600);
+  blueGlow.addColorStop(0, "rgba(37,99,235,.16)");
+  blueGlow.addColorStop(1, "rgba(0,0,0,0)");
   context.fillStyle = blueGlow;
-  context.fillRect(0, 0, 1080, 1100);
+  context.fillRect(520, 420, 560, 1100);
 
-  // Very subtle floor/court texture.
-  context.strokeStyle = "rgba(255,255,255,0.025)";
-  context.lineWidth = 1;
-  for (let y = 0; y <= 1920; y += 32) {
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(1080, y);
-    context.stroke();
-  }
-
-  // Header logo
+  // Header
   if (logo) {
-    const logoWidth = 520;
+    const logoWidth = 430;
     const logoHeight = logoWidth * (logo.naturalHeight / logo.naturalWidth);
-    context.drawImage(logo, (1080 - logoWidth) / 2, 72, logoWidth, logoHeight);
+    context.drawImage(logo, (1080 - logoWidth) / 2, 48, logoWidth, logoHeight);
   } else {
     context.textAlign = "center";
-    context.fillStyle = "#f7f3eb";
-    context.font = "900 76px Arial, sans-serif";
-    context.fillText("SCE PICKS", 540, 180);
+    context.fillStyle = "#ffffff";
+    context.font = "900 64px Arial, sans-serif";
+    context.fillText("SCE PICKS", 540, 120);
   }
 
   context.textAlign = "center";
   context.fillStyle = "#ffffff";
-  context.font = "900 72px Arial, sans-serif";
-  context.fillText("CARD LOCKED", 540, 332);
+  context.font = "900 44px Arial, sans-serif";
+  context.fillText("MY CARD", 540, 210);
 
-  context.fillStyle = "#ff3b44";
-  context.fillRect(312, 356, 138, 5);
-  context.fillStyle = "#238fff";
-  context.fillRect(630, 356, 138, 5);
-
-  context.fillStyle = "rgba(255,255,255,0.92)";
-  context.font = "800 34px Arial, sans-serif";
-  context.fillText("YOUNGKNIGHTS  VS  ALUMKNIGHTS", 540, 414);
-
-  context.fillStyle = "rgba(255,255,255,0.48)";
-  context.font = "700 22px monospace";
-  context.fillText("OCT 9  •  UCF  •  FREE TO PLAY", 540, 454);
-
-  // Pick count + prize pills
-  drawPill(
-    context,
-    118,
-    500,
-    390,
-    112,
-    "rgba(255,59,68,0.65)",
-    "rgba(255,59,68,0.08)",
-  );
-  drawPill(
-    context,
-    572,
-    500,
-    390,
-    112,
-    "rgba(35,143,255,0.65)",
-    "rgba(35,143,255,0.08)",
-  );
-
-  context.textAlign = "left";
-  context.fillStyle = "rgba(255,255,255,0.48)";
-  context.font = "700 18px monospace";
-  context.fillText("MY CARD", 154, 535);
-  context.fillStyle = "#ff4b53";
-  context.font = "900 42px Arial, sans-serif";
-  context.fillText(`${pickCount} PICKS`, 154, 582);
-
-  context.fillStyle = "rgba(255,255,255,0.48)";
-  context.font = "700 18px monospace";
-  context.fillText("PRIZE TIER", 608, 535);
-  context.fillStyle = "#4ba7ff";
-  context.font = "900 36px Arial, sans-serif";
-  context.fillText(tier, 608, 582);
-
-  // Main picks panel
-  const panelX = 64;
-  const panelY = 658;
-  const panelW = 952;
-  const panelH = 884;
-  roundedRect(context, panelX, panelY, panelW, panelH, 40);
-  context.fillStyle = "rgba(5,7,11,0.82)";
-  context.fill();
-  context.strokeStyle = "rgba(255,255,255,0.09)";
-  context.lineWidth = 2;
-  context.stroke();
-
-  context.textAlign = "left";
-  context.fillStyle = "rgba(255,255,255,0.38)";
-  context.font = "700 18px monospace";
-  context.fillText("LOCKED PICKS", panelX + 36, panelY + 48);
-
-  const maxRows = Math.min(picks.length, 10);
-  const visiblePicks = picks.slice(0, maxRows);
-  const availableRowsHeight = panelH - 118;
-  const gap = visiblePicks.length >= 8 ? 10 : 16;
-  const rowHeight = Math.min(
-    visiblePicks.length <= 4 ? 154 : visiblePicks.length <= 6 ? 126 : 96,
-    Math.floor((availableRowsHeight - gap * (visiblePicks.length - 1)) / visiblePicks.length),
-  );
-  const rowsTotal = rowHeight * visiblePicks.length + gap * (visiblePicks.length - 1);
-  let y = panelY + 82 + Math.max(0, (availableRowsHeight - rowsTotal) / 2);
-
-  visiblePicks.forEach((pick, index) => {
-    const accent = pick.young ? "#ff414a" : "#3299ff";
-    const accentSoft = pick.young ? "rgba(255,65,74,0.12)" : "rgba(50,153,255,0.12)";
-    const accentStroke = pick.young ? "rgba(255,65,74,0.38)" : "rgba(50,153,255,0.38)";
-
-    roundedRect(context, panelX + 28, y, panelW - 56, rowHeight, 26);
-    context.fillStyle = "rgba(255,255,255,0.025)";
-    context.fill();
-    context.strokeStyle = accentStroke;
-    context.lineWidth = 2;
-    context.stroke();
-
-    roundedRect(context, panelX + 28, y, 9, rowHeight, 8);
-    context.fillStyle = accent;
-    context.fill();
-
-    const leftX = panelX + 64;
-    const titleY = y + (rowHeight >= 130 ? 58 : 45);
-    const titleSize = fitText(context, pick.title.toUpperCase(), 500, rowHeight >= 130 ? 38 : 30, 900);
-    context.textAlign = "left";
-    context.fillStyle = "#f7f3ed";
-    context.font = `900 ${titleSize}px Arial, sans-serif`;
-    context.fillText(pick.title.toUpperCase(), leftX, titleY);
-
-    context.fillStyle = accent;
-    context.font = `800 ${rowHeight >= 130 ? 20 : 17}px monospace`;
-    context.fillText(pick.young ? "YOUNGKNIGHTS" : "ALUMKNIGHTS", leftX, titleY + (rowHeight >= 130 ? 36 : 28));
-
-    const badgeW = rowHeight >= 130 ? 270 : 236;
-    const badgeH = rowHeight >= 130 ? 72 : 58;
-    const badgeX = panelX + panelW - badgeW - 54;
-    const badgeY = y + (rowHeight - badgeH) / 2;
-    roundedRect(context, badgeX, badgeY, badgeW, badgeH, badgeH / 2);
-    context.fillStyle = accentSoft;
-    context.fill();
-    context.strokeStyle = accent;
-    context.lineWidth = 2;
-    context.stroke();
-
-    const subtitle = pick.subtitle.toUpperCase();
-    const subtitleSize = fitText(context, subtitle, badgeW - 40, rowHeight >= 130 ? 30 : 24, 900);
-    context.textAlign = "center";
-    context.fillStyle = accent;
-    context.font = `900 ${subtitleSize}px Arial, sans-serif`;
-    context.fillText(subtitle, badgeX + badgeW / 2, badgeY + badgeH / 2 + subtitleSize * 0.34);
-
-    y += rowHeight + gap;
-  });
-
-  // Footer area
-  context.textAlign = "center";
-  context.fillStyle = "rgba(255,255,255,0.28)";
-  context.font = "700 17px monospace";
-  context.fillText("EVERY PICK HAS TO HIT", 540, 1602);
-
-  context.fillStyle = "#f7f3ed";
-  context.font = "900 62px Arial, sans-serif";
-  context.fillText("CALL YOUR SHOT", 540, 1680);
-
-  context.fillStyle = "rgba(255,255,255,0.48)";
+  context.fillStyle = "rgba(255,255,255,.42)";
   context.font = "700 20px monospace";
-  context.fillText("SCE PICKS  •  OCT 9  •  UCF", 540, 1726);
+  context.fillText(`${picks.length} PICK${picks.length === 1 ? "" : "S"} LOCKED`, 540, 244);
+
+  // Adaptive grid of the actual selected prop cards.
+  const { columns, rows } = getGrid(Math.min(picks.length, 10));
+  const contentX = 42;
+  const contentY = 290;
+  const contentW = 996;
+  const contentH = 1440;
+  const gapX = columns >= 5 ? 10 : 16;
+  const gapY = rows >= 5 ? 10 : 18;
+  const cardW = (contentW - gapX * (columns - 1)) / columns;
+  const cardH = (contentH - gapY * (rows - 1)) / rows;
+  const visible = picks.slice(0, 10);
+
+  for (let index = 0; index < visible.length; index += 1) {
+    const pick = visible[index];
+    const row = Math.floor(index / columns);
+    const rowStart = row * columns;
+    const rowCount = Math.min(columns, visible.length - rowStart);
+    const rowWidth = rowCount * cardW + (rowCount - 1) * gapX;
+    const rowOffset = (contentW - rowWidth) / 2;
+    const col = index - rowStart;
+    const x = contentX + rowOffset + col * (cardW + gapX);
+    const y = contentY + row * (cardH + gapY);
+
+    await drawSelectedCard(
+      context,
+      pick,
+      playerMap.get(pick.title.toLowerCase()),
+      x,
+      y,
+      cardW,
+      cardH,
+    );
+  }
+
+  // Footer
+  context.textAlign = "center";
+  context.fillStyle = "rgba(255,255,255,.5)";
+  context.font = "700 18px monospace";
+  context.fillText("YOUNGKNIGHTS VS ALUMKNIGHTS • OCT 9 • UCF", 540, 1780);
+
+  context.fillStyle = "#ffffff";
+  context.font = "900 34px Arial, sans-serif";
+  context.fillText("CALL YOUR SHOT", 540, 1830);
 
   if (code) {
-    drawPill(
-      context,
-      330,
-      1762,
-      420,
-      70,
-      "rgba(255,255,255,0.12)",
-      "rgba(255,255,255,0.035)",
-    );
-    context.fillStyle = "rgba(255,255,255,0.72)";
-    context.font = "800 22px monospace";
-    context.fillText(`CARD CODE: ${code}`, 540, 1806);
+    context.fillStyle = "rgba(255,255,255,.36)";
+    context.font = "700 16px monospace";
+    context.fillText(`CARD CODE: ${code}`, 540, 1864);
   }
 
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (value) =>
-        value ? resolve(value) : reject(new Error("Could not create share image.")),
+        value
+          ? resolve(value)
+          : reject(new Error("Could not create share image.")),
       "image/png",
       1,
     );
@@ -354,7 +449,7 @@ function downloadBlob(blob: Blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "sce-picks-card.png";
+  link.download = "sce-picks-my-card.png";
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -384,21 +479,20 @@ export default function ShareCardEnhancer() {
 
       try {
         const blob = await cardToPng(card);
-        const file = new File([blob], "sce-picks-card.png", {
+        const file = new File([blob], "sce-picks-my-card.png", {
           type: "image/png",
         });
 
-        const canShareFiles =
-          typeof navigator.share === "function" &&
-          typeof navigator.canShare === "function" &&
-          navigator.canShare({ files: [file] });
-
-        if (canShareFiles) {
+        if (
+          typeof navigator !== "undefined" &&
+          navigator.share &&
+          navigator.canShare?.({ files: [file] })
+        ) {
           try {
             await navigator.share({
-              title: "My SCE Picks Card",
-              text: "I locked my SCE Picks card. Think you can beat it?",
               files: [file],
+              title: "My SCE Picks Card",
+              text: "My SCE Picks card is locked. Call your shot.",
             });
             return;
           } catch (error) {
@@ -410,7 +504,7 @@ export default function ShareCardEnhancer() {
 
         downloadBlob(blob);
       } catch (error) {
-        console.error("Share card image failed:", error);
+        console.error("Share image generation failed:", error);
         alert("Could not create your share image. Please try again.");
       } finally {
         button.disabled = false;
