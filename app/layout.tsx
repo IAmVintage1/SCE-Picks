@@ -13,10 +13,22 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], weight: ["500", "700"], v
 export const metadata: Metadata = {
   title: "SCE Picks | Call Your Shot",
   description: "Make your picks for YoungKnights vs AlumKnights. Hit your card and win real prizes. Free to play.",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
   openGraph: {
     title: "SCE Picks | Call Your Shot",
     description: "Make your picks for YoungKnights vs AlumKnights. Hit your card and win real prizes. Free to play.",
-    images: ["/og-image.jpg"],
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "SCE Picks — Make Your Picks, Win Real Prizes",
+      },
+    ],
     type: "website",
   },
   twitter: {
