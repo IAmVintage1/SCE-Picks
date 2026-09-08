@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { PropWithPlayer, STAT_LABELS } from "@/lib/types";
+import { getPlayerSpriteStyle } from "@/lib/playerSprite";
 
 type Selection = "over" | "under" | null;
 
@@ -30,6 +31,7 @@ export default function PlayerCard({
   if (!primary) return null;
 
   const player = primary.player;
+  const spriteStyle = getPlayerSpriteStyle(player.name);
   const isYoung = player.team.slug === "youngknights";
 
   const accentText = isYoung
@@ -129,7 +131,6 @@ export default function PlayerCard({
         }
       `}
     >
-      {/* Selection flash */}
       {(feedback === "over" || feedback === "under") && (
         <div
           className={`
@@ -145,7 +146,6 @@ export default function PlayerCard({
         />
       )}
 
-      {/* HOT badge */}
       {isHot && (
         <div
           className={`
@@ -158,16 +158,11 @@ export default function PlayerCard({
             text-orange-300
           `}
         >
-          <span className="hot-badge-flame text-[11px] leading-none">
-            🔥
-          </span>
-          <span className="font-mono text-[8px] font-black tracking-[0.14em]">
-            HOT
-          </span>
+          <span className="hot-badge-flame text-[11px] leading-none">🔥</span>
+          <span className="font-mono text-[8px] font-black tracking-[0.14em]">HOT</span>
         </div>
       )}
 
-      {/* PICKED badge */}
       {isPicked && (
         <div
           className={`
@@ -182,41 +177,33 @@ export default function PlayerCard({
             animate-[badgeIn_260ms_ease-out]
           `}
         >
-          <span className="text-[10px] font-black">
-            ✓
-          </span>
-
-          <span className="font-mono text-[8px] font-bold tracking-[0.14em]">
-            PICKED
-          </span>
+          <span className="text-[10px] font-black">✓</span>
+          <span className="font-mono text-[8px] font-bold tracking-[0.14em]">PICKED</span>
         </div>
       )}
 
-      {/* =====================================================
-          PLAYER IMAGE
-      ===================================================== */}
       <div className="relative aspect-[3/4] overflow-hidden bg-black">
-        {/* Team color gradient backdrop -- sits behind the player
-            photo so it shows through transparent/cutout edges and
-            as a colorful placeholder while the image loads. */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-b ${teamGradient}`}
-        />
+        <div className={`absolute inset-0 bg-gradient-to-b ${teamGradient}`} />
 
-        {player.image_url ? (
+        {spriteStyle ? (
+          <div
+            aria-label={player.name}
+            className={`absolute inset-0 bg-no-repeat transition-transform duration-500 ${
+              isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"
+            }`}
+            style={spriteStyle}
+          />
+        ) : player.image_url ? (
           <Image
             src={player.image_url}
             alt={player.name}
             fill
             priority={false}
+            quality={55}
             className={`
               object-cover object-top
               transition-transform duration-500
-              ${
-                isPicked
-                  ? "scale-[1.01]"
-                  : "group-hover:scale-[1.015]"
-              }
+              ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}
             `}
             sizes="
               (max-width: 640px) 50vw,
@@ -226,106 +213,41 @@ export default function PlayerCard({
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <span
-              className={`
-                font-display text-6xl font-black
-                ${accentText}
-              `}
-            >
+            <span className={`font-display text-6xl font-black ${accentText}`}>
               {player.name.charAt(0)}
             </span>
           </div>
         )}
 
-        {/* Subtle image gradient */}
         <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-ink/85 via-ink/15 to-transparent" />
       </div>
 
-      {/* =====================================================
-          CARD CONTENT
-      ===================================================== */}
       <div className="p-3">
-
-        {/* Team name -- sits in the black box under the image */}
         <div className="text-center">
-          <span
-            className={`
-              font-mono text-[9px]
-              font-black tracking-[0.16em]
-              ${accentText}
-            `}
-          >
-            {isYoung
-              ? "YOUNGKNIGHTS"
-              : "ALUMKNIGHTS"}
+          <span className={`font-mono text-[9px] font-black tracking-[0.16em] ${accentText}`}>
+            {isYoung ? "YOUNGKNIGHTS" : "ALUMKNIGHTS"}
           </span>
         </div>
 
-        {/* Player name */}
         <div className="mt-0.5 min-w-0 text-center">
-          <h3
-            className="
-              font-display
-              text-[clamp(1rem,3.5vw,1.35rem)]
-              font-black
-              uppercase
-              leading-[0.95]
-              tracking-tight
-              text-bone
-              whitespace-normal
-              break-words
-            "
-          >
+          <h3 className="font-display text-[clamp(1rem,3.5vw,1.35rem)] font-black uppercase leading-[0.95] tracking-tight text-bone whitespace-normal break-words">
             {player.name}
           </h3>
         </div>
 
-        {/* Primary prop */}
         <div className="mt-3 text-center">
-
-          <div
-            className={`
-              font-mono
-              text-[9px]
-              font-bold
-              tracking-[0.16em]
-              ${accentText}
-            `}
-          >
-            {STAT_LABELS[primary.stat_type] ??
-              primary.stat_type}
+          <div className={`font-mono text-[9px] font-bold tracking-[0.16em] ${accentText}`}>
+            {STAT_LABELS[primary.stat_type] ?? primary.stat_type}
           </div>
 
-          <div
-            className={`
-              mt-1
-              font-display
-              text-4xl
-              font-black
-              leading-none
-              text-bone
-              transition-transform
-              duration-200
-              ${
-                feedback === "over" ||
-                feedback === "under"
-                  ? "scale-110"
-                  : ""
-              }
-            `}
-          >
+          <div className={`mt-1 font-display text-4xl font-black leading-none text-bone transition-transform duration-200 ${
+            feedback === "over" || feedback === "under" ? "scale-110" : ""
+          }`}>
             {primary.line}
           </div>
-
         </div>
 
-        {/* =====================================================
-            MORE / LESS
-        ===================================================== */}
-        <div
-          className="mt-3 grid grid-cols-2 gap-1.5"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="mt-3 grid grid-cols-2 gap-1.5" onClick={(e) => e.stopPropagation()}>
           <SelectButton
             label="MORE"
             active={selected === "over"}
@@ -333,9 +255,7 @@ export default function PlayerCard({
             activeBg={accentBg}
             accentText={accentText}
             pulse={feedback === "over"}
-            onClick={() =>
-              onSelect(primary, "over")
-            }
+            onClick={() => onSelect(primary, "over")}
           />
 
           <SelectButton
@@ -345,100 +265,28 @@ export default function PlayerCard({
             activeBg={accentBg}
             accentText={accentText}
             pulse={feedback === "under"}
-            onClick={() =>
-              onSelect(primary, "under")
-            }
+            onClick={() => onSelect(primary, "under")}
           />
         </div>
 
-        {/* =====================================================
-            YOUR PICK
-        ===================================================== */}
         {selected && (
-          <div
-            className={`
-              mt-2
-              flex items-center justify-between
-              border px-3 py-1.5
-              ${
-                isYoung
-                  ? "border-young/20 bg-young/5"
-                  : "border-alum/20 bg-alum/5"
-              }
-              animate-[yourPickIn_240ms_ease-out]
-            `}
-          >
-            <span
-              className="
-                font-mono
-                text-[8px]
-                font-bold
-                tracking-[0.12em]
-                text-bone/40
-              "
-            >
-              YOUR PICK
-            </span>
-
-            <span
-              className={`
-                font-mono
-                text-[9px]
-                font-bold
-                tracking-[0.12em]
-                ${accentText}
-              `}
-            >
-              {selected === "over"
-                ? "MORE"
-                : "LESS"}{" "}
-              ✓
+          <div className={`mt-2 flex items-center justify-between border px-3 py-1.5 ${
+            isYoung ? "border-young/20 bg-young/5" : "border-alum/20 bg-alum/5"
+          } animate-[yourPickIn_240ms_ease-out]`}>
+            <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/40">YOUR PICK</span>
+            <span className={`font-mono text-[9px] font-bold tracking-[0.12em] ${accentText}`}>
+              {selected === "over" ? "MORE" : "LESS"} ✓
             </span>
           </div>
         )}
 
-        {/* =====================================================
-            OTHER PROPS TEASER
-        ===================================================== */}
         {props.length > 1 && (
-          <div
-            className="
-              mt-2.5
-              flex
-              items-center
-              justify-between
-              border-t
-              border-white/5
-              pt-2.5
-            "
-          >
-            <span
-              className="
-                font-mono
-                text-[8px]
-                font-bold
-                tracking-[0.12em]
-                text-bone/30
-              "
-            >
-              {props.length - 1}{" "}
-              {props.length - 1 === 1
-                ? "MORE PROP"
-                : "MORE PROPS"}
+          <div className="mt-2.5 flex items-center justify-between border-t border-white/5 pt-2.5">
+            <span className="font-mono text-[8px] font-bold tracking-[0.12em] text-bone/30">
+              {props.length - 1} {props.length - 1 === 1 ? "MORE PROP" : "MORE PROPS"}
             </span>
 
-            <span
-              className={`
-                font-mono
-                text-[8px]
-                font-bold
-                tracking-[0.12em]
-                ${accentText}
-                transition-transform
-                duration-200
-                group-hover:translate-x-0.5
-              `}
-            >
+            <span className={`font-mono text-[8px] font-bold tracking-[0.12em] ${accentText} transition-transform duration-200 group-hover:translate-x-0.5`}>
               VIEW →
             </span>
           </div>
@@ -487,73 +335,23 @@ function SelectButton({
 
         ${
           disabled
-            ? `
-              cursor-not-allowed
-              border-white/5
-              bg-white/[0.02]
-              text-bone/15
-            `
+            ? `cursor-not-allowed border-white/5 bg-white/[0.02] text-bone/15`
             : active
-              ? `
-                ${activeBg}
-                border-transparent
-                text-white
-                shadow-lg
-              `
-              : `
-                border-white/10
-                bg-white/[0.03]
-                text-bone/50
-                hover:border-white/20
-                hover:bg-white/[0.06]
-                hover:text-bone
-              `
+              ? `${activeBg} border-transparent text-white shadow-lg`
+              : `border-white/10 bg-white/[0.03] text-bone/50 hover:border-white/20 hover:bg-white/[0.06] hover:text-bone`
         }
 
-        ${
-          pulse
-            ? `
-              scale-[1.035]
-              shadow-[0_0_22px_rgba(255,255,255,0.18)]
-            `
-            : ""
-        }
+        ${pulse ? `scale-[1.035] shadow-[0_0_22px_rgba(255,255,255,0.18)]` : ""}
       `}
     >
-      {/* Selection sweep */}
       {pulse && (
-        <span
-          className={`
-            pointer-events-none
-            absolute
-            inset-0
-            ${accentText}
-            animate-[buttonSweep_420ms_ease-out]
-          `}
-        />
+        <span className={`pointer-events-none absolute inset-0 ${accentText} animate-[buttonSweep_420ms_ease-out]`} />
       )}
 
-      <span
-        className="
-          relative
-          z-10
-          flex
-          items-center
-          gap-1.5
-        "
-      >
+      <span className="relative z-10 flex items-center gap-1.5">
         {active && (
-          <span
-            className="
-              text-[11px]
-              leading-none
-              animate-[checkIn_220ms_ease-out]
-            "
-          >
-            ✓
-          </span>
+          <span className="text-[11px] leading-none animate-[checkIn_220ms_ease-out]">✓</span>
         )}
-
         <span>{label}</span>
       </span>
     </button>
