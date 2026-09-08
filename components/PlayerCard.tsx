@@ -6,6 +6,10 @@ import { PropWithPlayer, STAT_LABELS } from "@/lib/types";
 
 type Selection = "over" | "under" | null;
 
+function getCachedPlayerImageUrl(url: string) {
+  return `/api/player-image?url=${encodeURIComponent(url)}`;
+}
+
 interface PlayerCardProps {
   props: PropWithPlayer[];
   primaryPropId?: string;
@@ -109,7 +113,7 @@ export default function PlayerCard({
 
         {player.image_url ? (
           <Image
-            src={player.image_url}
+            src={getCachedPlayerImageUrl(player.image_url)}
             alt={player.name}
             fill
             priority={false}
