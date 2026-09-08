@@ -36,19 +36,20 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "SCE Picks | Call Your Shot",
   description:
-    "Free-to-play predictions for YoungKnights vs AlumKnights, October 9 at UCF. Pick OVER or UNDER on player stats. No entry fees, no wagering.",
+    "Make your picks for YoungKnights vs AlumKnights. Hit your card and win real prizes. Free to play.",
   openGraph: {
     title: "SCE Picks | Call Your Shot",
     description:
-      "YoungKnights vs AlumKnights — October 9 at UCF. Make your free predictions.",
-    images: ["/og-image.png"],
+      "Make your picks for YoungKnights vs AlumKnights. Hit your card and win real prizes. Free to play.",
+    images: ["/og-image.jpg"],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "SCE Picks | Call Your Shot",
-    description: "YoungKnights vs AlumKnights — October 9 at UCF.",
-    images: ["/og-image.png"],
+    description:
+      "Make your picks. Hit your card. Win real prizes. Free to play.",
+    images: ["/og-image.jpg"],
   },
 };
 
