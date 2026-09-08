@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 
+function getCachedImageUrl(url: string | null) {
+  if (!url) return null;
+  return `/api/player-image?url=${encodeURIComponent(url)}`;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -33,7 +38,12 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ players: data ?? [] });
+    const players = (data ?? []).map((player) => ({
+      ...player,
+      image_url: getCachedImageUrl(player.image_url),
+    }));
+
+    return NextResponse.json({ players });
   } catch (error) {
     console.error("Share player lookup failed:", error);
     return NextResponse.json(

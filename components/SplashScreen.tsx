@@ -5,6 +5,11 @@ import { useEffect, useState } from "react";
 
 const SESSION_KEY = "sce_splash_shown";
 
+function getCachedImageUrl(url?: string | null) {
+  if (!url) return null;
+  return `/api/player-image?url=${encodeURIComponent(url)}`;
+}
+
 export default function SplashScreen({
   youngLogoUrl,
   alumLogoUrl,
@@ -44,6 +49,9 @@ export default function SplashScreen({
     };
   }, []);
 
+  const cachedYoungLogoUrl = getCachedImageUrl(youngLogoUrl);
+  const cachedAlumLogoUrl = getCachedImageUrl(alumLogoUrl);
+
   return (
     <>
       {show && (
@@ -60,10 +68,10 @@ export default function SplashScreen({
             <div className="flex w-full items-center justify-center gap-3 sm:gap-6">
               {/* YOUNGKNIGHTS */}
               <div className="splash-slide-left flex-1 text-right">
-                {youngLogoUrl ? (
+                {cachedYoungLogoUrl ? (
                   <div className="relative ml-auto h-20 w-20 sm:h-28 sm:w-28">
                     <Image
-                      src={youngLogoUrl}
+                      src={cachedYoungLogoUrl}
                       alt="YoungKnights"
                       fill
                       className="object-contain drop-shadow-[0_0_25px_rgba(234,42,42,0.6)]"
@@ -85,10 +93,10 @@ export default function SplashScreen({
 
               {/* ALUMKNIGHTS */}
               <div className="splash-slide-right flex-1 text-left">
-                {alumLogoUrl ? (
+                {cachedAlumLogoUrl ? (
                   <div className="relative mr-auto h-20 w-20 sm:h-28 sm:w-28">
                     <Image
-                      src={alumLogoUrl}
+                      src={cachedAlumLogoUrl}
                       alt="AlumKnights"
                       fill
                       className="object-contain drop-shadow-[0_0_25px_rgba(30,95,255,0.6)]"
