@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/cache-player-images.mjs",
-    "build": "next build",
+    "build": "node scripts/cache-player-images.mjs && next build",
     "start": "next start",
     "lint": "next lint"
   },
