@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { getOptimizedLocalPlayerImage } from "@/lib/playerImages";
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +34,14 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ players: data ?? [] });
+    const players = (data ?? []).map((player) => ({
+      ...player,
+      image_url:
+        getOptimizedLocalPlayerImage(player.name, 750, 70) ??
+        player.image_url,
+    }));
+
+    return NextResponse.json({ players });
   } catch (error) {
     console.error("Share player lookup failed:", error);
     return NextResponse.json(
