@@ -11,7 +11,7 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/player-sprite-v1.webp",
+        source: "/player-sprite-v2.webp",
         headers: [
           {
             key: "Cache-Control",
