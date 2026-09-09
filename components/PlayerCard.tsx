@@ -1,14 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { PropWithPlayer, STAT_LABELS } from "@/lib/types";
 
 type Selection = "over" | "under" | null;
-
-function getCachedPlayerImageUrl(url: string) {
-  return `/api/player-image?url=${encodeURIComponent(url)}`;
-}
 
 interface PlayerCardProps {
   props: PropWithPlayer[];
@@ -112,14 +107,12 @@ export default function PlayerCard({
         <div className={`absolute inset-0 bg-gradient-to-b ${teamGradient}`} />
 
         {player.image_url ? (
-          <Image
-            src={getCachedPlayerImageUrl(player.image_url)}
+          <img
+            src={player.image_url}
             alt={player.name}
-            fill
-            priority={false}
-            quality={45}
-            className={`object-cover object-top transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            loading="lazy"
+            decoding="async"
+            className={`absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
           />
         ) : (
           <div className="flex h-full items-center justify-center">
