@@ -1,6 +1,7 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import PicksExperience from "@/components/PicksExperience";
 import { EventSettings, PropWithPlayer, Team, TeamProp } from "@/lib/types";
+import { getPlayerImageUrl } from "@/lib/playerImages";
 
 export const revalidate = 0;
 
@@ -28,10 +29,18 @@ export default async function PicksPage() {
   if (teamPropsRes.error) console.error("[PICKS PAGE] team_props error:", teamPropsRes.error);
   if (settingsRes.error) console.error("[PICKS PAGE] settings error:", settingsRes.error);
 
+  const props = ((propsRes.data as unknown as PropWithPlayer[]) ?? []).map((prop) => ({
+    ...prop,
+    player: {
+      ...prop.player,
+      image_url: getPlayerImageUrl(prop.player.id, prop.player.image_url),
+    },
+  }));
+
   return (
     <PicksExperience
       teams={(teamsRes.data as Team[]) ?? []}
-      props={(propsRes.data as unknown as PropWithPlayer[]) ?? []}
+      props={props}
       teamProps={(teamPropsRes.data as TeamProp[]) ?? []}
       settings={settingsRes.data as EventSettings}
     />
