@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 
 const SESSION_KEY = "sce_splash_shown";
 
-function getCachedImageUrl(url?: string | null) {
+function getDisplayImageUrl(url?: string | null) {
   if (!url) return null;
+  if (url.startsWith("/")) return url;
   return `/api/player-image?url=${encodeURIComponent(url)}`;
 }
 
@@ -19,8 +20,6 @@ export default function SplashScreen({
   alumLogoUrl?: string | null;
   children: React.ReactNode;
 }) {
-  // null = not decided yet (avoids a flash of the splash on
-  // repeat visits within the same tab session).
   const [show, setShow] = useState<boolean | null>(null);
   const [closing, setClosing] = useState(false);
 
@@ -49,8 +48,10 @@ export default function SplashScreen({
     };
   }, []);
 
-  const cachedYoungLogoUrl = getCachedImageUrl(youngLogoUrl);
-  const cachedAlumLogoUrl = getCachedImageUrl(alumLogoUrl);
+  const displayYoungLogoUrl = getDisplayImageUrl(youngLogoUrl);
+  const displayAlumLogoUrl = getDisplayImageUrl(alumLogoUrl);
+  const youngIsLocal = Boolean(displayYoungLogoUrl?.startsWith("/teams/"));
+  const alumIsLocal = Boolean(displayAlumLogoUrl?.startsWith("/teams/"));
 
   return (
     <>
@@ -61,19 +62,18 @@ export default function SplashScreen({
           }`}
           aria-hidden="true"
         >
-          {/* impact flash */}
           <div className="splash-flash pointer-events-none absolute inset-0 bg-bone" />
 
           <div className="splash-shake relative flex w-full max-w-2xl flex-col items-center px-6">
             <div className="flex w-full items-center justify-center gap-3 sm:gap-6">
-              {/* YOUNGKNIGHTS */}
               <div className="splash-slide-left flex-1 text-right">
-                {cachedYoungLogoUrl ? (
+                {displayYoungLogoUrl ? (
                   <div className="relative ml-auto h-20 w-20 sm:h-28 sm:w-28">
                     <Image
-                      src={cachedYoungLogoUrl}
+                      src={displayYoungLogoUrl}
                       alt="YoungKnights"
                       fill
+                      unoptimized={youngIsLocal}
                       className="object-contain drop-shadow-[0_0_25px_rgba(234,42,42,0.6)]"
                     />
                   </div>
@@ -86,19 +86,18 @@ export default function SplashScreen({
                 )}
               </div>
 
-              {/* VS */}
               <div className="splash-vs-pop flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-bone/25 bg-ink2 font-mono text-xs font-black text-bone/70 sm:h-16 sm:w-16 sm:text-base">
                 VS
               </div>
 
-              {/* ALUMKNIGHTS */}
               <div className="splash-slide-right flex-1 text-left">
-                {cachedAlumLogoUrl ? (
+                {displayAlumLogoUrl ? (
                   <div className="relative mr-auto h-20 w-20 sm:h-28 sm:w-28">
                     <Image
-                      src={cachedAlumLogoUrl}
+                      src={displayAlumLogoUrl}
                       alt="AlumKnights"
                       fill
+                      unoptimized={alumIsLocal}
                       className="object-contain drop-shadow-[0_0_25px_rgba(30,95,255,0.6)]"
                     />
                   </div>
