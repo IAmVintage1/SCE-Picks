@@ -1,6 +1,7 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import PicksExperience from "@/components/PicksExperience";
 import { EventSettings, PropWithPlayer, Team, TeamProp } from "@/lib/types";
+import { getLocalPlayerImageUrl } from "@/lib/playerImages";
 
 export const revalidate = 0;
 
@@ -18,20 +19,27 @@ export default async function PicksPage() {
     supabase.from("event_settings").select("*").eq("id", 1).single(),
   ]);
 
-  // Log the real error server-side (visible in Vercel's Runtime Logs)
-  // instead of silently falling back to an empty list. If you're
-  // still seeing no props after confirming they exist in admin,
-  // check Vercel -> your project -> Logs for lines starting with
-  // "[PICKS PAGE]" to see the actual Supabase error.
   if (teamsRes.error) console.error("[PICKS PAGE] teams error:", teamsRes.error);
   if (propsRes.error) console.error("[PICKS PAGE] props error:", propsRes.error);
   if (teamPropsRes.error) console.error("[PICKS PAGE] team_props error:", teamPropsRes.error);
   if (settingsRes.error) console.error("[PICKS PAGE] settings error:", settingsRes.error);
 
+  // Never send Supabase Storage player-photo URLs into the public picks UI.
+  // Every active roster player uses a static same-origin asset instead, which
+  // keeps normal card/profile traffic off both Supabase Storage and the
+  // /api/player-image Vercel Compute proxy.
+  const props = ((propsRes.data as unknown as PropWithPlayer[]) ?? []).map((prop) => ({
+    ...prop,
+    player: {
+      ...prop.player,
+      image_url: getLocalPlayerImageUrl(prop.player?.name),
+    },
+  }));
+
   return (
     <PicksExperience
       teams={(teamsRes.data as Team[]) ?? []}
-      props={(propsRes.data as unknown as PropWithPlayer[]) ?? []}
+      props={props}
       teamProps={(teamPropsRes.data as TeamProp[]) ?? []}
       settings={settingsRes.data as EventSettings}
     />
