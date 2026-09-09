@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { PropWithPlayer, STAT_LABELS } from "@/lib/types";
+import { getLocalPlayerImage } from "@/lib/playerImages";
 
 type Selection = "over" | "under" | null;
 
@@ -33,6 +34,8 @@ export default function PlayerCard({
   if (!primary) return null;
 
   const player = primary.player;
+  const localImage = getLocalPlayerImage(player.name);
+  const displayImage = localImage ?? (player.image_url ? getCachedPlayerImageUrl(player.image_url) : null);
   const isYoung = player.team.slug === "youngknights";
 
   const accentText = isYoung ? "text-young-light" : "text-alum-light";
@@ -111,13 +114,14 @@ export default function PlayerCard({
       <div className="relative aspect-[3/4] overflow-hidden bg-black">
         <div className={`absolute inset-0 bg-gradient-to-b ${teamGradient}`} />
 
-        {player.image_url ? (
+        {displayImage ? (
           <Image
-            src={getCachedPlayerImageUrl(player.image_url)}
+            src={displayImage}
             alt={player.name}
             fill
             priority={false}
             quality={45}
+            unoptimized={Boolean(localImage)}
             className={`object-cover object-top transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
