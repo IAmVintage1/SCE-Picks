@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-
-function getCachedImageUrl(url: string | null) {
-  if (!url) return null;
-  return `/api/player-image?url=${encodeURIComponent(url)}`;
-}
+import { getLocalPlayerImageUrl } from "@/lib/playerImages";
 
 export async function POST(request: Request) {
   try {
@@ -27,7 +23,7 @@ export async function POST(request: Request) {
     const supabase = createServerSupabase();
     const { data, error } = await supabase
       .from("players")
-      .select("name, image_url, team:teams(name, slug)")
+      .select("name, team:teams(name, slug)")
       .in("name", names);
 
     if (error) {
@@ -40,7 +36,7 @@ export async function POST(request: Request) {
 
     const players = (data ?? []).map((player) => ({
       ...player,
-      image_url: getCachedImageUrl(player.image_url),
+      image_url: getLocalPlayerImageUrl(player.name),
     }));
 
     return NextResponse.json({ players });
