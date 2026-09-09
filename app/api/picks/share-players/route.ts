@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { getLocalPlayerImage } from "@/lib/playerImages";
 
 function getCachedImageUrl(url: string | null) {
   if (!url) return null;
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
 
     const players = (data ?? []).map((player) => ({
       ...player,
-      image_url: getCachedImageUrl(player.image_url),
+      image_url:
+        getLocalPlayerImage(player.name) ?? getCachedImageUrl(player.image_url),
     }));
 
     return NextResponse.json({ players });

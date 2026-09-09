@@ -3,6 +3,7 @@ import { Anton, Oswald, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { EventSettings } from "@/lib/types";
+import { getLocalTeamLogo } from "@/lib/teamImages";
 import SplashScreen from "@/components/SplashScreen";
 import ShareCardEnhancer from "@/components/ShareCardEnhancer";
 import SupabaseImageGuard from "@/components/SupabaseImageGuard";
@@ -49,16 +50,20 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  let youngLogoUrl: string | null = null;
-  let alumLogoUrl: string | null = null;
+  let youngLogoUrl: string | null = getLocalTeamLogo("youngknights");
+  let alumLogoUrl: string | null = getLocalTeamLogo("alumknights");
 
-  try {
-    const supabase = createServerSupabase();
-    const { data } = await supabase.from("event_settings").select("young_logo_url, alum_logo_url").eq("id", 1).single();
-    const settings = data as Pick<EventSettings, "young_logo_url" | "alum_logo_url"> | null;
-    youngLogoUrl = settings?.young_logo_url ?? null;
-    alumLogoUrl = settings?.alum_logo_url ?? null;
-  } catch {}
+  // The production build normally has both logos cached under /public/teams.
+  // Keep the database URLs only as a safety fallback if that build-time cache fails.
+  if (!youngLogoUrl || !alumLogoUrl) {
+    try {
+      const supabase = createServerSupabase();
+      const { data } = await supabase.from("event_settings").select("young_logo_url, alum_logo_url").eq("id", 1).single();
+      const settings = data as Pick<EventSettings, "young_logo_url" | "alum_logo_url"> | null;
+      youngLogoUrl = youngLogoUrl ?? settings?.young_logo_url ?? null;
+      alumLogoUrl = alumLogoUrl ?? settings?.alum_logo_url ?? null;
+    } catch {}
+  }
 
   return (
     <html lang="en" className={`${anton.variable} ${oswald.variable} ${inter.variable} ${jetbrains.variable}`}>
