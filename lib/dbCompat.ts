@@ -136,8 +136,7 @@ class QueryBuilder implements PromiseLike<Result<any>> {
 
     if (this.table === "props" && s.includes("player:players")) {
       const params: unknown[] = [];
-      const where = this.whereClause(params).replace(/"/g, 'p."');
-      const safeWhere = where ? where.replace(" WHERE p.", " WHERE p.") : "";
+      const safeWhere = this.whereClause(params).replace(/"([a-zA-Z0-9_]+)"/g, 'p."$1"');
       const order = this.orderBy
         ? ` ORDER BY p.${ident(this.orderBy.column)} ${this.orderBy.ascending ? "ASC" : "DESC"}`
         : "";
