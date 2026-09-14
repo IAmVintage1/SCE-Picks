@@ -6,7 +6,7 @@ type Filter =
   | { kind: "in"; column: string; value: unknown[] }
   | { kind: "ilike"; column: string; value: string };
 
-type Result<T = any> = { data: T | null; error: any | null };
+type Result<T = any> = { data: T | null; error: any | null; count?: number | null };
 
 function dbError(error: any) {
   return {
@@ -30,11 +30,15 @@ class QueryBuilder implements PromiseLike<Result<any>> {
   private wantsSingle = false;
   private wantsMaybeSingle = false;
   private wantsReturning = false;
+  private wantsCount = false;
+  private headOnly = false;
 
   constructor(private table: string) {}
 
-  select(columns = "*") {
+  select(columns = "*", options?: { count?: string; head?: boolean }) {
     this.selectText = cleanSelect(columns);
+    if (options?.count) this.wantsCount = true;
+    if (options?.head) this.headOnly = true;
     if (this.operation !== "select") this.wantsReturning = true;
     return this;
   }
@@ -331,17 +335,20 @@ class QueryBuilder implements PromiseLike<Result<any>> {
       if (this.operation === "delete") rows = await this.executeDelete();
       if (this.operation === "upsert") rows = await this.executeUpsert();
 
+      const count = this.wantsCount ? rows.length : undefined;
+      if (this.headOnly) return { data: null, error: null, count };
+
       if (this.wantsSingle) {
         if (rows.length !== 1) {
           return { data: null, error: { message: rows.length ? "Multiple rows returned" : "Row not found", code: "PGRST116" } };
         }
-        return { data: rows[0], error: null };
+        return { data: rows[0], error: null, count };
       }
       if (this.wantsMaybeSingle) {
         if (rows.length > 1) return { data: null, error: { message: "Multiple rows returned", code: "PGRST116" } };
-        return { data: rows[0] ?? null, error: null };
+        return { data: rows[0] ?? null, error: null, count };
       }
-      return { data: rows, error: null };
+      return { data: rows, error: null, count };
     } catch (error: any) {
       return { data: null, error: dbError(error) };
     }
