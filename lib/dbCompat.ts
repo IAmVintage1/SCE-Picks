@@ -35,6 +35,7 @@ class QueryBuilder implements PromiseLike<ListResult> {
   private wantsReturning = false;
   private wantsCount = false;
   private headOnly = false;
+  private limitCount: number | null = null;
 
   constructor(private table: string) {}
 
@@ -68,6 +69,11 @@ class QueryBuilder implements PromiseLike<ListResult> {
       ascending: options?.ascending !== false,
       nullsFirst: options?.nullsFirst,
     };
+    return this;
+  }
+
+  limit(count: number) {
+    this.limitCount = Math.max(0, Math.floor(count));
     return this;
   }
 
@@ -138,6 +144,10 @@ class QueryBuilder implements PromiseLike<ListResult> {
     return ` ORDER BY ${ident(this.orderBy.column)} ${this.orderBy.ascending ? "ASC" : "DESC"}${nulls}`;
   }
 
+  private limitClause() {
+    return this.limitCount === null ? "" : ` LIMIT ${this.limitCount}`;
+  }
+
   private async nestedSelect(): Promise<any[] | null> {
     const s = this.selectText;
 
@@ -162,7 +172,7 @@ class QueryBuilder implements PromiseLike<ListResult> {
         FROM props p
         JOIN players pl ON pl.id = p.player_id
         JOIN teams t ON t.id = pl.team_id
-        ${safeWhere}${order}`,
+        ${safeWhere}${order}${this.limitClause()}`,
         params,
       );
     }
@@ -179,7 +189,7 @@ class QueryBuilder implements PromiseLike<ListResult> {
         `SELECT p.*,
           jsonb_build_object('id',t.id,'name',t.name,'slug',t.slug,'color',t.color,'created_at',t.created_at) AS team
          FROM players p JOIN teams t ON t.id=p.team_id
-         ${where}${order}`,
+         ${where}${order}${this.limitClause()}`,
         params,
       );
     }
@@ -237,7 +247,7 @@ class QueryBuilder implements PromiseLike<ListResult> {
           ), '[]'::jsonb) AS team_picks
         FROM submissions s
         LEFT JOIN app_users u ON u.id=s.user_id
-        ${where}${order}`,
+        ${where}${order}${this.limitClause()}`,
         params,
       );
     }
@@ -257,7 +267,7 @@ class QueryBuilder implements PromiseLike<ListResult> {
     const nested = await this.nestedSelect();
     if (nested) return nested;
     const params: unknown[] = [];
-    const sql = `SELECT ${this.selectColumns()} FROM ${ident(this.table)}${this.whereClause(params)}${this.orderClause()}`;
+    const sql = `SELECT ${this.selectColumns()} FROM ${ident(this.table)}${this.whereClause(params)}${this.orderClause()}${this.limitClause()}`;
     return query(sql, params);
   }
 
