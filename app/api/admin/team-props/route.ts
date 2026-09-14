@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const auth = await requireAdmin();
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSessionToken, getAdminCookieName } from "@/lib/adminAuth";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   const { password } = await req.json();
 
