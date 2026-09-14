@@ -23,9 +23,16 @@ async function getData() {
   };
 }
 
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return "OCTOBER 9";
-  const d = new Date(dateStr.includes("T") ? dateStr : `${dateStr}T00:00:00`);
+function formatDate(value: unknown) {
+  if (!value) return "OCTOBER 9";
+  const d =
+    value instanceof Date
+      ? value
+      : new Date(
+          String(value).includes("T")
+            ? String(value)
+            : `${String(value)}T00:00:00`,
+        );
   if (Number.isNaN(d.getTime())) return "OCTOBER 9";
   return d
     .toLocaleDateString("en-US", { month: "long", day: "numeric" })
