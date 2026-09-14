@@ -127,7 +127,7 @@ export default function PlayerCard({
           />
         ) : spriteStyle ? (
           <div
-            className={`h-full w-full bg-no-repeat transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
+            className={`absolute inset-0 z-10 h-full w-full bg-no-repeat transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
             style={spriteStyle}
             aria-label={player.name}
           />
