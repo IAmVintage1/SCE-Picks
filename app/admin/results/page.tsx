@@ -268,8 +268,8 @@ export default function AdminResultsPage() {
               Game props: {data.summary.teamPropsGraded}/{data.summary.teamPropsTotal}
             </span>
             <span>Cards pending: {cardCounts.pending ?? 0}</span>
-            <span>Hits: {cardCounts.hit ?? 0}</span>
-            <span>Misses: {cardCounts.miss ?? 0}</span>
+            <span>Perfect: {cardCounts.perfect ?? 0}</span>
+            <span>Busted: {cardCounts.busted ?? 0}</span>
           </div>
         </div>
       </section>
