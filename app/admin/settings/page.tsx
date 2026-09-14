@@ -61,8 +61,7 @@ export default function AdminSettingsPage() {
           LOGOS
         </h2>
         <p className="mt-1 text-xs text-bone/40">
-          Paste public image URLs (upload to Supabase Storage first, then
-          copy the public URL here). These power the splash animation on
+          Paste public image URLs for optional event/team artwork. These power the splash animation on
           site open.
         </p>
         <div className="mt-4 space-y-3">
