@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-export const PLAYER_SPRITE_URL = "/player-sprite-v1.webp";
+export const PLAYER_SPRITE_URL = "/player-sprite-v2.webp";
 export const PLAYER_SPRITE_COLUMNS = 5;
 export const PLAYER_SPRITE_ROWS = 4;
 export const PLAYER_SPRITE_CELL_WIDTH = 240;
