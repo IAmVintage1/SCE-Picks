@@ -1537,7 +1537,7 @@ function PlayerProfile({
               />
             </div>
           ) : spriteStyle ? (
-            <div className="relative flex h-[340px] w-full items-end justify-center sm:h-[420px]">
+            <div className="relative z-10 flex h-[340px] w-full items-end justify-center sm:h-[420px]">
               <div
                 className="h-[320px] w-[240px] bg-no-repeat sm:h-[400px] sm:w-[300px]"
                 style={spriteStyle}
