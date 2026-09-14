@@ -25,7 +25,8 @@ async function getData() {
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "OCTOBER 9";
-  const d = new Date(dateStr + "T00:00:00");
+  const d = new Date(dateStr.includes("T") ? dateStr : `${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "OCTOBER 9";
   return d
     .toLocaleDateString("en-US", { month: "long", day: "numeric" })
     .toUpperCase();
