@@ -6,7 +6,10 @@ type Filter =
   | { kind: "in"; column: string; value: unknown[] }
   | { kind: "ilike"; column: string; value: string };
 
-type Result<T = any> = { data: T | null; error: any | null; count?: number | null };
+type Row = Record<string, any>;
+type ListResult = { data: Row[] | null; error: any | null; count?: number | null };
+type SingleResult = { data: Row | null; error: any | null; count?: number | null };
+type RuntimeResult = { data: any; error: any | null; count?: number | null };
 
 function dbError(error: any) {
   return {
@@ -20,7 +23,7 @@ function cleanSelect(select: string) {
   return select.replace(/\s+/g, " ").trim();
 }
 
-class QueryBuilder implements PromiseLike<Result<any>> {
+class QueryBuilder implements PromiseLike<ListResult> {
   private operation: "select" | "insert" | "update" | "delete" | "upsert" = "select";
   private selectText = "*";
   private filters: Filter[] = [];
@@ -92,14 +95,14 @@ class QueryBuilder implements PromiseLike<Result<any>> {
     return this;
   }
 
-  single() {
+  single(): PromiseLike<SingleResult> {
     this.wantsSingle = true;
-    return this;
+    return this as unknown as PromiseLike<SingleResult>;
   }
 
-  maybeSingle() {
+  maybeSingle(): PromiseLike<SingleResult> {
     this.wantsMaybeSingle = true;
-    return this;
+    return this as unknown as PromiseLike<SingleResult>;
   }
 
   private whereClause(params: unknown[]) {
@@ -326,7 +329,7 @@ class QueryBuilder implements PromiseLike<Result<any>> {
     );
   }
 
-  async execute(): Promise<Result<any>> {
+  async execute(): Promise<RuntimeResult> {
     try {
       let rows: any[] = [];
       if (this.operation === "select") rows = await this.executeSelect();
@@ -354,11 +357,11 @@ class QueryBuilder implements PromiseLike<Result<any>> {
     }
   }
 
-  then<TResult1 = Result<any>, TResult2 = never>(
-    onfulfilled?: ((value: Result<any>) => TResult1 | PromiseLike<TResult1>) | null,
+  then<TResult1 = ListResult, TResult2 = never>(
+    onfulfilled?: ((value: ListResult) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
   ): Promise<TResult1 | TResult2> {
-    return this.execute().then(onfulfilled, onrejected);
+    return this.execute().then(onfulfilled as any, onrejected as any);
   }
 }
 
