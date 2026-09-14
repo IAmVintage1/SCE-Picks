@@ -8,7 +8,7 @@ type Filter =
 
 type Row = Record<string, any>;
 type ListResult = { data: Row[] | null; error: any | null; count?: number | null };
-type SingleResult = { data: Row | null; error: any | null; count?: number | null };
+type SingleResult = { data: Row; error: any | null; count?: number | null };
 type RuntimeResult = { data: any; error: any | null; count?: number | null };
 
 function dbError(error: any) {
