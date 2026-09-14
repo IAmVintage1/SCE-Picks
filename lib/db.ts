@@ -1,7 +1,4 @@
 import { Pool } from "@neondatabase/serverless";
-import { types } from "pg";
-
-types.setTypeParser(1082, (value) => value);
 import "server-only";
 
 // Connection is supplied by Vercel at runtime.
