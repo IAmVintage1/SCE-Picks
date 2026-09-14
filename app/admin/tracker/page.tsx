@@ -246,7 +246,8 @@ export default function AdminTrackerPage() {
   }
 
   async function handleReset() {
-    if (resetInput !== RESET_PHRASE) return;
+    const normalizedReset = resetInput.trim().toUpperCase();
+    if (normalizedReset !== RESET_PHRASE) return;
 
     const confirmed = window.confirm(
       "This wipes every tracked stat, every prop result, and " +
@@ -261,7 +262,7 @@ export default function AdminTrackerPage() {
       const res = await fetch("/api/admin/live-stats/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: resetInput }),
+        body: JSON.stringify({ confirm: normalizedReset }),
       });
       const data = await res.json();
 
@@ -370,7 +371,7 @@ export default function AdminTrackerPage() {
                 <button
                   onClick={handleReset}
                   disabled={
-                    resetInput !== RESET_PHRASE || resetting
+                    resetInput.trim().toUpperCase() !== RESET_PHRASE || resetting
                   }
                   className="rounded-lg bg-young px-4 py-2 text-xs font-bold text-white disabled:opacity-30"
                 >

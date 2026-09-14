@@ -16,7 +16,12 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
 
-  if (body?.confirm !== CONFIRM_PHRASE) {
+  const normalizedConfirm =
+    typeof body?.confirm === "string"
+      ? body.confirm.trim().toUpperCase()
+      : "";
+
+  if (normalizedConfirm !== CONFIRM_PHRASE) {
     return NextResponse.json(
       { error: "Confirmation phrase didn't match." },
       { status: 400 },
