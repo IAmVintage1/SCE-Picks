@@ -1,6 +1,8 @@
 import { Pool } from "@neondatabase/serverless";
 import "server-only";
 
+// Connection is supplied by Vercel at runtime.
+
 const globalDb = globalThis as unknown as { scePicksPool?: Pool };
 
 function getPool() {
