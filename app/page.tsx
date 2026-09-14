@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { EventSettings, PropWithPlayer, STAT_SHORT } from "@/lib/types";
-import { getPlayerSpriteStyle } from "@/lib/playerSprite";
 
 export const revalidate = 15;
 
@@ -159,9 +158,6 @@ function PreviewCard({ prop }: { prop: PropWithPlayer }) {
     prop.player.image_url && prop.player.image_url.startsWith("/")
       ? prop.player.image_url
       : null;
-  const spriteStyle = !storedImage
-    ? getPlayerSpriteStyle(prop.player.name)
-    : undefined;
 
   return (
     <div
@@ -176,12 +172,6 @@ function PreviewCard({ prop }: { prop: PropWithPlayer }) {
             sizes="160px"
             unoptimized
             className="object-cover"
-          />
-        ) : spriteStyle ? (
-          <div
-            className="absolute inset-0 z-10 h-full w-full bg-no-repeat"
-            style={spriteStyle}
-            aria-label={prop.player.name}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center font-display text-3xl text-bone/15">
