@@ -1,212 +1,91 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
-import { createAdminSupabase } from "@/lib/supabase/admin";
+import { query } from "@/lib/db";
 
-const BUCKET = "player-photos";
+const MAX_UPLOAD_BYTES = 3_500_000;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-/**
- * Photo uploads intentionally do NOT pass the image file through the
- * Vercel/Next.js request body. Vercel Functions have a request-body
- * limit, which caused 413 Content Too Large errors for larger photos.
- *
- * Flow:
- *  1. Browser asks this route for a signed upload URL.
- *  2. Browser uploads the image directly to Supabase Storage.
- *  3. Browser calls this route again to save image_url on the player.
- */
 export async function POST(req: NextRequest) {
   const auth = await requireAdmin();
   if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
+  }
+
+  const form = await req.formData();
+  const playerId = String(form.get("playerId") ?? "");
+  const file = form.get("file");
+
+  if (!playerId || !(file instanceof File)) {
     return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: auth.status }
+      { error: "playerId and image file are required." },
+      { status: 400 },
     );
   }
 
-  const contentType = req.headers.get("content-type") ?? "";
-  const supabase = createAdminSupabase();
-
-  // Step 1: Create a signed upload URL. This request contains only
-  // metadata, not the actual image file.
-  if (contentType.includes("application/json")) {
-    const body = await req.json();
-    const action = body?.action;
-    const playerId = body?.playerId as string | undefined;
-
-    if (!playerId) {
-      return NextResponse.json(
-        { error: "playerId is required." },
-        { status: 400 }
-      );
-    }
-
-    if (action === "sign") {
-      const fileName = String(body?.fileName ?? "photo.jpg");
-      const extension =
-        fileName.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ||
-        "jpg";
-
-      // Keep the extension to make files easy to inspect in Storage.
-      // The timestamp prevents collisions when replacing a photo.
-      const path = `${playerId}-${Date.now()}.${extension}`;
-
-      const { data, error } =
-        await supabase.storage
-          .from(BUCKET)
-          .createSignedUploadUrl(path);
-
-      if (error) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        path,
-        token: data.token,
-      });
-    }
-
-    // Step 3: Save the public URL after the browser has uploaded
-    // directly to Storage.
-    if (action === "complete") {
-      const path = String(body?.path ?? "");
-
-      if (!path) {
-        return NextResponse.json(
-          { error: "path is required." },
-          { status: 400 }
-        );
-      }
-
-      // Only allow paths generated for this player. This prevents
-      // an admin request from accidentally assigning another
-      // player's photo to this player.
-      if (!path.startsWith(`${playerId}-`)) {
-        return NextResponse.json(
-          { error: "Invalid photo path." },
-          { status: 400 }
-        );
-      }
-
-      const { data: player } = await supabase
-        .from("players")
-        .select("image_url")
-        .eq("id", playerId)
-        .single();
-
-      // Verify that the uploaded object actually exists before
-      // saving its URL to the player record.
-      const slash = path.lastIndexOf("/");
-      const folder = slash >= 0 ? path.slice(0, slash) : "";
-      const fileName = slash >= 0 ? path.slice(slash + 1) : path;
-
-      const { data: files, error: listError } =
-        await supabase.storage
-          .from(BUCKET)
-          .list(folder, { search: fileName, limit: 100 });
-
-      if (listError) {
-        return NextResponse.json(
-          { error: listError.message },
-          { status: 500 }
-        );
-      }
-
-      const exists = (files ?? []).some((file) => file.name === fileName);
-
-      if (!exists) {
-        return NextResponse.json(
-          { error: "Upload was not found in Storage." },
-          { status: 400 }
-        );
-      }
-
-      const { data: publicUrl } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(path);
-
-      const { data: updated, error: updateError } = await supabase
-        .from("players")
-        .update({
-          image_url: publicUrl.publicUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", playerId)
-        .select()
-        .single();
-
-      if (updateError) {
-        return NextResponse.json(
-          { error: updateError.message },
-          { status: 500 }
-        );
-      }
-
-      // Remove the previous photo only after the new photo has
-      // successfully uploaded and the DB points to the new one.
-      if (player?.image_url) {
-        const oldPath = player.image_url.split(`${BUCKET}/`)[1];
-        if (oldPath && oldPath !== path) {
-          await supabase.storage.from(BUCKET).remove([oldPath]);
-        }
-      }
-
-      return NextResponse.json({ player: updated });
-    }
-
+  if (!ALLOWED_TYPES.has(file.type)) {
     return NextResponse.json(
-      { error: "Unknown upload action." },
-      { status: 400 }
+      { error: "Use a JPG, PNG, or WebP image." },
+      { status: 400 },
     );
   }
 
-  return NextResponse.json(
-    { error: "Use JSON metadata requests for photo uploads." },
-    { status: 400 }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json(
+      { error: "Photo is too large after compression. Keep it under 3.5 MB." },
+      { status: 413 },
+    );
+  }
+
+  const exists = await query<{ id: string }>(
+    "SELECT id FROM players WHERE id = $1",
+    [playerId],
   );
+  if (!exists[0]) {
+    return NextResponse.json({ error: "Player not found." }, { status: 404 });
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const version = Date.now();
+  const imageUrl = `/api/player-photo/${playerId}?v=${version}`;
+
+  await query(
+    `INSERT INTO player_photos (player_id, mime_type, data, updated_at)
+     VALUES ($1, $2, $3, now())
+     ON CONFLICT (player_id)
+     DO UPDATE SET mime_type = EXCLUDED.mime_type,
+                   data = EXCLUDED.data,
+                   updated_at = now()`,
+    [playerId, file.type, bytes],
+  );
+
+  const rows = await query(
+    `UPDATE players
+     SET image_url = $2, updated_at = now()
+     WHERE id = $1
+     RETURNING *`,
+    [playerId, imageUrl],
+  );
+
+  return NextResponse.json({ player: rows[0] });
 }
 
 export async function DELETE(req: NextRequest) {
   const auth = await requireAdmin();
   if (!auth.ok) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: auth.status }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
   }
 
   const { playerId } = await req.json();
-  const supabase = createAdminSupabase();
 
-  const { data: player } = await supabase
-    .from("players")
-    .select("image_url")
-    .eq("id", playerId)
-    .single();
-
-  if (player?.image_url) {
-    const oldPath = player.image_url.split(`${BUCKET}/`)[1];
-    if (oldPath) {
-      await supabase.storage.from(BUCKET).remove([oldPath]);
-    }
+  if (!playerId) {
+    return NextResponse.json({ error: "playerId is required." }, { status: 400 });
   }
 
-  const { error } = await supabase
-    .from("players")
-    .update({
-      image_url: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", playerId);
-
-  if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
-  }
+  await query("DELETE FROM player_photos WHERE player_id = $1", [playerId]);
+  await query(
+    "UPDATE players SET image_url = NULL, updated_at = now() WHERE id = $1",
+    [playerId],
+  );
 
   return NextResponse.json({ ok: true });
 }
