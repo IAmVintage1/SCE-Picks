@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getPlayerSpriteStyle } from "@/lib/playerSprite";
 
 interface Team {
   id: string;
@@ -80,54 +80,58 @@ export default function AdminPlayersPage() {
     load();
   }
 
+  async function preparePhoto(file: File) {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (file.size <= 2_500_000 && allowed.includes(file.type)) {
+      return file;
+    }
+
+    const bitmap = await createImageBitmap(file);
+    const maxDimension = 1400;
+    const scale = Math.min(
+      1,
+      maxDimension / bitmap.width,
+      maxDimension / bitmap.height,
+    );
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not prepare the image.");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.82),
+    );
+
+    if (!blob) throw new Error("Could not compress the image.");
+    return new File([blob], "player-photo.webp", { type: "image/webp" });
+  }
+
   async function handleUpload(playerId: string, file: File) {
     setError(null);
 
     try {
-      // Ask the authenticated admin API for a signed upload URL. The image
-      // itself is NOT sent through Vercel, avoiding the 413 request-size limit.
-      const signRes = await fetch("/api/admin/players/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "sign",
-          playerId,
-          fileName: file.name,
-        }),
-      });
-
-      const signData = await signRes.json();
-
-      if (!signRes.ok) {
-        throw new Error(signData.error || "Could not prepare photo upload.");
+      const prepared = await preparePhoto(file);
+      if (prepared.size > 3_500_000) {
+        throw new Error("Photo is still too large. Try a smaller image.");
       }
 
-      const supabase = createSupabaseBrowserClient();
+      const form = new FormData();
+      form.append("playerId", playerId);
+      form.append("file", prepared);
 
-      // Upload the actual image directly from the browser to Supabase Storage.
-      const { error: uploadError } = await supabase.storage
-        .from("player-photos")
-        .uploadToSignedUrl(signData.path, signData.token, file);
-
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-
-      // Tell the server to attach the newly uploaded photo to this player.
-      const completeRes = await fetch("/api/admin/players/upload", {
+      const res = await fetch("/api/admin/players/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "complete",
-          playerId,
-          path: signData.path,
-        }),
+        body: form,
       });
 
-      const completeData = await completeRes.json();
-
-      if (!completeRes.ok) {
-        throw new Error(completeData.error || "Could not save player photo.");
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Could not save player photo.");
       }
 
       await load();
@@ -207,7 +211,14 @@ export default function AdminPlayersPage() {
                     alt={player.name}
                     fill
                     sizes="56px"
+                    unoptimized
                     className="object-cover"
+                  />
+                ) : getPlayerSpriteStyle(player.name) ? (
+                  <div
+                    className="h-full w-full bg-no-repeat"
+                    style={getPlayerSpriteStyle(player.name)}
+                    aria-label={player.name}
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-bone/25">
