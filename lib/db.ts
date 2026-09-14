@@ -1,25 +1,26 @@
 import { Pool } from "@neondatabase/serverless";
 import "server-only";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not configured.");
-}
-
 const globalDb = globalThis as unknown as { scePicksPool?: Pool };
-export const pool =
-  globalDb.scePicksPool ??
-  new Pool({
-    connectionString,
-  });
 
-if (process.env.NODE_ENV !== "production") globalDb.scePicksPool = pool;
+function getPool() {
+  if (globalDb.scePicksPool) return globalDb.scePicksPool;
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not configured.");
+  }
+
+  const pool = new Pool({ connectionString });
+  if (process.env.NODE_ENV !== "production") globalDb.scePicksPool = pool;
+  return pool;
+}
 
 export async function query<T = Record<string, unknown>>(
   text: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  const result = await pool.query(text, params as any[]);
+  const result = await getPool().query(text, params as any[]);
   return result.rows as T[];
 }
 
