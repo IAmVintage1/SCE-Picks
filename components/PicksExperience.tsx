@@ -9,6 +9,7 @@ import { PickSlipBar, PickSlipDrawer } from "@/components/PickSlip";
 import PickSidePanel from "@/components/PickSidePanel";
 import SubmitModal, { SubmitInfo } from "@/components/SubmitModal";
 import { getTierInfo, legLabel, legKey } from "@/lib/cardTiers";
+import { getPlayerSpriteStyle } from "@/lib/playerSprite";
 
 import {
   CardLeg,
@@ -1475,7 +1476,8 @@ function PlayerProfile({
     getTeamName(player, teams);
 
   const imageUrl =
-    player.image_url;
+    player.image_url && player.image_url.startsWith("/") ? player.image_url : null;
+  const spriteStyle = !imageUrl ? getPlayerSpriteStyle(playerName) : undefined;
 
   const isYoung =
     player.team?.slug === "youngknights";
@@ -1532,6 +1534,14 @@ function PlayerProfile({
                 src={imageUrl}
                 alt={playerName}
                 className="h-full w-full object-contain object-bottom"
+              />
+            </div>
+          ) : spriteStyle ? (
+            <div className="relative flex h-[340px] w-full items-end justify-center sm:h-[420px]">
+              <div
+                className="h-[320px] w-[240px] bg-no-repeat sm:h-[400px] sm:w-[300px]"
+                style={spriteStyle}
+                aria-label={playerName}
               />
             </div>
           ) : (

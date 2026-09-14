@@ -4,12 +4,9 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { PropWithPlayer, STAT_LABELS } from "@/lib/types";
 import { getLocalPlayerImage } from "@/lib/playerImages";
+import { getPlayerSpriteStyle } from "@/lib/playerSprite";
 
 type Selection = "over" | "under" | null;
-
-function getCachedPlayerImageUrl(url: string) {
-  return `/api/player-image?url=${encodeURIComponent(url)}`;
-}
 
 interface PlayerCardProps {
   props: PropWithPlayer[];
@@ -35,7 +32,10 @@ export default function PlayerCard({
 
   const player = primary.player;
   const localImage = getLocalPlayerImage(player.name);
-  const displayImage = localImage ?? (player.image_url ? getCachedPlayerImageUrl(player.image_url) : null);
+  const storedImage =
+    player.image_url && player.image_url.startsWith("/") ? player.image_url : null;
+  const displayImage = localImage ?? storedImage;
+  const spriteStyle = !displayImage ? getPlayerSpriteStyle(player.name) : undefined;
   const isYoung = player.team.slug === "youngknights";
 
   const accentText = isYoung ? "text-young-light" : "text-alum-light";
@@ -121,9 +121,15 @@ export default function PlayerCard({
             fill
             priority={false}
             quality={45}
-            unoptimized={Boolean(localImage)}
+            unoptimized
             className={`object-cover object-top transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          />
+        ) : spriteStyle ? (
+          <div
+            className={`h-full w-full bg-no-repeat transition-transform duration-500 ${isPicked ? "scale-[1.01]" : "group-hover:scale-[1.015]"}`}
+            style={spriteStyle}
+            aria-label={player.name}
           />
         ) : (
           <div className="flex h-full items-center justify-center">

@@ -7,8 +7,7 @@ const SESSION_KEY = "sce_splash_shown";
 
 function getDisplayImageUrl(url?: string | null) {
   if (!url) return null;
-  if (url.startsWith("/")) return url;
-  return `/api/player-image?url=${encodeURIComponent(url)}`;
+  return url.startsWith("/") ? url : null;
 }
 
 export default function SplashScreen({
