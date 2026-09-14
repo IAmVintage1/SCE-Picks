@@ -6,7 +6,6 @@ import { EventSettings } from "@/lib/types";
 import { getLocalTeamLogo } from "@/lib/teamImages";
 import SplashScreen from "@/components/SplashScreen";
 import ShareCardEnhancer from "@/components/ShareCardEnhancer";
-import SupabaseImageGuard from "@/components/SupabaseImageGuard";
 
 const anton = Anton({ subsets: ["latin"], weight: ["400"], variable: "--font-anton", display: "swap" });
 const oswald = Oswald({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-oswald", display: "swap" });
@@ -68,7 +67,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={`${anton.variable} ${oswald.variable} ${inter.variable} ${jetbrains.variable}`}>
       <body className="font-body antialiased bg-ink text-bone">
-        <SupabaseImageGuard />
         <ShareCardEnhancer />
         <SplashScreen youngLogoUrl={youngLogoUrl} alumLogoUrl={alumLogoUrl}>
           {children}
