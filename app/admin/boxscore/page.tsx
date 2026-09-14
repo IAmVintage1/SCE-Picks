@@ -313,12 +313,20 @@ export default async function BoxScorePage() {
             {alumTotal.pts}
           </p>
         </div>
-        <Link
-          href="/admin/tracker"
-          className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-bone/50 hover:text-bone"
-        >
-          ← Back to tracker
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/tracker"
+            className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-bone/50 hover:text-bone"
+          >
+            ← Tracker
+          </Link>
+          <Link
+            href="/admin/results"
+            className="rounded-lg bg-bone px-3 py-2 text-xs font-black uppercase tracking-wider text-ink"
+          >
+            Review Results →
+          </Link>
+        </div>
       </div>
 
       <p className="text-xs text-bone/30">

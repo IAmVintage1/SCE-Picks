@@ -303,10 +303,10 @@ export default function AdminTrackerPage() {
           </p>
 
           <Link
-            href="/admin/boxscore"
+            href="/admin/results"
             className="shrink-0 rounded-xl bg-bone px-4 py-2.5 text-center font-head text-xs font-black uppercase tracking-wider text-ink"
           >
-            🏁 END GAME → BOX SCORE
+            🏁 END GAME → RESULTS
           </Link>
         </div>
 
