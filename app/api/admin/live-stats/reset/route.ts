@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 const CONFIRM_PHRASE = "RESET GAME";
 
 export async function POST(req: NextRequest) {
