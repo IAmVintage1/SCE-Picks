@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { query } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 const MAX_UPLOAD_BYTES = 3_500_000;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
