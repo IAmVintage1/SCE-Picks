@@ -23,6 +23,7 @@ The original older OBS HTML source was not located. These new SCE red/blue overl
 - `npm run test:live`: PostgreSQL-compatible PGlite executes the migration twice and checks atomic bundled shots, duplicate retries, rollback of partial/invalid actions, concurrent increments, idempotent undo, final-game locking, reopen and stale control revisions.
 - Route tests also verify consistent scores, missing/revoked token rejection, omission of control secrets, and rejected unauthenticated stat writes.
 - `npx tsc --noEmit` and `npm run build` check the app and new routes.
+- Real Neon branch verification passed: repeatable migration, atomic shot entry, retry deduplication, undo, simultaneous trackers, live overlay data, clock/graphic controls, reviewed finalization transaction, final-game locking, reopen/correction and token revocation. Normal reads and atomic writes use Neon HTTP; multi-statement finalization uses a pooled connection.
 - Browser verification is pending: the browser automation daemon failed to start and the alternative browser service timed out. Sample previews exist, but visual layout and interactive recovery have not been verified in a running browser.
 
 Remaining production verification: apply and validate on a branch of the actual Neon database, verify deployed staff entry reaches all OBS sources, and rehearse clock sync and Wi-Fi loss at the venue. A local PostgreSQL test does not establish production connectivity or free-tier usage limits.
