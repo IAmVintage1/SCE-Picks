@@ -1,0 +1,233 @@
+html:has(.obs-overlay),
+body:has(.obs-overlay) {
+  background: transparent !important;
+  overflow: hidden !important;
+}
+.obs-overlay {
+  position: fixed;
+  inset: 0;
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.obs-graphic {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateX(-42px);
+  transition:
+    transform 0.35s ease,
+    opacity 0.35s ease;
+}
+.obs-graphic.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+.obs-scoreboard {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  background: #11131bf5;
+  box-shadow: 0 8px 30px #0006;
+  width: 1000px;
+  border-bottom: 4px solid white;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.obs-brand {
+  font-size: 26px;
+  font-weight: 900;
+  padding: 20px;
+  background: #08090d;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1;
+}
+.obs-brand span {
+  font-size: 11px;
+  letter-spacing: 4px;
+  margin-top: 6px;
+  color: #bbb;
+}
+.obs-team {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 14px 22px;
+  flex: 1;
+  justify-content: space-between;
+}
+.young {
+  background: #c82c30;
+}
+.alum {
+  background: #235bcb;
+}
+.obs-team span {
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.obs-team strong {
+  font-size: 46px;
+  line-height: 1;
+}
+.obs-clock {
+  padding: 10px 24px;
+  text-align: center;
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.obs-clock b {
+  font-size: 14px;
+  color: #bbb;
+}
+.obs-clock span {
+  font-size: 30px;
+  font-weight: 700;
+}
+.obs-boxscore {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1760px;
+  background: #11131bf5;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 20px 70px #0008;
+}
+.obs-boxscore header {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 1px solid #ffffff25;
+}
+.obs-boxscore header span {
+  font-size: 18px;
+  font-weight: 900;
+  color: #b8bcc9;
+}
+.obs-boxscore h1 {
+  font-size: 34px;
+  font-weight: 900;
+  margin: 0;
+}
+.obs-boxscore header small {
+  margin-left: auto;
+  letter-spacing: 2px;
+}
+.obs-tables {
+  display: flex;
+  gap: 24px;
+  padding: 26px;
+}
+.obs-tables > div {
+  flex: 1;
+  min-width: 0;
+}
+.obs-tables h2 {
+  font-size: 24px;
+  font-weight: 800;
+  padding: 14px 18px;
+  margin: 0;
+}
+.obs-tables h2 b {
+  float: right;
+}
+.obs-tables table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 18px;
+}
+.obs-tables th {
+  color: #9fa7bc;
+  font-size: 13px;
+  padding: 14px 6px;
+  text-align: right;
+}
+.obs-tables td {
+  padding: 14px 6px;
+  text-align: right;
+  border-bottom: 1px solid #ffffff12;
+}
+.obs-tables td:first-child,
+.obs-tables th:first-child {
+  text-align: left;
+  padding-left: 14px;
+}
+.obs-tables td:nth-child(2) {
+  font-weight: 900;
+}
+.obs-tables tr:nth-child(even) {
+  background: #ffffff04;
+}
+.obs-spotlight {
+  position: fixed;
+  bottom: 65px;
+  left: 90px;
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  padding: 24px 36px;
+  min-width: 620px;
+  box-shadow: 0 15px 50px #0006;
+  border-left: 8px solid #fff;
+}
+.obs-spotlight img,
+.obs-initials {
+  height: 150px;
+  width: 130px;
+  object-fit: contain;
+}
+.obs-initials {
+  display: grid;
+  place-items: center;
+  font-size: 55px;
+  font-weight: 900;
+  background: #0003;
+}
+.obs-spotlight small {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.obs-spotlight h1 {
+  font-size: 38px;
+  font-weight: 900;
+  margin: 5px 0 16px;
+}
+.obs-player-stats {
+  display: flex;
+  gap: 40px;
+}
+.obs-player-stats > div {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+}
+.obs-player-stats b {
+  font-size: 36px;
+}
+.obs-player-stats span {
+  font-size: 14px;
+  font-weight: 700;
+}
+.obs-demo,
+.obs-error {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  background: #141821;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: white;
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
-import { query } from "@/lib/db";
+import { query, transaction } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -254,7 +254,12 @@ export async function POST(req: NextRequest) {
 
   try {
     if (body.action === "finalize") {
-      const final = await finalizeFromTracker();
+      const final = await transaction(async () => {
+        await query("SELECT id FROM broadcast_state WHERE id=1 FOR UPDATE");
+        const final = await finalizeFromTracker();
+        await query("UPDATE broadcast_state SET status='final',clock_running=false,revision=revision+1,updated_at=now() WHERE id=1");
+        return final;
+      });
       return NextResponse.json({ ok: true, final, state: await getResultsState() });
     }
 
