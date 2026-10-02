@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
-import { createAdminSupabase } from "@/lib/supabase/admin";
+import { query, transaction } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +17,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const normalizedConfirm =
-    typeof body?.confirm === "string"
-      ? body.confirm.trim().toUpperCase()
-      : "";
+    typeof body?.confirm === "string" ? body.confirm.trim().toUpperCase() : "";
 
   if (normalizedConfirm !== CONFIRM_PHRASE) {
     return NextResponse.json(
@@ -28,15 +26,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const supabase = createAdminSupabase();
-  const { error } = await supabase.rpc("reset_live_tracking");
-
-  if (error) {
+  try {
+    await transaction(async () => {
+      await query("SELECT id FROM broadcast_state WHERE id=1 FOR UPDATE");
+      await query("SELECT reset_live_tracking()");
+      await query(
+        "UPDATE live_stat_events SET reversed_at=coalesce(reversed_at,now())",
+      );
+      await query(
+        "UPDATE broadcast_state SET status='pregame',period=1,clock_seconds=600,clock_running=false,clock_started_at=null,boxscore_visible=false,player_visible=false,revision=revision+1,updated_at=now() WHERE id=1",
+      );
+    });
+    return NextResponse.json({ ok: true });
+  } catch {
     return NextResponse.json(
-      { error: error.message },
+      { error: "Reset failed. No changes were saved." },
       { status: 500 },
     );
   }
-
-  return NextResponse.json({ ok: true });
 }

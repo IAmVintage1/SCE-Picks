@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const SESSION_KEY = "sce_splash_shown";
@@ -19,10 +20,13 @@ export default function SplashScreen({
   alumLogoUrl?: string | null;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isOverlay = pathname.startsWith("/overlay/");
   const [show, setShow] = useState<boolean | null>(null);
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
+    if (isOverlay) { setShow(false); return; }
     const alreadyShown = window.sessionStorage.getItem(SESSION_KEY);
 
     if (alreadyShown) {
@@ -45,7 +49,7 @@ export default function SplashScreen({
       window.clearTimeout(closeTimer);
       window.clearTimeout(removeTimer);
     };
-  }, []);
+  }, [isOverlay]);
 
   const displayYoungLogoUrl = getDisplayImageUrl(youngLogoUrl);
   const displayAlumLogoUrl = getDisplayImageUrl(alumLogoUrl);
@@ -54,7 +58,7 @@ export default function SplashScreen({
 
   return (
     <>
-      {show && (
+      {show && !isOverlay && (
         <div
           className={`fixed inset-0 z-[300] flex items-center justify-center overflow-hidden bg-ink ${
             closing ? "splash-fade-out" : ""

@@ -101,30 +101,25 @@ const RESET_PHRASE = "RESET GAME";
 export default function AdminTrackerPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [stats, setStats] = useState<StatMap>({});
-  const [selectedId, setSelectedId] = useState<string | null>(
-    null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(
-    null,
-  );
-  const [bumpError, setBumpError] = useState<string | null>(
-    null,
-  );
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [bumpError, setBumpError] = useState<string | null>(null);
 
   const [resetOpen, setResetOpen] = useState(false);
   const [resetInput, setResetInput] = useState("");
   const [resetting, setResetting] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(
-    null,
-  );
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const isFirstLoad = useRef(true);
 
   async function load() {
     try {
-      const res = await fetch("/api/admin/live-stats");
+      const res = await fetch("/api/admin/live-stats", {
+        cache: "no-store",
+        signal: AbortSignal.timeout(8000),
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -175,74 +170,85 @@ export default function AdminTrackerPage() {
     [players],
   );
 
-  async function bump(
-    playerId: string,
-    statType: RawStat,
-    delta: number,
-  ) {
-    setStats((current) => {
-      const playerStats = current[playerId] ?? emptyStats();
-      const nextVal = Math.max(
-        (playerStats[statType] ?? 0) + delta,
-        0,
-      );
-      return {
-        ...current,
-        [playerId]: { ...playerStats, [statType]: nextVal },
-      };
-    });
+  const saving = useRef(false);
+  const unresolved = useRef<Record<string, unknown> | null>(null);
 
+  async function sendAction(body: Record<string, unknown>) {
+    if (saving.current) return;
+    if (unresolved.current && unresolved.current !== body) {
+      setBumpError(
+        "Resolve the previous action with Retry before entering another stat.",
+      );
+      return;
+    }
+    saving.current = true;
+    setPending(true);
+    setBumpError(null);
+    unresolved.current = body;
+    try {
+      sessionStorage.setItem("sce_unsaved_stat", JSON.stringify(body));
+    } catch {}
     try {
       const res = await fetch("/api/admin/live-stats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, statType, delta }),
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000),
       });
       const data = await res.json();
-
       if (!res.ok) {
-        setBumpError(data?.error ?? "That tap didn't save.");
-        await load();
-        return false;
+        unresolved.current = null;
+        try {
+          sessionStorage.removeItem("sce_unsaved_stat");
+        } catch {}
+        throw new Error(data.error || "Action rejected");
       }
-
-      if (data.stats) {
-        setStats((current) => {
-          const merged = { ...emptyStats() };
-          for (const row of data.stats) {
-            merged[row.stat_type as RawStat] = row.value;
-          }
-          return { ...current, [playerId]: merged };
-        });
-      }
-      return true;
-    } catch {
-      setBumpError(
-        "Couldn't reach the server, that tap didn't save.",
-      );
+      unresolved.current = null;
+      try {
+        sessionStorage.removeItem("sce_unsaved_stat");
+      } catch {}
       await load();
-      return false;
-    }
-  }
-
-  // Applies every (stat, delta) pair in one logical action, e.g.
-  // a made 3 bumps points, field_goals_made/attempted, AND
-  // three_pt_made/attempted together. Pass negative deltas to
-  // undo the same action.
-  async function bumpMulti(
-    playerId: string,
-    entries: [RawStat, number][],
-  ) {
-    setPending(true);
-    setBumpError(null);
-    try {
-      for (const [statType, delta] of entries) {
-        const ok = await bump(playerId, statType, delta);
-        if (!ok) return;
-      }
+    } catch (e) {
+      setBumpError(
+        unresolved.current
+          ? "Connection interrupted. This action may have saved. Retry safely before continuing."
+          : e instanceof Error
+            ? e.message
+            : "Action failed",
+      );
     } finally {
+      saving.current = false;
       setPending(false);
     }
+  }
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        sessionStorage.getItem("sce_unsaved_stat") || "null",
+      );
+      if (saved) {
+        unresolved.current = saved;
+        setBumpError(
+          "An action needs verification. Tap Retry to safely recover it.",
+        );
+      }
+    } catch {}
+  }, []);
+  async function bump(playerId: string, statType: RawStat, delta: number) {
+    await sendAction({
+      eventId: crypto.randomUUID(),
+      playerId,
+      deltas: { [statType]: delta },
+      label: `${statType} ${delta > 0 ? "+" : ""}${delta}`,
+    });
+  }
+  async function bumpMulti(playerId: string, entries: [RawStat, number][]) {
+    await sendAction({
+      eventId: crypto.randomUUID(),
+      playerId,
+      deltas: Object.fromEntries(entries),
+      label: entries.map(([s, d]) => `${s} ${d > 0 ? "+" : ""}${d}`).join(", "),
+    });
   }
 
   async function handleReset() {
@@ -282,11 +288,7 @@ export default function AdminTrackerPage() {
   }
 
   if (loading) {
-    return (
-      <p className="text-sm text-bone/40">
-        Loading tracker...
-      </p>
-    );
+    return <p className="text-sm text-bone/40">Loading tracker...</p>;
   }
 
   // -------------------------------------------------------
@@ -297,9 +299,8 @@ export default function AdminTrackerPage() {
       <div className="max-w-2xl space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="max-w-md text-sm text-bone/50">
-            Pick the player you're watching. Taps save instantly,
-            everyone tracking sees roughly-live totals within a
-            few seconds.
+            Pick the player you're watching. Taps save instantly, everyone
+            tracking sees roughly-live totals within a few seconds.
           </p>
 
           <Link
@@ -310,6 +311,20 @@ export default function AdminTrackerPage() {
           </Link>
         </div>
 
+        {bumpError && (
+          <div role="alert" className="text-young-light">
+            {bumpError}
+            {unresolved.current && (
+              <button
+                className="ml-3 underline"
+                disabled={pending}
+                onClick={() => sendAction(unresolved.current!)}
+              >
+                Retry action
+              </button>
+            )}
+          </div>
+        )}
         {loadError && (
           <div className="rounded-xl border border-young/40 bg-young/10 p-3 text-sm text-young-light">
             {loadError}
@@ -348,9 +363,9 @@ export default function AdminTrackerPage() {
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-bone/50">
-                Wipes every tracked stat and every graded result
-                back to pending. Use this to clear a practice run
-                before the real game. Type{" "}
+                Wipes every tracked stat and every graded result back to
+                pending. Use this to clear a practice run before the real game.
+                Type{" "}
                 <span className="font-mono font-bold text-bone">
                   {RESET_PHRASE}
                 </span>{" "}
@@ -363,15 +378,14 @@ export default function AdminTrackerPage() {
                 className="w-full rounded-lg border border-line bg-panelLight px-3 py-2 font-mono text-sm uppercase text-bone placeholder:text-bone/25"
               />
               {resetError && (
-                <p className="text-xs text-young-light">
-                  {resetError}
-                </p>
+                <p className="text-xs text-young-light">{resetError}</p>
               )}
               <div className="flex gap-2">
                 <button
                   onClick={handleReset}
                   disabled={
-                    resetInput.trim().toUpperCase() !== RESET_PHRASE || resetting
+                    resetInput.trim().toUpperCase() !== RESET_PHRASE ||
+                    resetting
                   }
                   className="rounded-lg bg-young px-4 py-2 text-xs font-bold text-white disabled:opacity-30"
                 >
@@ -410,11 +424,7 @@ export default function AdminTrackerPage() {
       </button>
 
       <div className="flex items-center gap-3 rounded-2xl border border-line bg-panel p-4">
-        <PlayerPhoto
-          url={selected.image_url}
-          name={selected.name}
-          size={56}
-        />
+        <PlayerPhoto url={selected.image_url} name={selected.name} size={56} />
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-bone/40">
             {selected.team?.name ?? ""}
@@ -425,87 +435,110 @@ export default function AdminTrackerPage() {
         </div>
       </div>
 
-      {/* Scoring */}
-      <div className="rounded-2xl border border-line bg-panel p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-bone/40">
-            POINTS
-          </p>
-          <p className="font-display text-3xl text-bone">
-            {s.points ?? 0}
+      <fieldset disabled={pending || !!unresolved.current}>
+        {/* Scoring */}
+        <div className="rounded-2xl border border-line bg-panel p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-bone/40">
+              POINTS
+            </p>
+            <p className="font-display text-3xl text-bone">{s.points ?? 0}</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {SHOT_TYPES.map((shot) => (
+              <ShotButtons
+                key={shot.key}
+                label={shot.label}
+                onMake={() => bumpMulti(selected.id, shot.make)}
+                onMiss={() => bumpMulti(selected.id, shot.miss)}
+                onUndoMake={() =>
+                  bumpMulti(
+                    selected.id,
+                    shot.make.map(([s2, d]) => [s2, -d]),
+                  )
+                }
+                onUndoMiss={() =>
+                  bumpMulti(
+                    selected.id,
+                    shot.miss.map(([s2, d]) => [s2, -d]),
+                  )
+                }
+              />
+            ))}
+          </div>
+
+          <p className="mt-2 text-center text-[10px] text-bone/30">
+            FG {s.field_goals_made ?? 0}-{s.field_goals_attempted ?? 0}
+            {"  ·  "}3PT {s.three_pt_made ?? 0}-{s.three_pt_attempted ?? 0}
+            {"  ·  "}FT {s.ft_made ?? 0}-{s.ft_attempted ?? 0}
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          {SHOT_TYPES.map((shot) => (
-            <ShotButtons
-              key={shot.key}
-              label={shot.label}
-              onMake={() => bumpMulti(selected.id, shot.make)}
-              onMiss={() => bumpMulti(selected.id, shot.miss)}
-              onUndoMake={() =>
-                bumpMulti(
-                  selected.id,
-                  shot.make.map(([s2, d]) => [s2, -d]),
-                )
-              }
-              onUndoMiss={() =>
-                bumpMulti(
-                  selected.id,
-                  shot.miss.map(([s2, d]) => [s2, -d]),
-                )
-              }
-            />
-          ))}
+        <details className="mt-3 rounded-xl border border-line p-3">
+          <summary className="text-xs text-bone/50">
+            Official score correction
+          </summary>
+          <p className="my-2 text-xs text-bone/40">
+            Adjust points credited to this player after checking the official
+            score. Use the shot buttons for normal baskets.
+          </p>
+          <StatRow
+            label="POINTS CORRECTION"
+            value={s.points ?? 0}
+            onInc={() => bump(selected.id, "points", 1)}
+            onDec={() => bump(selected.id, "points", -1)}
+          />
+        </details>
+        {/* Other raw stats */}
+        <div className="space-y-2">
+          <StatRow
+            label="REBOUNDS"
+            value={s.rebounds ?? 0}
+            onInc={() => bump(selected.id, "rebounds", 1)}
+            onDec={() => bump(selected.id, "rebounds", -1)}
+          />
+          <StatRow
+            label="ASSISTS"
+            value={s.assists ?? 0}
+            onInc={() => bump(selected.id, "assists", 1)}
+            onDec={() => bump(selected.id, "assists", -1)}
+          />
+          <StatRow
+            label="STEALS"
+            value={s.steals ?? 0}
+            onInc={() => bump(selected.id, "steals", 1)}
+            onDec={() => bump(selected.id, "steals", -1)}
+          />
+          <StatRow
+            label="BLOCKS"
+            value={s.blocks ?? 0}
+            onInc={() => bump(selected.id, "blocks", 1)}
+            onDec={() => bump(selected.id, "blocks", -1)}
+          />
+          <StatRow
+            label="TURNOVERS"
+            value={s.turnovers ?? 0}
+            onInc={() => bump(selected.id, "turnovers", 1)}
+            onDec={() => bump(selected.id, "turnovers", -1)}
+          />
+          <StatRow
+            label="FOULS"
+            value={s.fouls ?? 0}
+            onInc={() => bump(selected.id, "fouls", 1)}
+            onDec={() => bump(selected.id, "fouls", -1)}
+          />
         </div>
-
-        <p className="mt-2 text-center text-[10px] text-bone/30">
-          FG {s.field_goals_made ?? 0}-{s.field_goals_attempted ?? 0}
-          {"  ·  "}3PT {s.three_pt_made ?? 0}-{s.three_pt_attempted ?? 0}
-          {"  ·  "}FT {s.ft_made ?? 0}-{s.ft_attempted ?? 0}
-        </p>
-      </div>
-
-      {/* Other raw stats */}
-      <div className="space-y-2">
-        <StatRow
-          label="REBOUNDS"
-          value={s.rebounds ?? 0}
-          onInc={() => bump(selected.id, "rebounds", 1)}
-          onDec={() => bump(selected.id, "rebounds", -1)}
-        />
-        <StatRow
-          label="ASSISTS"
-          value={s.assists ?? 0}
-          onInc={() => bump(selected.id, "assists", 1)}
-          onDec={() => bump(selected.id, "assists", -1)}
-        />
-        <StatRow
-          label="STEALS"
-          value={s.steals ?? 0}
-          onInc={() => bump(selected.id, "steals", 1)}
-          onDec={() => bump(selected.id, "steals", -1)}
-        />
-        <StatRow
-          label="BLOCKS"
-          value={s.blocks ?? 0}
-          onInc={() => bump(selected.id, "blocks", 1)}
-          onDec={() => bump(selected.id, "blocks", -1)}
-        />
-        <StatRow
-          label="TURNOVERS"
-          value={s.turnovers ?? 0}
-          onInc={() => bump(selected.id, "turnovers", 1)}
-          onDec={() => bump(selected.id, "turnovers", -1)}
-        />
-        <StatRow
-          label="FOULS"
-          value={s.fouls ?? 0}
-          onInc={() => bump(selected.id, "fouls", 1)}
-          onDec={() => bump(selected.id, "fouls", -1)}
-        />
-      </div>
-
+      </fieldset>
+      {unresolved.current && (
+        <button
+          className="underline text-young-light"
+          disabled={pending}
+          onClick={() => sendAction(unresolved.current!)}
+        >
+          Retry previous action
+        </button>
+      )}
       <p
         className={`text-center text-xs ${
           bumpError ? "text-young-light" : "text-bone/25"
@@ -513,8 +546,8 @@ export default function AdminTrackerPage() {
       >
         {pending
           ? "Saving..."
-          : bumpError ??
-            "Turnovers and fouls are tracked for the box score, they aren't bettable in the app."}
+          : (bumpError ??
+            "Turnovers and fouls are tracked for the box score, they aren't bettable in the app.")}
       </p>
     </div>
   );
@@ -609,9 +642,7 @@ function ShotButtons({
 }) {
   return (
     <div className="flex flex-col items-center gap-1">
-      <p className="font-mono text-[10px] font-bold text-bone/40">
-        {label}
-      </p>
+      <p className="font-mono text-[10px] font-bold text-bone/40">{label}</p>
       <button
         onClick={onMake}
         className="flex h-12 w-full items-center justify-center rounded-lg bg-bone font-head text-xs font-black text-ink active:scale-95"
