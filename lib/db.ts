@@ -15,7 +15,11 @@ function getSql() {
   if (globalDb.scePicksSql) return globalDb.scePicksSql;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not configured.");
-  globalDb.scePicksSql = neon(connectionString);
+  // Next.js patches fetch and may otherwise reuse identical Neon HTTP reads.
+  // Live scores and broadcast visibility must always come from the database.
+  globalDb.scePicksSql = neon(connectionString, {
+    fetchOptions: { cache: "no-store", next: { revalidate: 0 } },
+  });
   return globalDb.scePicksSql;
 }
 
