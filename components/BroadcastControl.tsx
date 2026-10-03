@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LiveSnapshot, clockRemaining, formatClock } from "@/lib/live";
+import { LiveSnapshot } from "@/lib/live";
 type Event = {
   id: string;
   name: string;
@@ -16,10 +16,6 @@ export default function BroadcastControl() {
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
-  const [time, setTime] = useState("10:00");
-  const [period, setPeriod] = useState("1");
-  const [tick, setTick] = useState(Date.now());
-  const [offset, setOffset] = useState(0);
   const load = useCallback(async () => {
     try {
       const r = await fetch("/api/admin/broadcast", {
@@ -29,7 +25,6 @@ export default function BroadcastControl() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       setData(d);
-      setOffset(d.serverTime - Date.now());
       setConnected(true);
     } catch (e) {
       setConnected(false);
@@ -49,10 +44,6 @@ export default function BroadcastControl() {
       clearTimeout(timer);
     };
   }, [load]);
-  useEffect(() => {
-    const t = setInterval(() => setTick(Date.now()), 250);
-    return () => clearInterval(t);
-  }, []);
   async function update(patch: Record<string, unknown>) {
     if (!data || lock.current) return;
     lock.current = true;
@@ -107,7 +98,7 @@ export default function BroadcastControl() {
   const { state, scores, players, events } = data;
   const input = "rounded-lg border border-line bg-panel px-3 py-2 text-bone";
   const button =
-    "rounded-lg bg-bone px-4 py-3 font-bold text-ink disabled:opacity-40";
+    "min-h-12 rounded-xl bg-bone px-4 py-3 text-base font-bold text-ink disabled:opacity-40";
   return (
     <div className="max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -124,85 +115,32 @@ export default function BroadcastControl() {
           {error}
         </p>
       )}
-      <section className="rounded-2xl border border-line bg-panel p-5">
-        <div className="flex flex-wrap items-center justify-between gap-5">
+      <section className="rounded-2xl border border-line bg-panel p-4 sm:p-5">
+        <div className="grid grid-cols-3 items-center gap-3">
           <div className="text-young-light">
-            <p>YOUNGKNIGHTS</p>
-            <b className="text-5xl">{scores.youngknights}</b>
+            <p className="text-xs sm:text-base">YOUNGKNIGHTS</p>
+            <b className="text-4xl sm:text-5xl">{scores.youngknights}</b>
           </div>
           <div className="text-center">
-            <p>
-              {state.status.toUpperCase()} ·{" "}
+            <p className="text-xs text-bone/50">CURRENT</p>
+            <b className="text-2xl sm:text-3xl">
               {state.period <= 4 ? `Q${state.period}` : `OT${state.period - 4}`}
-            </p>
-            <b className="font-mono text-4xl">
-              {formatClock(clockRemaining(state, tick + offset))}
             </b>
           </div>
-          <div className="text-alum-light">
-            <p>ALUMKNIGHTS</p>
-            <b className="text-5xl">{scores.alumknights}</b>
+          <div className="text-right text-alum-light">
+            <p className="text-xs sm:text-base">ALUMKNIGHTS</p>
+            <b className="text-4xl sm:text-5xl">{scores.alumknights}</b>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button
-            className={button}
-            disabled={busy || state.status === "final"}
-            onClick={() =>
-              update({ clock_running: !state.clock_running, status: "live" })
-            }
-          >
-            {state.clock_running ? "Pause clock" : "Start clock"}
-          </button>
-          <label>
-            Clock{" "}
-            <input
-              aria-label="Game clock minutes and seconds"
-              className={`${input} w-24`}
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </label>
-          <label>
-            Period{" "}
-            <input
-              aria-label="Period (5 is first overtime)"
-              className={`${input} w-16`}
-              type="number"
-              min="1"
-              max="20"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-            />
-          </label>
-          <button
-            className={button}
-            disabled={busy || state.status === "final"}
-            onClick={() => {
-              if (!/^\d{1,3}:[0-5]\d$/.test(time)) {
-                setError("Enter clock as minutes:seconds");
-                return;
-              }
-              const [m, s] = time.split(":").map(Number);
-              update({
-                clock_seconds: m * 60 + s,
-                period: Number(period),
-                clock_running: false,
-              });
-            }}
-          >
-            Set clock / period
-          </button>
-          <div className="flex flex-wrap items-center gap-2" aria-label="Quick period controls">
+        <div className="mt-5">
+          <p className="mb-2 text-sm font-bold text-bone/70">CHANGE QUARTER</p>
+          <div className="grid grid-cols-5 gap-2" aria-label="Quarter controls">
             {[1, 2, 3, 4, 5].map((value) => (
               <button
                 key={value}
-                className={`${button} ${state.period === value ? "ring-2 ring-young-light" : ""}`}
+                className={`${button} px-2 ${state.period === value ? "bg-young text-white ring-2 ring-young-light" : ""}`}
                 disabled={busy || state.status === "final"}
-                onClick={() => {
-                  setPeriod(String(value));
-                  update({ period: value, clock_running: false });
-                }}
+                onClick={() => update({ period: value })}
               >
                 {value <= 4 ? `Q${value}` : "OT1"}
               </button>
@@ -218,10 +156,6 @@ export default function BroadcastControl() {
             </button>
           )}
         </div>
-        <p className="mt-3 text-sm text-bone/50">
-          Clock operator must match the official gym clock. Period 5 = OT1.
-          Reopening stats requires finalizing again after review.
-        </p>
       </section>
       <div className="grid gap-4 md:grid-cols-3">
         {(["scoreboard", "boxscore", "player"] as const).map((kind) => (
@@ -232,15 +166,15 @@ export default function BroadcastControl() {
             <h2 className="font-head text-xl uppercase">
               {kind === "player" ? "Player spotlight" : kind}
             </h2>
-            <button
-              className={button}
-              disabled={busy}
-              onClick={() =>
-                update({ [`${kind}_visible`]: !state[`${kind}_visible`] })
-              }
-            >
-              {state[`${kind}_visible`] ? "Hide graphic" : "Show graphic"}
-            </button>
+            {kind === "scoreboard" && (
+              <button
+                className={`${button} w-full ${state.scoreboard_visible ? "bg-young text-white" : ""}`}
+                disabled={busy}
+                onClick={() => update({ scoreboard_visible: !state.scoreboard_visible })}
+              >
+                {state.scoreboard_visible ? "Hide Scoreboard" : "Show Scoreboard"}
+              </button>
+            )}
             {kind === "boxscore" && (
               <select
                 className={`${input} w-full`}
@@ -273,77 +207,69 @@ export default function BroadcastControl() {
             )}
             {kind === "boxscore" && (
               <button
-                className={button}
+                className={`${button} w-full`}
                 disabled={busy}
                 onClick={() => update({ cue: "boxscore" })}
               >
-                Show box score · 10 seconds
+                Show Box Score
               </button>
             )}
             {kind === "player" && (
               <button
-                className={button}
+                className={`${button} w-full`}
                 disabled={busy || !state.featured_player_id}
                 onClick={() => update({ cue: "player" })}
               >
-                Show player stats · 10 seconds
+                Show Player Stats
               </button>
             )}
-            <button
-              className="block text-sm underline"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(
-                    `${location.origin}/overlay/${kind}?token=${encodeURIComponent(data.token)}`,
-                  );
-                  setError("");
-                } catch {
-                  setError("Copy the link from the field below.");
-                }
-              }}
-            >
-              Copy OBS browser-source URL
-            </button>
-            <input
-              aria-label={`${kind} OBS URL`}
-              readOnly
-              className={`${input} w-full text-xs`}
-              value={`${typeof window === "undefined" ? "" : location.origin}/overlay/${kind}?token=${encodeURIComponent(data.token)}`}
-              onFocus={(e) => e.target.select()}
-            />
-            <Link
-              className="block text-sm underline"
-              href={`/overlay/${kind}?demo=1`}
-              target="_blank"
-            >
-              Preview with sample data
-            </Link>
           </section>
         ))}
       </div>
-      <p className="text-sm text-bone/60">
-        OBS: add each URL as a Browser Source at 1920 × 1080. Backgrounds are
-        transparent. Leave “Shutdown source when not visible” off. Links provide
-        read-only access and expire in 30 days.
-      </p>
-      <button
-        className="text-sm underline"
-        disabled={busy}
-        onClick={() => update({ rotateToken: true })}
-      >
-        Revoke old overlay links and issue new ones
-      </button>
-      <div className="flex gap-5">
-        <Link className="underline" href="/admin/tracker">
-          Enter player stats →
+      <Link className={`${button} block w-full text-center`} href="/admin/tracker">
+        Open Live Tracker
+      </Link>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link className="rounded-xl border border-line p-4 text-center font-bold" href="/admin/boxscore">
+          Review Box Score
         </Link>
-        <Link className="underline" href="/admin/boxscore">
-          Review box score →
-        </Link>
-        <Link className="underline" href="/admin/results">
-          Finalize reviewed results →
+        <Link className="rounded-xl border border-line p-4 text-center font-bold" href="/admin/results">
+          Finalize Results
         </Link>
       </div>
+      <details className="rounded-xl border border-line bg-panel p-4">
+        <summary className="cursor-pointer font-bold">OBS Setup Links</summary>
+        <div className="mt-4 space-y-4">
+          {(["scoreboard", "boxscore", "player"] as const).map((kind) => (
+            <div key={kind} className="space-y-2">
+              <p className="font-bold capitalize">{kind === "player" ? "Player stats" : kind}</p>
+              <input
+                aria-label={`${kind} OBS URL`}
+                readOnly
+                className={`${input} w-full text-xs`}
+                value={`${typeof window === "undefined" ? "" : location.origin}/overlay/${kind}?token=${encodeURIComponent(data.token)}`}
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                className="text-sm underline"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(`${location.origin}/overlay/${kind}?token=${encodeURIComponent(data.token)}`);
+                    setError("");
+                  } catch {
+                    setError("Tap and hold the link above to copy it.");
+                  }
+                }}
+              >
+                Copy link
+              </button>
+            </div>
+          ))}
+          <button className="text-sm underline" disabled={busy} onClick={() => update({ rotateToken: true })}>
+            Replace all OBS links
+          </button>
+        </div>
+      </details>
       <section className="rounded-xl border border-line p-4">
         <h2 className="font-head text-xl mb-3">ACTION HISTORY</h2>
         {!events.length && (
@@ -358,10 +284,7 @@ export default function BroadcastControl() {
           >
             <div className={e.reversed_at ? "text-bone/30 line-through" : ""}>
               <b>{e.name}</b> · {e.label}
-              <small className="block text-bone/40">
-                {new Date(e.created_at).toLocaleTimeString()}
-                {e.reversed_at ? " · Undone" : ""}
-              </small>
+              {e.reversed_at && <small className="block text-bone/40">Undone</small>}
             </div>
             <button
               className="underline disabled:opacity-30"
