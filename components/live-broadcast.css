@@ -30,29 +30,29 @@ body:has(.obs-overlay) {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   box-sizing: border-box;
-  width: 760px;
-  height: 92px;
-  padding: 0 18px;
-  background: linear-gradient(180deg, #101114f7 0%, #08090bf7 100%);
-  border-top: 2px solid #cda22b;
-  border-left: 3px solid #ed2f3c;
-  border-right: 3px solid #2d72e2;
-  border-radius: 3px;
+  width: 620px;
+  height: 210px;
+  padding: 0;
+  background: #111522f7;
+  border: 0;
+  border-radius: 8px;
   box-shadow:
-    0 7px 22px #0008,
+    0 10px 28px #0008,
     inset 0 1px 0 #ffffff12;
   overflow: hidden;
 }
 .obs-team {
   display: flex;
   align-items: center;
-  gap: 18px;
-  height: 60px;
-  padding: 0 20px;
-  flex: 1;
-  background: transparent;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: 100%;
+  height: 78px;
+  padding: 0 24px;
+  flex: 0 0 78px;
 }
 .young {
   background: #c82c30;
@@ -61,53 +61,52 @@ body:has(.obs-overlay) {
   background: #235bcb;
 }
 .obs-scoreboard .young {
-  justify-content: flex-start;
-  background: transparent;
-  border-right: 1px solid #ffffff12;
+  background: linear-gradient(90deg, #bd2631 0%, #dc3542 100%);
+  border: 0;
 }
 .obs-scoreboard .alum {
-  justify-content: flex-end;
-  background: transparent;
-  border-left: 1px solid #ffffff12;
+  background: linear-gradient(90deg, #1e55aa 0%, #2e6dd1 100%);
+  border: 0;
 }
 .obs-team span {
-  font-size: 16px;
+  color: white;
+  font-size: 29px;
   font-weight: 900;
-  letter-spacing: 0.45px;
+  letter-spacing: 0.5px;
 }
 .obs-scoreboard .young span {
-  color: #e33a44;
+  color: white;
 }
 .obs-scoreboard .alum span {
-  color: #467ee0;
+  color: white;
 }
 .obs-team strong {
-  min-width: 58px;
-  color: #fffdf8;
-  font-size: 48px;
+  min-width: 78px;
+  color: white;
+  font-size: 52px;
   font-weight: 900;
   line-height: 1;
-  text-align: center;
-  text-shadow: 0 0 7px #ffffff52;
+  text-align: right;
+  text-shadow: 0 2px 5px #0005;
 }
 .obs-period {
-  align-self: stretch;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
-  width: 100px;
-  flex: 0 0 100px;
-  padding: 8px 14px;
+  width: 100%;
+  height: 54px;
+  flex: 0 0 54px;
+  padding: 0 20px;
   text-align: center;
-  border-left: 1px solid #ffffff12;
-  border-right: 1px solid #ffffff12;
+  background: linear-gradient(180deg, #171c2b 0%, #101522 100%);
+  border-top: 1px solid #ffffff1c;
 }
 .obs-period b {
-  color: #f7f2e8;
-  font-size: 24px;
+  color: white;
+  font-size: 21px;
   font-weight: 900;
-  letter-spacing: 1px;
-  text-shadow: 0 0 6px #ffffff2e;
+  letter-spacing: 1.4px;
 }
 .obs-boxscore {
   position: fixed;
