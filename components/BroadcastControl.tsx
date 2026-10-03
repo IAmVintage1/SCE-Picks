@@ -261,7 +261,7 @@ export default function BroadcastControl() {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(
-                    `${location.origin}/overlay/${kind}#token=${encodeURIComponent(data.token)}`,
+                    `${location.origin}/overlay/${kind}?token=${encodeURIComponent(data.token)}`,
                   );
                   setError("");
                 } catch {
@@ -275,7 +275,7 @@ export default function BroadcastControl() {
               aria-label={`${kind} OBS URL`}
               readOnly
               className={`${input} w-full text-xs`}
-              value={`${typeof window === "undefined" ? "" : location.origin}/overlay/${kind}#token=${encodeURIComponent(data.token)}`}
+              value={`${typeof window === "undefined" ? "" : location.origin}/overlay/${kind}?token=${encodeURIComponent(data.token)}`}
               onFocus={(e) => e.target.select()}
             />
             <Link
