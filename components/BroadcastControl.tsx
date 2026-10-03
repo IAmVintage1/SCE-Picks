@@ -193,6 +193,21 @@ export default function BroadcastControl() {
           >
             Set clock / period
           </button>
+          <div className="flex flex-wrap items-center gap-2" aria-label="Quick period controls">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button
+                key={value}
+                className={`${button} ${state.period === value ? "ring-2 ring-young-light" : ""}`}
+                disabled={busy || state.status === "final"}
+                onClick={() => {
+                  setPeriod(String(value));
+                  update({ period: value, clock_running: false });
+                }}
+              >
+                {value <= 4 ? `Q${value}` : "OT1"}
+              </button>
+            ))}
+          </div>
           {state.status === "final" && (
             <button
               className={button}
@@ -255,6 +270,24 @@ export default function BroadcastControl() {
                   </option>
                 ))}
               </select>
+            )}
+            {kind === "boxscore" && (
+              <button
+                className={button}
+                disabled={busy}
+                onClick={() => update({ cue: "boxscore" })}
+              >
+                Show box score · 10 seconds
+              </button>
+            )}
+            {kind === "player" && (
+              <button
+                className={button}
+                disabled={busy || !state.featured_player_id}
+                onClick={() => update({ cue: "player" })}
+              >
+                Show player stats · 10 seconds
+              </button>
             )}
             <button
               className="block text-sm underline"

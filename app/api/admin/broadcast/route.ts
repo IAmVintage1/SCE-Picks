@@ -43,6 +43,23 @@ export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => null);
   if (!b || !Number.isInteger(b.revision))
     return NextResponse.json({ error: "Revision required" }, { status: 400 });
+  if (b.cue === "boxscore" || b.cue === "player") {
+    const field = b.cue === "boxscore" ? "boxscore" : "player";
+    try {
+      const rows = await query(
+        `UPDATE broadcast_state SET ${field}_visible=true,${field}_visible_until=now()+interval '10 seconds',revision=revision+1,updated_at=now() WHERE id=1 AND revision=$1 ${field === "player" ? "AND featured_player_id IS NOT NULL" : ""} RETURNING id`,
+        [b.revision],
+      );
+      if (!rows.length)
+        return NextResponse.json(
+          { error: field === "player" ? "Select a player first, then try again." : "Controls changed; try again." },
+          { status: 409 },
+        );
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ error: "Could not trigger graphic" }, { status: 400 });
+    }
+  }
   const allowed = [
     "period",
     "clock_seconds",
@@ -92,6 +109,8 @@ export async function POST(req: NextRequest) {
     params.push(v);
     return `${k}=$${params.length}`;
   });
+  if ("boxscore_visible" in b) sets.push("boxscore_visible_until=null");
+  if ("player_visible" in b) sets.push("player_visible_until=null");
   if ("clock_running" in b || "clock_seconds" in b) {
     if (!("clock_seconds" in b))
       sets.push(

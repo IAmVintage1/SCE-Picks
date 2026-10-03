@@ -30,7 +30,9 @@ export type BroadcastState = {
   status: "pregame" | "live" | "final";
   scoreboard_visible: boolean;
   boxscore_visible: boolean;
+  boxscore_visible_until: string | null;
   player_visible: boolean;
+  player_visible_until: string | null;
   boxscore_team: string;
   featured_player_id: string | null;
   token_version: number;

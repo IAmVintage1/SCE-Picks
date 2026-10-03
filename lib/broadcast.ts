@@ -44,6 +44,14 @@ export async function getLiveSnapshot(): Promise<LiveSnapshot> {
  ) x),'[]'::json) AS players FROM broadcast_state b WHERE b.id=1`);
   if (!rows[0]) throw new Error("Run the live broadcast migration first.");
   const { state, players, server_time } = rows[0];
+  state.boxscore_visible =
+    state.boxscore_visible &&
+    (!state.boxscore_visible_until ||
+      Date.parse(state.boxscore_visible_until) > server_time);
+  state.player_visible =
+    state.player_visible &&
+    (!state.player_visible_until ||
+      Date.parse(state.player_visible_until) > server_time);
   const scores: Record<string, number> = { youngknights: 0, alumknights: 0 };
   for (const player of players) {
     player.image_url = getLocalPlayerImage(player.name) ?? player.image_url;
