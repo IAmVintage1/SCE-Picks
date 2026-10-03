@@ -19,7 +19,9 @@ export default function LiveBroadcast({
       return;
     }
     const token =
-      new URLSearchParams(location.hash.slice(1)).get("token") || "";
+      new URLSearchParams(location.search).get("token") ||
+      new URLSearchParams(location.hash.slice(1)).get("token") ||
+      "";
     const key = `sce-obs:v1:${token}`;
     try {
       const cached = JSON.parse(localStorage.getItem(key) || "null");
