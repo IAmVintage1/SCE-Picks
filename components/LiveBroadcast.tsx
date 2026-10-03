@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { LiveSnapshot, LivePlayer } from "@/lib/live";
-import { clockRemaining, formatClock } from "@/lib/live";
 import "./live-broadcast.css";
 export default function LiveBroadcast({
   kind,
@@ -9,8 +8,6 @@ export default function LiveBroadcast({
   kind: "scoreboard" | "boxscore" | "player";
 }) {
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null);
-  const [offset, setOffset] = useState(0);
-  const [now, setNow] = useState(Date.now());
   const [error, setError] = useState("Connecting to broadcast…");
   const [demo, setDemo] = useState(false);
   useEffect(() => {
@@ -28,7 +25,6 @@ export default function LiveBroadcast({
       const cached = JSON.parse(localStorage.getItem(key) || "null");
       if (cached?.snapshot?.state && Array.isArray(cached.snapshot.players)) {
         setSnapshot(cached.snapshot);
-        setOffset(Number(cached.offset) || 0);
       }
     } catch {}
     let stopped = false;
@@ -60,7 +56,6 @@ export default function LiveBroadcast({
         const value = (await res.json()) as LiveSnapshot;
         if (stopped) return;
         setSnapshot(value);
-        setOffset(value.serverTime - Date.now());
         setError("");
         delay = 1500;
         try {
@@ -89,10 +84,6 @@ export default function LiveBroadcast({
       controller?.abort();
     };
   }, []);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(timer);
-  }, []);
   if (!snapshot)
     return (
       <div className="obs-overlay">
@@ -100,7 +91,6 @@ export default function LiveBroadcast({
       </div>
     );
   const { state, players, scores } = snapshot;
-  const remaining = clockRemaining(state, now + offset);
   const teams = ["youngknights", "alumknights"].filter(
     (t) => state.boxscore_team === "both" || t === state.boxscore_team,
   );
@@ -117,14 +107,11 @@ export default function LiveBroadcast({
       <div className={`obs-graphic ${visible ? "is-visible" : ""}`}>
         {kind === "scoreboard" && (
           <div className="obs-scoreboard">
-            <div className="obs-brand">
-              SCE <span>LIVE</span>
-            </div>
             <div className="obs-team young">
-              <span>YOUNGKNIGHTS</span>
               <strong>{scores.youngknights}</strong>
+              <span>YOUNGKNIGHTS</span>
             </div>
-            <div className="obs-clock">
+            <div className="obs-period">
               <b>
                 {state.status === "final"
                   ? "FINAL"
@@ -132,13 +119,10 @@ export default function LiveBroadcast({
                     ? `Q${state.period}`
                     : `OT${state.period - 4}`}
               </b>
-              <span>
-                {state.status === "final" ? "" : formatClock(remaining)}
-              </span>
             </div>
             <div className="obs-team alum">
-              <strong>{scores.alumknights}</strong>
               <span>ALUMKNIGHTS</span>
+              <strong>{scores.alumknights}</strong>
             </div>
           </div>
         )}

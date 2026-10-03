@@ -30,37 +30,29 @@ body:has(.obs-overlay) {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: stretch;
-  background: #11131bf5;
-  box-shadow: 0 8px 30px #0006;
-  width: 1000px;
-  border-bottom: 4px solid white;
-  border-radius: 4px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 996px;
+  height: 132px;
+  padding: 0 34px;
+  background: linear-gradient(180deg, #111216f7 0%, #08090cf7 100%);
+  border-top: 3px solid #d8a923;
+  border-left: 5px solid #e32935;
+  border-right: 5px solid #2572e8;
+  border-radius: 6px;
+  box-shadow:
+    0 10px 34px #000a,
+    inset 0 1px 0 #ffffff12;
   overflow: hidden;
-}
-.obs-brand {
-  font-size: 26px;
-  font-weight: 900;
-  padding: 20px;
-  background: #08090d;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  line-height: 1;
-}
-.obs-brand span {
-  font-size: 11px;
-  letter-spacing: 4px;
-  margin-top: 6px;
-  color: #bbb;
 }
 .obs-team {
   display: flex;
   align-items: center;
-  gap: 22px;
-  padding: 14px 22px;
+  gap: 34px;
+  height: 82px;
+  padding: 0 34px;
   flex: 1;
-  justify-content: space-between;
+  background: transparent;
 }
 .young {
   background: #c82c30;
@@ -68,30 +60,53 @@ body:has(.obs-overlay) {
 .alum {
   background: #235bcb;
 }
+.obs-scoreboard .young {
+  justify-content: flex-start;
+  border-right: 1px solid #ffffff12;
+}
+.obs-scoreboard .alum {
+  justify-content: flex-end;
+  border-left: 1px solid #ffffff12;
+}
 .obs-team span {
-  font-size: 23px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  text-shadow: 0 0 14px currentColor;
+}
+.obs-scoreboard .young span {
+  color: #f13b47;
+}
+.obs-scoreboard .alum span {
+  color: #4387ff;
 }
 .obs-team strong {
-  font-size: 46px;
+  min-width: 84px;
+  color: #fffdf8;
+  font-size: 66px;
+  font-weight: 900;
   line-height: 1;
-}
-.obs-clock {
-  padding: 10px 24px;
   text-align: center;
-  min-width: 132px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  text-shadow: 0 0 12px #ffffff7a;
 }
-.obs-clock b {
-  font-size: 14px;
-  color: #bbb;
+.obs-period {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 160px;
+  flex: 0 0 160px;
+  padding: 10px 20px;
+  text-align: center;
+  border-left: 1px solid #ffffff12;
+  border-right: 1px solid #ffffff12;
 }
-.obs-clock span {
-  font-size: 30px;
-  font-weight: 700;
+.obs-period b {
+  color: #f7f2e8;
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px #ffffff3d;
 }
 .obs-boxscore {
   position: fixed;
