@@ -108,21 +108,21 @@ export default function LiveBroadcast({
         {kind === "scoreboard" && (
           <div className="obs-scoreboard">
             <div className="obs-team young">
-              <strong>{scores.youngknights}</strong>
               <span>YOUNGKNIGHTS</span>
+              <strong>{scores.youngknights}</strong>
+            </div>
+            <div className="obs-team alum">
+              <span>ALUMKNIGHTS</span>
+              <strong>{scores.alumknights}</strong>
             </div>
             <div className="obs-period">
               <b>
                 {state.status === "final"
                   ? "FINAL"
                   : state.period <= 4
-                    ? `Q${state.period}`
-                    : `OT${state.period - 4}`}
+                    ? `${["1ST", "2ND", "3RD", "4TH"][state.period - 1]} QUARTER`
+                    : `OVERTIME ${state.period - 4}`}
               </b>
-            </div>
-            <div className="obs-team alum">
-              <span>ALUMKNIGHTS</span>
-              <strong>{scores.alumknights}</strong>
             </div>
           </div>
         )}
