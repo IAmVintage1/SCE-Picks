@@ -106,7 +106,7 @@ export default function LiveBroadcast({
   return (
     <div className="obs-overlay">
       {demo && <div className="obs-demo">PREVIEW · SAMPLE DATA</div>}
-      <div className={`obs-graphic ${visible ? "is-visible" : ""}`}>
+      <div className={`obs-graphic ${visible ? "" : "is-hidden"}`}>
         {kind === "scoreboard" && (
           <div className="obs-scoreboard">
             <div className="obs-team young">
