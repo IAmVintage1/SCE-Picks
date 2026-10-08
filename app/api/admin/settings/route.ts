@@ -33,6 +33,8 @@ export async function PATCH(req: NextRequest) {
     "alum_logo_url",
     "pick_lock_time",
     "picks_locked",
+    "mvp_open_time",
+    "mvp_voting_closed",
     "leaderboard_visible",
     "email_required",
     "instagram_required",
