@@ -124,6 +124,8 @@ export interface EventSettings {
   alum_logo_url: string | null;
   pick_lock_time: string | null;
   picks_locked: boolean;
+  mvp_open_time: string | null;
+  mvp_voting_closed: boolean;
   leaderboard_visible: boolean;
   email_required: boolean;
   instagram_required: boolean;

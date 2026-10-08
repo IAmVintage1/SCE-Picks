@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { getEventPhase } from "@/lib/eventPhase";
 import { EventSettings, PropWithPlayer, STAT_SHORT } from "@/lib/types";
 
 export const revalidate = 15;
@@ -40,6 +42,8 @@ function formatDate(value: unknown) {
 
 export default async function HomePage() {
   const { settings, props } = await getData();
+
+  if (getEventPhase(settings) !== "picks") redirect("/picks");
 
   return (
     <main className="relative min-h-[100dvh] bg-ink">

@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/live", label: "Live Broadcast" },
   { href: "/admin/tracker", label: "Live Tracker" },
   { href: "/admin/boxscore", label: "Box Score" },
+  { href: "/admin/mvp", label: "MVP Votes" },
   { href: "/admin/submissions", label: "Submissions" },
   { href: "/admin/results", label: "Results" },
   { href: "/admin/settings", label: "Settings" },
