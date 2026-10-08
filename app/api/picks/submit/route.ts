@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { getEventPhase } from "@/lib/eventPhase";
 
 function generateSubmissionCode() {
   const random = Math.floor(10000 + Math.random() * 90000);
@@ -201,11 +202,11 @@ export async function POST(req: NextRequest) {
 
   const { data: settings } = await supabase
     .from("event_settings")
-    .select("picks_locked, min_picks")
+    .select("picks_locked, pick_lock_time, mvp_open_time, mvp_voting_closed, min_picks")
     .eq("id", 1)
     .single();
 
-  if (settings?.picks_locked) {
+  if (getEventPhase(settings) !== "picks") {
     return NextResponse.json(
       { error: "Picks are locked for this event." },
       { status: 403 }
