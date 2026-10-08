@@ -1,14 +1,17 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import PicksExperience from "@/components/PicksExperience";
-import { EventSettings, PropWithPlayer, Team, TeamProp } from "@/lib/types";
+import MvpVoting from "@/components/MvpVoting";
+import { getEventPhase } from "@/lib/eventPhase";
+import { EventSettings, Player, PropWithPlayer, Team, TeamProp } from "@/lib/types";
 
-export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
 export default async function PicksPage() {
   const supabase = createServerSupabase();
 
-  const [teamsRes, propsRes, teamPropsRes, settingsRes] = await Promise.all([
+  const [teamsRes, playersRes, propsRes, teamPropsRes, settingsRes] = await Promise.all([
     supabase.from("teams").select("*").order("name"),
+    supabase.from("players").select("*, team:teams!players_team_id_fkey(*)").eq("active", true).order("name"),
     supabase
       .from("props")
       .select("*, player:players(*, team:teams!players_team_id_fkey(*))")
@@ -28,12 +31,26 @@ export default async function PicksPage() {
   if (teamPropsRes.error) console.error("[PICKS PAGE] team_props error:", teamPropsRes.error);
   if (settingsRes.error) console.error("[PICKS PAGE] settings error:", settingsRes.error);
 
+  const settings = settingsRes.data as EventSettings;
+  const phase = getEventPhase(settings);
+
+  if (phase !== "picks") {
+    return (
+      <MvpVoting
+        players={(playersRes.data as unknown as (Player & { team: Team })[]) ?? []}
+        opensAt={settings?.mvp_open_time ?? null}
+        initiallyOpen={phase === "mvp"}
+        closed={phase === "closed"}
+      />
+    );
+  }
+
   return (
     <PicksExperience
       teams={(teamsRes.data as Team[]) ?? []}
       props={(propsRes.data as unknown as PropWithPlayer[]) ?? []}
       teamProps={(teamPropsRes.data as TeamProp[]) ?? []}
-      settings={settingsRes.data as EventSettings}
+      settings={settings}
     />
   );
 }
