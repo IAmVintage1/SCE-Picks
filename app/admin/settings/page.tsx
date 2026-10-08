@@ -49,6 +49,17 @@ export default function AdminSettingsPage() {
             onSave={(v) => save({ event_date: v })}
           />
           <Field
+            label="MVP voting opens at"
+            type="datetime-local"
+            value={toDatetimeLocal(settings.mvp_open_time)}
+            onSave={(v) => save({ mvp_open_time: v ? new Date(v).toISOString() : null })}
+          />
+          <Toggle
+            label="MVP voting is closed"
+            checked={settings.mvp_voting_closed}
+            onChange={(v) => save({ mvp_voting_closed: v })}
+          />
+          <Field
             label="Venue"
             value={settings.venue ?? ""}
             onSave={(v) => save({ venue: v })}
