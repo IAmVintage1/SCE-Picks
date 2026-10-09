@@ -1,13 +1,23 @@
 import { createServerSupabase } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import PicksExperience from "@/components/PicksExperience";
 import MvpVoting from "@/components/MvpVoting";
 import { getEventPhase } from "@/lib/eventPhase";
 import { EventSettings, Player, PropWithPlayer, Team, TeamProp } from "@/lib/types";
+import { getAdminCookieName, isAdminSessionValid } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
-export default async function PicksPage() {
+export default async function PicksPage({
+  searchParams,
+}: {
+  searchParams?: { preview?: string };
+}) {
   const supabase = createServerSupabase();
+  const cookieStore = await cookies();
+  const previewMvp =
+    searchParams?.preview === "mvp" &&
+    (await isAdminSessionValid(cookieStore.get(getAdminCookieName())?.value));
 
   const [teamsRes, playersRes, propsRes, teamPropsRes, settingsRes] = await Promise.all([
     supabase.from("teams").select("*").order("name"),
@@ -34,13 +44,14 @@ export default async function PicksPage() {
   const settings = settingsRes.data as EventSettings;
   const phase = getEventPhase(settings);
 
-  if (phase !== "picks") {
+  if (previewMvp || phase !== "picks") {
     return (
       <MvpVoting
         players={(playersRes.data as unknown as (Player & { team: Team })[]) ?? []}
         opensAt={settings?.mvp_open_time ?? null}
-        initiallyOpen={phase === "mvp"}
-        closed={phase === "closed"}
+        initiallyOpen={previewMvp || phase === "mvp"}
+        closed={!previewMvp && phase === "closed"}
+        preview={previewMvp}
       />
     );
   }
