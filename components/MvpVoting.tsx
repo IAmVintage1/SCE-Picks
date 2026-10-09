@@ -11,11 +11,13 @@ export default function MvpVoting({
   opensAt,
   initiallyOpen,
   closed,
+  preview,
 }: {
   players: MvpPlayer[];
   opensAt: string | null;
   initiallyOpen: boolean;
   closed: boolean;
+  preview: boolean;
 }) {
   const [now, setNow] = useState(Date.now());
   const [selected, setSelected] = useState<string | null>(null);
@@ -94,6 +96,11 @@ export default function MvpVoting({
   return (
     <main className="min-h-[100dvh] bg-ink px-4 pb-28 pt-8 sm:px-8">
       <div className="mx-auto max-w-4xl">
+        {preview && (
+          <div className="mb-6 rounded-xl border border-yellow-400/40 bg-yellow-400/10 px-4 py-3 text-center font-mono text-xs font-bold tracking-wider text-yellow-200">
+            ADMIN PREVIEW · VOTES WILL NOT BE RECORDED
+          </div>
+        )}
         <header className="text-center">
           <p className="font-mono text-xs font-bold tracking-[0.3em] text-young-light">YOUNGKNIGHTS VS ALUMKNIGHTS</p>
           <h1 className="mt-3 font-display text-5xl leading-none text-bone sm:text-7xl">VOTE FOR<br />YOUR MVP.</h1>
@@ -139,11 +146,19 @@ export default function MvpVoting({
       <div className="fixed inset-x-0 bottom-0 border-t border-line bg-ink/95 p-4 backdrop-blur">
         <button
           type="button"
-          disabled={!selected || submitting}
-          onClick={submitVote}
+          disabled={!selected || submitting || preview}
+          onClick={preview ? undefined : submitVote}
           className="mx-auto block min-h-14 w-full max-w-md rounded-2xl bg-bone px-5 font-head text-base font-black text-ink disabled:opacity-35"
         >
-          {submitting ? "COUNTING VOTE..." : selectedPlayer ? `VOTE FOR ${selectedPlayer.name.toUpperCase()}` : "SELECT A PLAYER"}
+          {preview
+            ? selectedPlayer
+              ? `PREVIEW: ${selectedPlayer.name.toUpperCase()} SELECTED`
+              : "SELECT A PLAYER TO PREVIEW"
+            : submitting
+              ? "COUNTING VOTE..."
+              : selectedPlayer
+                ? `VOTE FOR ${selectedPlayer.name.toUpperCase()}`
+                : "SELECT A PLAYER"}
         </button>
       </div>
     </main>
