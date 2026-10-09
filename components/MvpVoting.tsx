@@ -85,9 +85,25 @@ export default function MvpVoting({
       <main className="flex min-h-[100dvh] items-center justify-center bg-ink px-5 text-center">
         <div className="max-w-md rounded-3xl border border-line bg-panel p-8">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-green-500/15 text-3xl">✓</div>
-          <p className="mt-5 font-mono text-xs font-bold tracking-[0.25em] text-green-400">VOTE COUNTED</p>
+          <p className="mt-5 font-mono text-xs font-bold tracking-[0.25em] text-green-400">
+            {preview ? "PREVIEW COMPLETE" : "VOTE COUNTED"}
+          </p>
           <h1 className="mt-3 font-display text-4xl text-bone">{submittedPlayer}</h1>
-          <p className="mt-3 text-sm text-bone/50">Your MVP vote is locked in.</p>
+          <p className="mt-3 text-sm text-bone/50">
+            {preview ? "This was only a preview. No vote was recorded." : "Your MVP vote is locked in."}
+          </p>
+          {preview && (
+            <button
+              type="button"
+              onClick={() => {
+                setSubmittedPlayer(null);
+                setSelected(null);
+              }}
+              className="mt-6 min-h-12 w-full rounded-xl border border-line px-4 font-head text-sm font-black text-bone"
+            >
+              Back to Ballot
+            </button>
+          )}
         </div>
       </main>
     );
@@ -126,7 +142,7 @@ export default function MvpVoting({
               >
                 <div className="relative aspect-[4/3] bg-panelLight">
                   {player.image_url ? (
-                    <Image src={player.image_url} alt="" fill sizes="(max-width: 640px) 50vw, 25vw" unoptimized className="object-cover" />
+                    <Image src={player.image_url} alt="" fill sizes="(max-width: 640px) 50vw, 25vw" unoptimized className="object-cover object-top" />
                   ) : (
                     <div className="grid h-full place-items-center font-display text-5xl text-bone/15">{player.name.charAt(0)}</div>
                   )}
@@ -146,8 +162,12 @@ export default function MvpVoting({
       <div className="fixed inset-x-0 bottom-0 border-t border-line bg-ink/95 p-4 backdrop-blur">
         <button
           type="button"
-          disabled={!selected || submitting || preview}
-          onClick={preview ? undefined : submitVote}
+          disabled={!selected || submitting}
+          onClick={
+            preview
+              ? () => selectedPlayer && setSubmittedPlayer(selectedPlayer.name)
+              : submitVote
+          }
           className="mx-auto block min-h-14 w-full max-w-md rounded-2xl bg-bone px-5 font-head text-base font-black text-ink disabled:opacity-35"
         >
           {preview
