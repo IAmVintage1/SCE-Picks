@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type VoteRow = { id: string; name: string; team_name: string; team_slug: string; votes: number };
@@ -36,6 +37,13 @@ export default function MvpAdmin() {
       <div>
         <p className="font-mono text-xs font-bold tracking-[0.25em] text-bone/40">LIVE RESULTS</p>
         <h1 className="mt-1 font-display text-4xl text-bone">MVP VOTING</h1>
+        <Link
+          href="/picks?preview=mvp"
+          target="_blank"
+          className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-bone px-5 font-head text-sm font-black text-ink"
+        >
+          Preview MVP Ballot
+        </Link>
       </div>
       {error && <p role="alert" className="rounded-xl border border-young p-3 text-young-light">{error}</p>}
       <section className="rounded-2xl border border-line bg-panel p-5">
