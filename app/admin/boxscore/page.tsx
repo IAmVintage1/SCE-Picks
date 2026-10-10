@@ -14,7 +14,7 @@ interface PlayerRow {
 interface StatRow {
   player_id: string;
   stat_type: string;
-  value: number;
+  value: number | string;
 }
 
 interface Line {
@@ -100,7 +100,11 @@ async function getBoxScore() {
     if (!statsByPlayer.has(row.player_id)) {
       statsByPlayer.set(row.player_id, {});
     }
-    statsByPlayer.get(row.player_id)![row.stat_type] = row.value;
+    const value = Number(row.value);
+    if (!Number.isFinite(value)) {
+      throw new Error("Box score contains an invalid stat value.");
+    }
+    statsByPlayer.get(row.player_id)![row.stat_type] = value;
   }
 
   function lineFor(player: PlayerRow): Line {
