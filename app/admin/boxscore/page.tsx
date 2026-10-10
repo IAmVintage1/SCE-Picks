@@ -320,6 +320,12 @@ export default async function BoxScorePage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <BoxScoreExport snapshot={{ eventName, young, alum, youngTotal, alumTotal }} />
+          <a
+            href="/api/admin/action-logs/export"
+            className="rounded-lg border border-line px-3 py-2 text-xs font-black uppercase tracking-wider text-bone hover:bg-panel"
+          >
+            Export Action Logs
+          </a>
           <Link
             href="/admin/tracker"
             className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-bone/50 hover:text-bone"
