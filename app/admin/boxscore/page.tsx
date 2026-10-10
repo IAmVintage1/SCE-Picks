@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BoxScoreExport from "@/components/BoxScoreExport";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -313,7 +314,8 @@ export default async function BoxScorePage() {
             {alumTotal.pts}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <BoxScoreExport snapshot={{ eventName, young, alum, youngTotal, alumTotal }} />
           <Link
             href="/admin/tracker"
             className="rounded-lg border border-line px-3 py-2 text-xs font-medium text-bone/50 hover:text-bone"
@@ -330,9 +332,8 @@ export default async function BoxScorePage() {
       </div>
 
       <p className="text-xs text-bone/30">
-        📸 Screenshot this section (or the whole page) to post. This
-        pulls live from whatever's been tracked so far, refresh after
-        the final stat is logged.
+        Export CSV downloads both teams, every player, and team totals exactly as
+        shown below. Refresh after the final stat is logged to include updates.
       </p>
 
       <BoxTable
